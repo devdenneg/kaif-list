@@ -146,6 +146,7 @@ export const taskSortSchema = z.enum([
   'dueDate',
   'createdAt',
   'updatedAt',
+  'archivedAt',
   'title',
 ]);
 
@@ -182,6 +183,8 @@ export const taskFiltersSchema = z
     columns: listParam(columnKeySchema).optional(),
     due: dueStateFilterSchema.optional(),
     includeArchived: z.coerce.boolean().default(false),
+    /** Показать только архив — экран «Архив» доски. */
+    onlyArchived: z.coerce.boolean().default(false),
     includeBacklog: z.coerce.boolean().default(false),
     onlyBacklog: z.coerce.boolean().default(false),
     sort: taskSortSchema.default('rank'),

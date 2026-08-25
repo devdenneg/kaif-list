@@ -1,4 +1,10 @@
-import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  useInfiniteQuery,
+  useIsMutating,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import type {
   BulkTaskActionPayload,
   ColumnKey,
@@ -55,6 +61,33 @@ export function useBoardTasks(boardId: string | undefined, filters: BoardFilters
         .then((response) => response.columns),
     enabled: Boolean(boardId),
     placeholderData: (previous) => previous,
+  });
+}
+
+/**
+ * Архив доски. Отдельным хуком, потому что архив читают страницами:
+ * закрытых задач за полгода набирается больше, чем имеет смысл грузить разом.
+ */
+export function useArchivedTasks(boardId: string | undefined, search: string) {
+  return useInfiniteQuery({
+    queryKey: ['board', boardId ?? '', 'archive', search],
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam }) =>
+      api.get<{ items: TaskCardDto[]; nextCursor: string | null }>(
+        `/api/boards/${boardId}/tasks/list`,
+        {
+          onlyArchived: true,
+          includeBacklog: true,
+          sort: 'archivedAt',
+          order: 'desc',
+          limit: 50,
+          search: search.trim().length >= 2 ? search.trim() : undefined,
+          cursor: pageParam ?? undefined,
+        },
+      ),
+    getNextPageParam: (last) => last.nextCursor,
+    enabled: Boolean(boardId),
+    staleTime: 30_000,
   });
 }
 

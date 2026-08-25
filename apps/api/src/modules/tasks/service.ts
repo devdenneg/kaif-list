@@ -442,7 +442,8 @@ export async function buildTaskWhere(
 ): Promise<Prisma.TaskWhereInput> {
   const and: Prisma.TaskWhereInput[] = [];
 
-  if (!filters.includeArchived) and.push({ archivedAt: null });
+  if (filters.onlyArchived) and.push({ archivedAt: { not: null } });
+  else if (!filters.includeArchived) and.push({ archivedAt: null });
 
   if (filters.onlyBacklog) and.push({ isBacklog: true });
   else if (!filters.includeBacklog) and.push({ isBacklog: false });

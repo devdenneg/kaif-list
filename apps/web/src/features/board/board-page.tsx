@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
+  Archive,
   BarChart3,
   Inbox,
   LayoutList,
@@ -269,6 +270,19 @@ export function BoardPage(): React.ReactElement {
               aria-label={board.isFavorite ? 'Убрать из избранного' : 'В избранное'}
             >
               <Star className={cn(board.isFavorite && 'fill-warning text-warning')} />
+            </Button>
+
+            {/* Архив доступен всем: закрытые задачи должны быть под рукой,
+                а не только у тех, кто может их вернуть. */}
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              asChild
+              className="size-10 shrink-0 text-muted-foreground md:size-8 [&_svg]:!size-4"
+            >
+              <Link to={`/boards/${board.key}/archive`} aria-label="Архив доски" title="Архив">
+                <Archive />
+              </Link>
             </Button>
 
             {canCreate && (

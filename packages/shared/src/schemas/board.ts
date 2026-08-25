@@ -28,6 +28,15 @@ export const boardSettingsSchema = z.object({
   allowViewerComments: z.boolean().default(true),
   blockDoneWhenBlocked: z.boolean().default(true),
   autoAssignOnStart: z.boolean().default(true),
+  /**
+   * Через сколько дней задача из «Готово» уезжает в архив.
+   * 0 — не убирать: доска остаётся как есть.
+   *
+   * Отсчёт идёт от момента попадания в «Готово». Если задачу вернули
+   * в работу, отсчёт обнуляется сам собой и начнётся заново, когда её
+   * закроют снова.
+   */
+  autoArchiveDoneDays: z.coerce.number().int().min(0).max(90).default(3),
 });
 
 export const createBoardSchema = z.object({

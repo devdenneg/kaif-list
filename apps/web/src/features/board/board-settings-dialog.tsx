@@ -258,6 +258,35 @@ export function BoardSettingsDialog({
                     checked={settings.allowViewerComments}
                     onChange={(value) => saveSettings({ allowViewerComments: value })}
                   />
+
+                  <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border p-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium">Убирать закрытые в архив</p>
+                      <p className="text-xs text-muted-foreground">
+                        Через сколько дней после «Завершено» задача уезжает с доски. Если её
+                        успели вернуть в работу, отсчёт начнётся заново. «Не убирать» —
+                        доска остаётся как есть.
+                      </p>
+                    </div>
+                    <Select
+                      value={String(settings.autoArchiveDoneDays)}
+                      onValueChange={(value) =>
+                        saveSettings({ autoArchiveDoneDays: Number(value) })
+                      }
+                    >
+                      <SelectTrigger className="w-40">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0">Не убирать</SelectItem>
+                        <SelectItem value="1">Через день</SelectItem>
+                        <SelectItem value="3">Через 3 дня</SelectItem>
+                        <SelectItem value="7">Через неделю</SelectItem>
+                        <SelectItem value="14">Через 2 недели</SelectItem>
+                        <SelectItem value="30">Через месяц</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </section>
 
                 <Separator />

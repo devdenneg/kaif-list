@@ -259,7 +259,7 @@ function SidebarLink({
           'h-10 min-h-10 shrink-0 rounded-lg text-sm font-medium transition-colors',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
           collapsed
-            ? 'relative mx-auto block w-10 px-0'
+            ? 'mx-auto block w-10 px-0'
             : 'flex w-full items-center justify-start gap-2.5 px-3.5',
           isActive
             ? 'bg-accent text-accent-foreground'
@@ -267,14 +267,16 @@ function SidebarLink({
         )
       }
     >
-      <Icon
-        className={cn(
-          'size-5',
-          collapsed && 'absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2',
-        )}
-        aria-hidden
-      />
-      {!collapsed && <span className="truncate">{label}</span>}
+      {collapsed ? (
+        <span className="flex size-full items-center justify-center" aria-hidden>
+          <Icon className="size-5" />
+        </span>
+      ) : (
+        <>
+          <Icon className="size-5" aria-hidden />
+          <span className="truncate">{label}</span>
+        </>
+      )}
     </NavLink>
   );
 
@@ -311,7 +313,7 @@ function BoardLink({
           'group h-10 min-h-10 shrink-0 rounded-lg text-sm transition-colors',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
           collapsed
-            ? 'relative mx-auto block w-10 px-0'
+            ? 'mx-auto block w-10 px-0'
             : 'flex w-full items-center justify-start gap-2.5 px-[19px]',
           isActive
             ? 'bg-accent font-medium text-accent-foreground'
@@ -319,24 +321,22 @@ function BoardLink({
         )
       }
     >
-      <span
-        className={cn(
-          'shrink-0',
-          collapsed
-            ? 'absolute left-1/2 top-1/2 flex size-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-md border bg-secondary text-[11px] font-bold leading-none'
-            : 'size-2.5 rounded-sm',
-        )}
-        style={
-          collapsed
-            ? { borderColor: board.color, color: board.color }
-            : { backgroundColor: board.color }
-        }
-        aria-hidden
-      >
-        {collapsed ? monogram : null}
-      </span>
-      {!collapsed && (
+      {collapsed ? (
+        <span className="flex size-full items-center justify-center" aria-hidden>
+          <span
+            className="flex size-7 items-center justify-center rounded-md border bg-secondary text-[11px] font-bold leading-none"
+            style={{ borderColor: board.color, color: board.color }}
+          >
+            {monogram}
+          </span>
+        </span>
+      ) : (
         <>
+          <span
+            className="size-2.5 shrink-0 rounded-sm"
+            style={{ backgroundColor: board.color }}
+            aria-hidden
+          />
           <span className="min-w-0 flex-1 truncate">{board.name}</span>
           {board.counts.overdue > 0 && (
             <span className="rounded bg-destructive/15 px-1 text-[10px] font-semibold text-destructive">

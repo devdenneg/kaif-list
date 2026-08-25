@@ -160,6 +160,7 @@ export function mapTaskCard(row: TaskCardRow): TaskCardDto {
     checklistDone: row.checklistDone,
     blockedByCount: row.blockedByCount,
     isArchived: row.archivedAt !== null,
+    archivedAt: row.archivedAt?.toISOString() ?? null,
     completedAt: row.completedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),

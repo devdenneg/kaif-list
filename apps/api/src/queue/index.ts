@@ -151,6 +151,13 @@ export async function registerRepeatableJobs(): Promise<void> {
     {},
     { repeat: { pattern: '17 3 * * *' }, jobId: 'nightly-cleanup' },
   );
+  // Автоархив — отдельно и почаще: раз в сутки означало бы, что задача
+  // висит на доске лишние полдня после положенного срока.
+  await maintenanceQueue.add(
+    'auto-archive',
+    {},
+    { repeat: { pattern: '7 * * * *' }, jobId: 'auto-archive' },
+  );
   logger.info('Периодические задания зарегистрированы');
 }
 

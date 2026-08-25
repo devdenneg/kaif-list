@@ -26,6 +26,12 @@ export interface BoardSettings {
   blockDoneWhenBlocked: boolean;
   /** Автоматически назначать исполнителем того, кто перевёл задачу в «В работе». */
   autoAssignOnStart: boolean;
+  /**
+   * Через сколько дней задача из «Готово» уезжает в архив. 0 — не убирать.
+   * Отсчёт начинается с попадания в «Готово» и обнуляется, если задачу
+   * оттуда забрали.
+   */
+  autoArchiveDoneDays: number;
 }
 
 export const DEFAULT_BOARD_SETTINGS: BoardSettings = {
@@ -42,6 +48,7 @@ export const DEFAULT_BOARD_SETTINGS: BoardSettings = {
   allowViewerComments: true,
   blockDoneWhenBlocked: true,
   autoAssignOnStart: true,
+  autoArchiveDoneDays: 3,
 };
 
 export function mergeBoardSettings(raw: unknown): BoardSettings {

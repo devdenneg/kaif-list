@@ -213,6 +213,7 @@ export interface TaskCardDto {
   checklistDone: number;
   blockedByCount: number;
   isArchived: boolean;
+  archivedAt: string | null;
   completedAt: string | null;
   createdAt: string;
   updatedAt: string;

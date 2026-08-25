@@ -35,6 +35,9 @@ const NotificationsPage = lazyWithRetry('notifications/notifications-page', () =
 const SettingsPage = lazyWithRetry('settings/settings-page', () =>
   import('@/features/settings/settings-page').then((m) => ({ default: m.SettingsPage })),
 );
+const ArchivePage = lazyWithRetry('archive/archive-page', () =>
+  import('@/features/archive/archive-page').then((m) => ({ default: m.ArchivePage })),
+);
 const InvitePage = lazyWithRetry('board/invite-page', () =>
   import('@/features/board/invite-page').then((m) => ({ default: m.InvitePage })),
 );
@@ -119,6 +122,7 @@ export const router = createBrowserRouter([
       { path: '/boards/:boardKey/backlog', element: <BacklogPage /> },
       { path: '/boards/:boardKey/people', element: <PeoplePage /> },
       { path: '/boards/:boardKey/dashboard', element: <DashboardPage /> },
+      { path: '/boards/:boardKey/archive', element: <ArchivePage /> },
       { path: '/invite/:token', element: <InvitePage /> },
       { path: '/tasks/:taskKey', element: <TaskPage /> },
       { path: '/my', element: <MyTasksPage /> },

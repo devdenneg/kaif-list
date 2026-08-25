@@ -1,9 +1,19 @@
 import { Worker, type Job } from 'bullmq';
-import { LoginTokenStatus } from '@kaif/shared';
+import {
+  ActivityType,
+  ColumnKey,
+  LoginTokenStatus,
+  SOCKET_EVENTS,
+  mergeBoardSettings,
+  rooms,
+} from '@kaif/shared';
 import { logger } from '../../lib/logger.js';
 import { prisma } from '../../lib/prisma.js';
 import { createRedisConnection } from '../../lib/redis.js';
 import { deleteStoredFile } from '../../lib/files.js';
+import { recordActivity } from '../../services/activity.js';
+import { publishRealtime } from '../../realtime/bridge.js';
+import { syncBlockedByBlocker } from '../../modules/tasks/links.js';
 import { QUEUE_NAMES } from '../index.js';
 
 /**
@@ -14,11 +24,18 @@ import { QUEUE_NAMES } from '../index.js';
 export function createMaintenanceWorker(): Worker {
   return new Worker(
     QUEUE_NAMES.maintenance,
-    async (_job: Job) => {
+    async (job: Job) => {
+      // Автоархив ходит каждый час, всё остальное — раз в сутки ночью.
+      if (job.name === 'auto-archive') {
+        await archiveSettledTasks();
+        return;
+      }
+
       await cleanupPendingAttachments();
       await expireLoginTokens();
       await cleanupSessions();
       await cleanupNotifications();
+      await archiveSettledTasks();
       await reconcileTaskCounters();
       await reconcileOpenTransitions();
     },
@@ -68,6 +85,75 @@ async function cleanupNotifications(): Promise<void> {
     where: { readAt: { not: null }, createdAt: { lt: new Date(Date.now() - 90 * 86_400_000) } },
   });
   if (result.count > 0) logger.info({ count: result.count }, 'Старые уведомления удалены');
+}
+
+/**
+ * Убрать с доски задачи, которые давно закрыты.
+ *
+ * Отсчёт идёт от попадания в «Готово» — от `completedAt`. Поле обнуляется,
+ * как только задачу забрали из «Готово», и проставляется заново при
+ * следующем закрытии, поэтому таймер сам собой сбрасывается и начинается
+ * с нуля: специально ничего отменять не нужно.
+ *
+ * Срок настраивается на каждой доске отдельно, ноль означает «не убирать».
+ */
+async function archiveSettledTasks(): Promise<void> {
+  const boards = await prisma.board.findMany({
+    where: { isArchived: false },
+    select: { id: true, settings: true },
+  });
+
+  const now = new Date();
+  let archived = 0;
+
+  for (const board of boards) {
+    const days = mergeBoardSettings(board.settings).autoArchiveDoneDays;
+    if (days <= 0) continue;
+
+    const cutoff = new Date(now.getTime() - days * 86_400_000);
+    const tasks = await prisma.task.findMany({
+      where: {
+        boardId: board.id,
+        archivedAt: null,
+        columnKey: ColumnKey.DONE,
+        completedAt: { lt: cutoff },
+      },
+      select: { id: true, key: true, title: true },
+      take: 500,
+    });
+    if (tasks.length === 0) continue;
+
+    await prisma.$transaction(async (tx) => {
+      await tx.task.updateMany({
+        where: { id: { in: tasks.map((task) => task.id) } },
+        data: { archivedAt: now },
+      });
+      for (const task of tasks) {
+        await recordActivity(tx, {
+          boardId: board.id,
+          taskId: task.id,
+          actorId: null,
+          type: ActivityType.TASK_ARCHIVED,
+          payload: { auto: true, afterDays: days },
+        });
+      }
+    });
+
+    // Архивная задача никого не держит: снимаем блокировки с зависимых.
+    for (const task of tasks) {
+      await syncBlockedByBlocker(task.id, null);
+    }
+
+    await publishRealtime({
+      room: rooms.board(board.id),
+      event: SOCKET_EVENTS.BOARD_UPDATED,
+      data: { boardId: board.id },
+    });
+
+    archived += tasks.length;
+  }
+
+  if (archived > 0) logger.info({ archived }, 'Закрытые задачи убраны в архив');
 }
 
 /**
