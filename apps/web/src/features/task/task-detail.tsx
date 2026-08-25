@@ -9,6 +9,7 @@ import {
   CopyPlus,
   MoreHorizontal,
   Pencil,
+  SlidersHorizontal,
   Trash2,
   X,
 } from 'lucide-react';
@@ -88,6 +89,29 @@ export function TaskDetail({
   const [title, setTitle] = React.useState(task.title);
   const [editingDescription, setEditingDescription] = React.useState(false);
   const [description, setDescription] = React.useState<RichTextDoc | null>(task.description);
+
+  /**
+   * Добавить картинку в конец описания и сразу открыть его на правку.
+   *
+   * Дописываем на уровне документа, а не через редактор: когда нажимают
+   * кнопку у вложения, редактора на экране ещё нет.
+   */
+  const insertIntoDescription = React.useCallback(
+    (attachment: { url: string; filename: string }): void => {
+      setDescription((current) => {
+        const base = current ?? task.description ?? { type: 'doc', content: [] };
+        return {
+          ...base,
+          content: [
+            ...(base.content ?? []),
+            { type: 'image', attrs: { src: attachment.url, alt: attachment.filename } },
+          ],
+        };
+      });
+      setEditingDescription(true);
+    },
+    [task.description],
+  );
   const [confirmDelete, setConfirmDelete] = React.useState(false);
   const [reasonRequest, setReasonRequest] = React.useState<ReasonRequest | null>(null);
   const [pendingColumn, setPendingColumn] = React.useState<ColumnKey | null>(null);
@@ -339,6 +363,7 @@ export function TaskDetail({
                   placeholder="Опишите задачу: что нужно сделать, как проверить результат…"
                   minHeight="160px"
                   uploadTarget={{ taskId: task.id, boardId: task.boardId }}
+                  attachments={task.attachments}
                   autoFocus
                 />
                 <div className="flex gap-2">
@@ -385,7 +410,13 @@ export function TaskDetail({
           </section>
 
           <TaskChecklists task={task} editable={task.permissions.canUpdate} />
-          <TaskAttachments task={task} editable={task.permissions.canAttach} />
+          <TaskAttachments
+            task={task}
+            editable={task.permissions.canAttach}
+            {...(task.permissions.canUpdate
+              ? { onInsertIntoDescription: insertIntoDescription }
+              : {})}
+          />
 
           {/* Обсуждение и история */}
           <Tabs defaultValue="comments">
@@ -412,33 +443,40 @@ export function TaskDetail({
         </div>
 
         {/* ── Свойства ── */}
-        <aside className="order-first w-full shrink-0 space-y-4 lg:order-none lg:w-72">
-          <button
-            type="button"
-            className="flex min-h-11 w-full items-center gap-2 rounded-lg border border-border bg-surface px-3 text-left lg:hidden"
-            onClick={() => setMobileDetailsOpen((open) => !open)}
-            aria-expanded={mobileDetailsOpen}
-            aria-controls="task-mobile-properties"
-          >
-            <span className="min-w-0 flex-1">
-              <span className="block text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Свойства задачи
+        <aside className="order-first w-full shrink-0 space-y-4 lg:order-none lg:w-80">
+          <div className="overflow-hidden rounded-xl border border-border bg-surface">
+            <button
+              type="button"
+              className="flex min-h-14 w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-secondary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/30 focus-visible:ring-offset-0 lg:hidden"
+              onClick={() => setMobileDetailsOpen((open) => !open)}
+              aria-expanded={mobileDetailsOpen}
+              aria-controls="task-mobile-properties"
+            >
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-secondary text-muted-foreground">
+                <SlidersHorizontal className="size-[18px]" aria-hidden />
               </span>
-              <span className="block truncate text-sm">
-                {COLUMN_LABELS[task.columnKey]} · {task.assignee?.displayName ?? 'не назначена'}
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-medium">Свойства</span>
+                <span className="block truncate text-xs text-muted-foreground">
+                  {COLUMN_LABELS[task.columnKey]} ·{' '}
+                  {task.assignee?.displayName ?? 'без исполнителя'}
+                </span>
               </span>
-            </span>
-            <ChevronDown
-              className={cn('transition-transform', mobileDetailsOpen && 'rotate-180')}
-              aria-hidden
-            />
-          </button>
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary/70 text-muted-foreground">
+                <ChevronDown
+                  className={cn('size-4 transition-transform', mobileDetailsOpen && 'rotate-180')}
+                  aria-hidden
+                />
+              </span>
+            </button>
 
-          <div
-            id="task-mobile-properties"
-            className={cn('space-y-4', !mobileDetailsOpen && 'hidden lg:block')}
-          >
-            <div className="rounded-lg border border-border bg-surface p-3">
+            <div
+              id="task-mobile-properties"
+              className={cn(
+                'border-t border-border p-3 lg:block lg:border-t-0',
+                !mobileDetailsOpen && 'hidden lg:block',
+              )}
+            >
               <TaskProperties
                 task={task}
                 board={board}
@@ -446,39 +484,49 @@ export function TaskDetail({
                 movePending={taskMovePending}
               />
             </div>
-
-            <div className="rounded-lg border border-border bg-surface p-3">
-              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Участники
-              </p>
-
-              {/* Показываем роли явно: по одним аватарам непонятно,
-                  кто автор, кто тестирует, а кто просто зашёл в обсуждение. */}
-              <ul className="space-y-1.5">
-                {task.participants.map((participant) => (
-                  <li key={participant.user.id} className="flex items-center gap-2 text-sm">
-                    <UserAvatar user={participant.user} size="sm" />
-                    <span className="min-w-0 flex-1 truncate">{participant.user.displayName}</span>
-                    <span className="shrink-0 text-[11px] text-muted-foreground">
-                      {participant.roles.map((role) => PARTICIPANT_ROLE_LABELS[role]).join(', ')}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-
-              <div className="mt-3 space-y-1 border-t border-border pt-2 text-xs text-muted-foreground">
-                <p>Создана {formatRelative(task.createdAt)}</p>
-                <p>Обновлена {formatRelative(task.updatedAt)}</p>
-                {task.completedAt && <p>Завершена {formatRelative(task.completedAt)}</p>}
-              </div>
-            </div>
-
-            {currentUser?.globalRole === 'SUPERADMIN' && (
-              <p className="px-1 text-[11px] text-muted-foreground">
-                Вы видите эту задачу как администратор.
-              </p>
-            )}
           </div>
+
+          <div
+            className={cn(
+              'rounded-xl border border-border bg-surface p-3',
+              !mobileDetailsOpen && 'hidden lg:block',
+            )}
+          >
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Участники
+            </p>
+
+            {/* Показываем роли явно: по одним аватарам непонятно,
+                  кто автор, кто тестирует, а кто просто зашёл в обсуждение. */}
+            <ul className="space-y-1.5">
+              {task.participants.map((participant) => (
+                <li key={participant.user.id} className="flex items-center gap-2 text-sm">
+                  <UserAvatar user={participant.user} size="sm" />
+                  <span className="min-w-0 flex-1 truncate">{participant.user.displayName}</span>
+                  <span className="shrink-0 text-[11px] text-muted-foreground">
+                    {participant.roles.map((role) => PARTICIPANT_ROLE_LABELS[role]).join(', ')}
+                  </span>
+                </li>
+              ))}
+            </ul>
+
+            <div className="mt-3 space-y-1 border-t border-border pt-2 text-xs text-muted-foreground">
+              <p>Создана {formatRelative(task.createdAt)}</p>
+              <p>Обновлена {formatRelative(task.updatedAt)}</p>
+              {task.completedAt && <p>Завершена {formatRelative(task.completedAt)}</p>}
+            </div>
+          </div>
+
+          {currentUser?.globalRole === 'SUPERADMIN' && (
+            <p
+              className={cn(
+                'px-1 text-[11px] text-muted-foreground',
+                !mobileDetailsOpen && 'hidden lg:block',
+              )}
+            >
+              Вы видите эту задачу как администратор.
+            </p>
+          )}
         </aside>
       </div>
 

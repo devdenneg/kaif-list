@@ -17,6 +17,8 @@ export function LabelPicker({
   onChange,
   canCreate,
   disabled,
+  triggerClassName,
+  ariaLabel,
 }: {
   boardId: string;
   labels: LabelDto[];
@@ -24,6 +26,8 @@ export function LabelPicker({
   onChange: (ids: string[]) => void;
   canCreate: boolean;
   disabled?: boolean;
+  triggerClassName?: string;
+  ariaLabel?: string;
 }): React.ReactElement {
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState('');
@@ -70,9 +74,11 @@ export function LabelPicker({
           aria-labelledby={formField?.labelId}
           aria-describedby={formField?.descriptionId}
           aria-required={formField?.required || undefined}
+          aria-label={ariaLabel}
           className={cn(
             'flex min-h-8 w-full flex-wrap items-center gap-1 rounded-md px-2 py-1.5 text-left text-sm transition-colors [@media(pointer:coarse)]:min-h-11',
             disabled ? 'cursor-default opacity-70' : 'hover:bg-secondary',
+            triggerClassName,
           )}
         >
           {selected.length === 0 ? (

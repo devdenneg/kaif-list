@@ -3,6 +3,7 @@ import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/lib/hooks/use-media-query';
+import { BottomSheetHandle } from './bottom-sheet-handle';
 
 /**
  * Модальное окно. На телефоне превращается в bottom-sheet:
@@ -54,12 +55,23 @@ export const DialogContent = React.forwardRef<
 >(({ className, children, size = 'md', hideClose, forceDialog, ...props }, ref) => {
   const isMobile = useIsMobile();
   const asSheet = isMobile && !forceDialog;
+  const contentRef = React.useRef<React.ElementRef<typeof DialogPrimitive.Content>>(null);
+  const swipeCloseRef = React.useRef<React.ElementRef<typeof DialogPrimitive.Close>>(null);
+
+  const setContentRef = React.useCallback(
+    (node: React.ElementRef<typeof DialogPrimitive.Content> | null) => {
+      contentRef.current = node;
+      if (typeof ref === 'function') ref(node);
+      else if (ref) ref.current = node;
+    },
+    [ref],
+  );
 
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Content
-        ref={ref}
+        ref={setContentRef}
         className={cn(
           'fixed z-50 flex flex-col bg-card text-card-foreground shadow-popover',
           asSheet
@@ -76,9 +88,19 @@ export const DialogContent = React.forwardRef<
         {...props}
       >
         {asSheet && (
-          <div className="flex justify-center pt-2.5" aria-hidden>
-            <div className="h-1 w-10 rounded-full bg-border" />
-          </div>
+          <>
+            <BottomSheetHandle
+              sheetRef={contentRef}
+              onClose={() => swipeCloseRef.current?.click()}
+            />
+            <DialogPrimitive.Close
+              ref={swipeCloseRef}
+              type="button"
+              tabIndex={-1}
+              className="hidden"
+              aria-hidden="true"
+            />
+          </>
         )}
         {children}
         {!hideClose && (

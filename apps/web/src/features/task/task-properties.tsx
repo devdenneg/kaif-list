@@ -26,12 +26,13 @@ import {
   type TaskDetailDto,
 } from '@kaif/shared';
 import { useUpdateTask, useTaskLinks, useWatchTask } from '@/api/tasks';
+import { useAuthStore } from '@/stores/auth';
 import { ApiError } from '@/lib/api';
 import { toast } from '@/lib/toast';
-import { cn, formatDuration, fromDateTimeLocal, toDateTimeLocal } from '@/lib/utils';
+import { cn, formatDuration } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/misc';
+import { DateTimePicker } from '@/components/ui/date-time-picker';
 import {
   Select,
   SelectContent,
@@ -60,6 +61,7 @@ export function TaskProperties({
   const updateTask = useUpdateTask(task.id, task.boardId);
   const watchTask = useWatchTask(task.id);
   const links = useTaskLinks(task.id, task.boardId);
+  const timeZone = useAuthStore((state) => state.user?.timezone);
 
   const [reasonRequest, setReasonRequest] = React.useState<ReasonRequest | null>(null);
   const [pendingUpdate, setPendingUpdate] = React.useState<Record<string, unknown> | null>(null);
@@ -97,179 +99,207 @@ export function TaskProperties({
 
   return (
     <div className="space-y-4 text-sm">
-      <Field icon={<Gauge />} label="Статус">
-        <Select
-          value={task.columnKey}
-          onValueChange={onMoveColumn}
-          disabled={!task.permissions.canMove || movePending}
-        >
-          <SelectTrigger className="h-8 [@media(pointer:coarse)]:h-11">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {COLUMN_ORDER.map((column) => (
-              <SelectItem key={column} value={column}>
-                {board?.columns.find((item) => item.key === column)?.name ?? COLUMN_LABELS[column]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </Field>
+      <PropertySection title="Основное">
+        <Field icon={<Gauge />} label="Статус">
+          <Select
+            value={task.columnKey}
+            onValueChange={onMoveColumn}
+            disabled={!task.permissions.canMove || movePending}
+          >
+            <SelectTrigger
+              className="h-9 min-w-0 px-2 shadow-none [@media(pointer:coarse)]:h-11"
+              aria-label="Статус задачи"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {COLUMN_ORDER.map((column) => (
+                <SelectItem key={column} value={column}>
+                  {board?.columns.find((item) => item.key === column)?.name ??
+                    COLUMN_LABELS[column]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
 
-      <Field icon={<UserCheck />} label="Исполнитель">
-        <UserPicker
-          members={board?.members ?? []}
-          value={task.assignee}
-          onChange={(userId) => update({ assigneeId: userId })}
-          disabled={!editable}
-        />
-      </Field>
-
-      <Field icon={<UserCog />} label="Тестировщик">
-        <UserPicker
-          members={board?.members ?? []}
-          value={task.tester}
-          onChange={(userId) => update({ testerId: userId })}
-          placeholder="Не назначен"
-          disabled={!editable}
-        />
-      </Field>
-
-      <Field icon={<PriorityIcon priority={task.priority} />} label="Приоритет">
-        <Select
-          value={task.priority}
-          onValueChange={(value) => update({ priority: value })}
-          disabled={!editable}
-        >
-          <SelectTrigger className="h-8 [@media(pointer:coarse)]:h-11">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {Object.values(TaskPriority).map((priority) => (
-              <SelectItem key={priority} value={priority}>
-                <span className="flex items-center gap-2">
-                  <PriorityIcon priority={priority} />
-                  {PRIORITY_LABELS[priority]}
-                </span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </Field>
-
-      <Field icon={<TaskTypeIcon type={task.type} />} label="Тип">
-        <Select
-          value={task.type}
-          onValueChange={(value) => update({ type: value })}
-          disabled={!editable}
-        >
-          <SelectTrigger className="h-8 [@media(pointer:coarse)]:h-11">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {Object.values(TaskType).map((type) => (
-              <SelectItem key={type} value={type}>
-                <span className="flex items-center gap-2">
-                  <TaskTypeIcon type={type} />
-                  {TASK_TYPE_LABELS[type]}
-                </span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </Field>
-
-      <Field icon={<Tag />} label="Метки">
-        <LabelPicker
-          boardId={task.boardId}
-          labels={board?.labels ?? []}
-          selectedIds={task.labels.map((label) => label.id)}
-          onChange={(ids) => update({ labelIds: ids })}
-          canCreate={editable}
-          disabled={!editable}
-        />
-      </Field>
-
-      <Separator />
-
-      <Field icon={<CalendarPlus />} label="Начало">
-        <Input
-          type="datetime-local"
-          value={toDateTimeLocal(task.startDate)}
-          onChange={(event) => update({ startDate: fromDateTimeLocal(event.target.value) })}
-          disabled={!editable}
-          className="h-8 [@media(pointer:coarse)]:h-11"
-        />
-      </Field>
-
-      <Field icon={<CalendarClock />} label="Дедлайн">
-        <div className="space-y-1.5">
-          <Input
-            type="datetime-local"
-            value={toDateTimeLocal(task.dueDate)}
-            onChange={(event) => update({ dueDate: fromDateTimeLocal(event.target.value) })}
+        <Field icon={<UserCheck />} label="Исполнитель">
+          <UserPicker
+            members={board?.members ?? []}
+            value={task.assignee}
+            onChange={(userId) => update({ assigneeId: userId })}
             disabled={!editable}
-            className="h-8 [@media(pointer:coarse)]:h-11"
+            ariaLabel="Исполнитель"
+            triggerClassName="min-h-9 rounded-lg border border-input bg-surface shadow-none [@media(pointer:coarse)]:min-h-11"
           />
-          {task.dueDate && (
-            <DueBadge dueDate={task.dueDate} completed={task.completedAt !== null} showLabel />
-          )}
-        </div>
-      </Field>
+        </Field>
 
-      <Field icon={<Clock />} label="Оценка">
-        <div className="flex items-center gap-2">
-          <Input
-            type="number"
-            min={0}
-            max={999}
-            value={task.storyPoints ?? ''}
-            onChange={(event) =>
-              update({ storyPoints: event.target.value === '' ? null : Number(event.target.value) })
-            }
-            placeholder="SP"
+        <Field icon={<UserCog />} label="Тестировщик">
+          <UserPicker
+            members={board?.members ?? []}
+            value={task.tester}
+            onChange={(userId) => update({ testerId: userId })}
+            placeholder="Не назначен"
             disabled={!editable}
-            className="h-8 w-20 [@media(pointer:coarse)]:h-11"
+            ariaLabel="Тестировщик"
+            triggerClassName="min-h-9 rounded-lg border border-input bg-surface shadow-none [@media(pointer:coarse)]:min-h-11"
           />
-          <Input
-            type="number"
-            min={0}
-            step={30}
-            value={task.estimateMinutes ?? ''}
-            onChange={(event) =>
-              update({
-                estimateMinutes: event.target.value === '' ? null : Number(event.target.value),
-              })
-            }
-            placeholder="мин"
-            disabled={!editable}
-            className="h-8 flex-1 [@media(pointer:coarse)]:h-11"
-          />
-        </div>
-        {task.estimateMinutes ? (
-          <p className="mt-1 text-xs text-muted-foreground">
-            План: {formatDuration(task.estimateMinutes)}
-            {task.spentMinutes ? ` · Факт: ${formatDuration(task.spentMinutes)}` : ''}
-          </p>
-        ) : null}
-      </Field>
+        </Field>
 
-      <Separator />
+        <Field icon={<PriorityIcon priority={task.priority} />} label="Приоритет">
+          <Select
+            value={task.priority}
+            onValueChange={(value) => update({ priority: value })}
+            disabled={!editable}
+          >
+            <SelectTrigger
+              className="h-9 min-w-0 px-2 shadow-none [@media(pointer:coarse)]:h-11"
+              aria-label="Приоритет задачи"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.values(TaskPriority).map((priority) => (
+                <SelectItem key={priority} value={priority}>
+                  <span className="flex items-center gap-2">
+                    <PriorityIcon priority={priority} />
+                    {PRIORITY_LABELS[priority]}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+
+        <Field icon={<TaskTypeIcon type={task.type} />} label="Тип">
+          <Select
+            value={task.type}
+            onValueChange={(value) => update({ type: value })}
+            disabled={!editable}
+          >
+            <SelectTrigger
+              className="h-9 min-w-0 px-2 shadow-none [@media(pointer:coarse)]:h-11"
+              aria-label="Тип задачи"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.values(TaskType).map((type) => (
+                <SelectItem key={type} value={type}>
+                  <span className="flex items-center gap-2">
+                    <TaskTypeIcon type={type} />
+                    {TASK_TYPE_LABELS[type]}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+
+        <Field icon={<Tag />} label="Метки" align="start">
+          <LabelPicker
+            boardId={task.boardId}
+            labels={board?.labels ?? []}
+            selectedIds={task.labels.map((label) => label.id)}
+            onChange={(ids) => update({ labelIds: ids })}
+            canCreate={editable}
+            disabled={!editable}
+            ariaLabel="Метки задачи"
+            triggerClassName="min-h-9 rounded-lg border border-input bg-surface shadow-none [@media(pointer:coarse)]:min-h-11"
+          />
+        </Field>
+      </PropertySection>
+
+      <PropertySection title="Сроки и оценка">
+        <Field icon={<CalendarPlus />} label="Начало" layout="stacked">
+          <DateTimePicker
+            value={task.startDate}
+            onChange={(value) => update({ startDate: value })}
+            disabled={!editable}
+            placeholder="Добавить дату начала"
+            aria-label="Дата и время начала"
+            {...(timeZone ? { timeZone } : {})}
+          />
+        </Field>
+
+        <Field icon={<CalendarClock />} label="Дедлайн" layout="stacked">
+          <div className="space-y-1.5">
+            <DateTimePicker
+              value={task.dueDate}
+              onChange={(value) => update({ dueDate: value })}
+              disabled={!editable}
+              placeholder="Добавить дедлайн"
+              aria-label="Дедлайн задачи"
+              {...(timeZone ? { timeZone } : {})}
+            />
+            {task.dueDate && (
+              <div className="flex justify-end">
+                <DueBadge
+                  dueDate={task.dueDate}
+                  completed={task.completedAt !== null}
+                  showLabel
+                  {...(timeZone ? { timeZone } : {})}
+                />
+              </div>
+            )}
+          </div>
+        </Field>
+
+        <Field icon={<Clock />} label="Оценка" align="start">
+          <div>
+            <div className="grid grid-cols-2 gap-1.5">
+              <Input
+                type="number"
+                min={0}
+                max={999}
+                value={task.storyPoints ?? ''}
+                onChange={(event) =>
+                  update({
+                    storyPoints: event.target.value === '' ? null : Number(event.target.value),
+                  })
+                }
+                placeholder="SP"
+                aria-label="Оценка в story points"
+                disabled={!editable}
+                className="h-9 min-w-0 px-2 shadow-none [@media(pointer:coarse)]:h-11"
+              />
+              <Input
+                type="number"
+                min={0}
+                step={30}
+                value={task.estimateMinutes ?? ''}
+                onChange={(event) =>
+                  update({
+                    estimateMinutes: event.target.value === '' ? null : Number(event.target.value),
+                  })
+                }
+                placeholder="мин"
+                aria-label="Оценка в минутах"
+                disabled={!editable}
+                className="h-9 min-w-0 px-2 shadow-none [@media(pointer:coarse)]:h-11"
+              />
+            </div>
+            {task.estimateMinutes ? (
+              <p className="mt-1.5 text-[11px] leading-tight text-muted-foreground">
+                План: {formatDuration(task.estimateMinutes)}
+                {task.spentMinutes ? ` · Факт: ${formatDuration(task.spentMinutes)}` : ''}
+              </p>
+            ) : null}
+          </div>
+        </Field>
+      </PropertySection>
 
       {/* ── Связи между задачами ── */}
-      <div>
-        <div className="mb-1.5 flex items-center gap-2">
-          <Link2 className="size-4 text-muted-foreground" />
-          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Связи
-          </span>
-          {task.permissions.canManageLinks && (
+      <PropertySection
+        title="Связи"
+        action={
+          task.permissions.canManageLinks ? (
             <Popover open={linkOpen} onOpenChange={setLinkOpen}>
               <PopoverTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  className="ml-auto [@media(pointer:coarse)]:size-10"
+                  className="size-8 [@media(pointer:coarse)]:size-11"
                   aria-label="Добавить связь"
                 >
                   <Plus />
@@ -290,52 +320,56 @@ export function TaskProperties({
                 />
               </PopoverContent>
             </Popover>
-          )}
-        </div>
+          ) : null
+        }
+      >
+        <div className="py-1.5">
+          <div className="flex min-h-9 items-center gap-2 text-xs text-muted-foreground [@media(pointer:coarse)]:min-h-11">
+            <Link2 className="size-4 shrink-0" />
 
-        {task.links.length === 0 ? (
-          <p className="text-xs text-muted-foreground">Связей нет</p>
-        ) : (
-          <ul className="space-y-1">
-            {task.links.map((link) => (
-              <li
-                key={link.id}
-                className="group flex items-center gap-1.5 text-xs [@media(pointer:coarse)]:min-h-10"
-              >
-                <span className="shrink-0 text-muted-foreground">
-                  {TASK_LINK_LABELS[link.type]}
-                </span>
-                <a
-                  href={`/tasks/${link.task.key}`}
-                  className={cn(
-                    'min-w-0 flex-1 truncate font-medium text-primary hover:underline',
-                    link.task.isArchived && 'line-through opacity-60',
-                  )}
-                >
-                  {link.task.key} · {link.task.title}
-                </a>
-                {task.permissions.canManageLinks && (
-                  <button
-                    type="button"
-                    onClick={() => links.deleteLink.mutate(link.id)}
-                    className="shrink-0 rounded-md opacity-0 transition-opacity group-hover:opacity-100 [@media(pointer:coarse)]:flex [@media(pointer:coarse)]:size-10 [@media(pointer:coarse)]:items-center [@media(pointer:coarse)]:justify-center [@media(pointer:coarse)]:opacity-100"
-                    aria-label="Удалить связь"
+            {task.links.length === 0 ? (
+              <span>Связей пока нет</span>
+            ) : (
+              <ul className="min-w-0 flex-1 space-y-1">
+                {task.links.map((link) => (
+                  <li
+                    key={link.id}
+                    className="group flex min-h-9 items-center gap-1.5 text-xs [@media(pointer:coarse)]:min-h-11"
                   >
-                    <Trash2 className="size-3 text-muted-foreground" />
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <Separator />
+                    <span className="shrink-0 text-muted-foreground">
+                      {TASK_LINK_LABELS[link.type]}
+                    </span>
+                    <a
+                      href={`/tasks/${link.task.key}`}
+                      className={cn(
+                        'min-w-0 flex-1 truncate font-medium text-primary hover:underline',
+                        link.task.isArchived && 'line-through opacity-60',
+                      )}
+                    >
+                      {link.task.key} · {link.task.title}
+                    </a>
+                    {task.permissions.canManageLinks && (
+                      <button
+                        type="button"
+                        onClick={() => links.deleteLink.mutate(link.id)}
+                        className="flex size-9 shrink-0 items-center justify-center rounded-md opacity-0 transition-opacity hover:bg-secondary group-hover:opacity-100 focus-visible:opacity-100 [@media(pointer:coarse)]:size-11 [@media(pointer:coarse)]:opacity-100"
+                        aria-label="Удалить связь"
+                      >
+                        <Trash2 className="size-4 text-muted-foreground" />
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </PropertySection>
 
       <Button
         variant={task.watching ? 'secondary' : 'outline'}
         size="sm"
-        className="w-full [@media(pointer:coarse)]:min-h-11"
+        className="min-h-10 w-full [@media(pointer:coarse)]:min-h-11"
         onClick={() => watchTask.mutate(!task.watching)}
         loading={watchTask.isPending}
       >
@@ -365,19 +399,68 @@ function Field({
   icon,
   label,
   children,
+  align = 'center',
+  layout = 'row',
 }: {
   icon: React.ReactNode;
   label: string;
   children: React.ReactNode;
+  align?: 'center' | 'start';
+  layout?: 'row' | 'stacked';
 }): React.ReactElement {
+  const labelId = React.useId();
+
   return (
-    <div>
-      <div className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground [&_svg]:size-3.5">
+    <div
+      className={cn(
+        'grid min-h-12 py-1.5',
+        layout === 'stacked'
+          ? 'grid-cols-1 gap-1.5 py-2.5'
+          : 'grid-cols-[6.75rem_minmax(0,1fr)] gap-2',
+        layout === 'row' && (align === 'start' ? 'items-start' : 'items-center'),
+      )}
+    >
+      <div
+        id={labelId}
+        className={cn(
+          'flex min-w-0 items-center gap-1.5 text-xs font-medium text-muted-foreground [&_svg]:size-4 [&_svg]:shrink-0',
+          layout === 'row' && align === 'start' && 'pt-2.5',
+        )}
+      >
         {icon}
-        {label}
+        <span className="truncate">{label}</span>
       </div>
-      {children}
+      <div className="min-w-0" role="group" aria-labelledby={labelId}>
+        {children}
+      </div>
     </div>
+  );
+}
+
+function PropertySection({
+  title,
+  action,
+  children,
+}: {
+  title: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}): React.ReactElement {
+  const titleId = React.useId();
+
+  return (
+    <section aria-labelledby={titleId}>
+      <div className="mb-1.5 flex min-h-8 items-center gap-2">
+        <h3
+          id={titleId}
+          className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+        >
+          {title}
+        </h3>
+        {action && <div className="ml-auto">{action}</div>}
+      </div>
+      <div className="divide-y divide-border/70 border-y border-border/70">{children}</div>
+    </section>
   );
 }
 

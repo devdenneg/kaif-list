@@ -16,6 +16,7 @@ export function UserPicker({
   disabled,
   align = 'start',
   triggerClassName,
+  ariaLabel,
 }: {
   members: BoardMemberDto[];
   value: PublicUser | null;
@@ -25,6 +26,7 @@ export function UserPicker({
   disabled?: boolean;
   align?: 'start' | 'end' | 'center';
   triggerClassName?: string;
+  ariaLabel?: string;
 }): React.ReactElement {
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState('');
@@ -48,6 +50,7 @@ export function UserPicker({
           aria-labelledby={formField?.labelId}
           aria-describedby={formField?.descriptionId}
           aria-required={formField?.required || undefined}
+          aria-label={ariaLabel}
           className={cn(
             'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors [@media(pointer:coarse)]:min-h-11',
             disabled ? 'cursor-default opacity-70' : 'hover:bg-secondary',

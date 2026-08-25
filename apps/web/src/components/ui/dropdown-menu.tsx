@@ -37,8 +37,8 @@ export const DropdownMenuItem = React.forwardRef<
     className={cn(
       'relative flex min-h-10 cursor-pointer select-none items-center gap-2.5 rounded-lg px-3 py-2 text-sm outline-none transition-colors',
       'focus:bg-secondary data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
-      '[&_svg]:size-[18px] [&_svg]:shrink-0 [&_svg]:text-muted-foreground',
-      destructive && 'text-destructive focus:bg-destructive/10 [&_svg]:text-destructive',
+      '[&_svg]:!size-[18px] [&_svg]:shrink-0 [&_svg]:!text-muted-foreground',
+      destructive && 'text-destructive focus:bg-destructive/10 [&_svg]:!text-destructive',
       className,
     )}
     {...props}
@@ -125,13 +125,15 @@ export const DropdownMenuSubTrigger = React.forwardRef<
   <DropdownMenuPrimitive.SubTrigger
     ref={ref}
     className={cn(
-      'flex cursor-pointer select-none items-center gap-2 rounded-md px-2 py-2 text-sm outline-none focus:bg-secondary data-[state=open]:bg-secondary',
+      'flex min-h-10 cursor-pointer select-none items-center gap-2.5 rounded-lg px-3 py-2 text-sm outline-none transition-colors',
+      'focus:bg-secondary data-[state=open]:bg-secondary',
+      '[&_svg]:!size-[18px] [&_svg]:shrink-0 [&_svg]:!text-muted-foreground',
       className,
     )}
     {...props}
   >
     {children}
-    <ChevronRight className="ml-auto size-4 text-muted-foreground" />
+    <ChevronRight className="ml-auto" />
   </DropdownMenuPrimitive.SubTrigger>
 ));
 DropdownMenuSubTrigger.displayName = 'DropdownMenuSubTrigger';

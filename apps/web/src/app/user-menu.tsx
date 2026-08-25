@@ -29,11 +29,11 @@ export function UserMenu(): React.ReactElement | null {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="inline-flex h-10 max-w-[12rem] items-center gap-2 rounded-full border border-border/80 bg-secondary/60 p-1 pr-1 text-sm font-medium text-foreground transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/25 focus-visible:ring-offset-0 data-[state=open]:bg-secondary md:pr-3"
+          className="inline-flex h-10 max-w-10 items-center gap-2 overflow-hidden rounded-full border border-border/80 bg-secondary/60 p-1 text-sm font-medium leading-none text-foreground transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/25 focus-visible:ring-offset-0 data-[state=open]:bg-secondary md:max-w-64 md:pr-3"
           aria-label="Меню профиля"
         >
           <UserAvatar user={user} size="md" />
-          <span className="hidden min-w-0 max-w-28 truncate md:block">{user.displayName}</span>
+          <span className="hidden min-w-0 truncate md:block">{user.displayName}</span>
         </button>
       </DropdownMenuTrigger>
 

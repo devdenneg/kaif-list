@@ -112,70 +112,38 @@ function Sidebar({
           : 'w-60 min-w-[15rem] max-w-[15rem] basis-[15rem]',
       )}
     >
-      <div className="relative flex h-14 shrink-0 items-center overflow-hidden border-b border-border px-3">
-        {/* Геометрия шапки не меняется вместе с состоянием: элементы только
-            проявляются, поэтому во время анимации ширины ничего не прыгает. */}
+      <div className="relative h-14 shrink-0 overflow-hidden border-b border-border">
+        {/* Логотип всегда остаётся логотипом и сохраняет один центр. При раскрытии
+            меняется только ширина ссылки и проявляется название продукта. */}
         <Link
           to="/boards"
-          tabIndex={collapsed ? -1 : undefined}
-          aria-hidden={collapsed || undefined}
-          className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-lg pr-12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label={collapsed ? 'Все доски' : undefined}
+          className={cn(
+            'absolute left-3 top-2 flex h-10 min-w-0 items-center overflow-hidden rounded-lg',
+            'transition-[width] duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
+            collapsed ? 'w-10' : 'w-[calc(100%-1.5rem)]',
+          )}
         >
           <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <KanbanSquare aria-hidden />
+            <KanbanSquare className="size-5" aria-hidden />
           </span>
           <span
             className={cn(
-              'truncate text-sm font-semibold transition-opacity duration-100 motion-reduce:transition-none',
-              collapsed ? 'opacity-0' : 'delay-100 opacity-100',
+              'ml-2 truncate text-sm font-semibold transition-opacity duration-150 motion-reduce:transition-none',
+              collapsed ? 'opacity-0' : 'delay-75 opacity-100',
             )}
           >
             Kaif Board
           </span>
         </Link>
-
-        <Tooltip content="Развернуть панель" side="right" delay={250}>
-          <button
-            type="button"
-            onClick={toggleSidebar}
-            tabIndex={collapsed ? undefined : -1}
-            className={cn(
-              'absolute left-3 top-2 z-10 flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground',
-              'transition-[opacity,background-color] duration-100 hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface motion-reduce:transition-none',
-              collapsed ? 'opacity-100' : 'pointer-events-none opacity-0',
-            )}
-            aria-label="Развернуть боковую панель"
-            aria-controls="app-sidebar"
-            aria-expanded={false}
-            aria-hidden={!collapsed || undefined}
-          >
-            <PanelLeftOpen aria-hidden />
-          </button>
-        </Tooltip>
-
-        <Tooltip content="Свернуть панель" side="right" delay={250}>
-          <Button
-            variant="ghost"
-            size="icon"
-            tabIndex={collapsed ? -1 : undefined}
-            className={cn(
-              'absolute right-3 top-2 transition-opacity duration-75 motion-reduce:transition-none',
-              collapsed ? 'pointer-events-none opacity-0' : 'delay-150 opacity-100',
-            )}
-            onClick={toggleSidebar}
-            aria-label="Свернуть боковую панель"
-            aria-controls="app-sidebar"
-            aria-expanded={true}
-            aria-hidden={collapsed || undefined}
-          >
-            <PanelLeftClose />
-          </Button>
-        </Tooltip>
       </div>
 
       <nav
         aria-label="Основная навигация"
-        className="scrollbar-thin flex-1 space-y-1 overflow-x-hidden overflow-y-auto p-2"
+        className={cn(
+          'scrollbar-thin flex min-h-0 flex-1 flex-col space-y-1 overflow-x-hidden overflow-y-auto py-2',
+          collapsed ? 'items-center px-3' : 'px-2',
+        )}
       >
         <SidebarLink to="/my" icon={ListTodo} label="Мои задачи" collapsed={collapsed} />
         <SidebarLink to="/boards" icon={LayoutGrid} label="Все доски" collapsed={collapsed} end />
@@ -200,8 +168,11 @@ function Sidebar({
           <Tooltip content={collapsed ? 'Новая доска' : null} side="right">
             <Button
               variant="ghost"
-              size="md"
-              className="min-h-10 w-full justify-start px-[15px] text-muted-foreground"
+              size={collapsed ? 'icon' : 'md'}
+              className={cn(
+                'text-muted-foreground [&_svg]:!size-5',
+                collapsed ? 'mx-auto flex size-10 px-0' : 'w-full justify-start px-[15px]',
+              )}
               onClick={onCreateBoard}
               aria-label={collapsed ? 'Новая доска' : undefined}
             >
@@ -212,11 +183,33 @@ function Sidebar({
         </div>
       </nav>
 
-      <div className="space-y-1 border-t border-border p-2">
+      <div
+        className={cn(
+          'shrink-0 border-t border-border p-2',
+          collapsed ? 'flex flex-col items-center gap-1' : 'space-y-1',
+        )}
+      >
         {isSuperAdmin && (
           <SidebarLink to="/admin" icon={Shield} label="Администрирование" collapsed={collapsed} />
         )}
         <SidebarLink to="/settings" icon={Settings} label="Настройки" collapsed={collapsed} />
+        <Tooltip content={collapsed ? 'Развернуть панель' : null} side="right" delay={250}>
+          <Button
+            variant="ghost"
+            size={collapsed ? 'icon' : 'md'}
+            className={cn(
+              'text-muted-foreground [&_svg]:!size-5',
+              collapsed ? 'size-10 px-0' : 'w-full justify-start px-[15px]',
+            )}
+            onClick={toggleSidebar}
+            aria-label={collapsed ? 'Развернуть боковую панель' : 'Свернуть боковую панель'}
+            aria-controls="app-sidebar"
+            aria-expanded={!collapsed}
+          >
+            {collapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
+            {!collapsed && 'Свернуть панель'}
+          </Button>
+        </Tooltip>
       </div>
     </aside>
   );
@@ -232,13 +225,13 @@ function SidebarSection({
   children: React.ReactNode;
 }): React.ReactElement {
   return (
-    <div className={cn('pt-3', collapsed && 'mt-2 border-t border-border/70 pt-2')}>
+    <div className={cn('w-full pt-3', collapsed && 'mt-2 border-t border-border/70 pt-2')}>
       {!collapsed && (
         <p className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
           {label}
         </p>
       )}
-      <div className="space-y-0.5">{children}</div>
+      <div className={cn('space-y-0.5', collapsed && 'flex flex-col items-center')}>{children}</div>
     </div>
   );
 }
@@ -263,15 +256,16 @@ function SidebarLink({
       aria-label={collapsed ? label : undefined}
       className={({ isActive }) =>
         cn(
-          'flex min-h-10 items-center gap-2.5 rounded-md px-[15px] text-sm font-medium transition-colors',
+          'flex h-10 min-h-10 shrink-0 items-center rounded-lg text-sm font-medium transition-colors',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+          collapsed ? 'mx-auto w-10 justify-center px-0' : 'w-full justify-start gap-2.5 px-3.5',
           isActive
             ? 'bg-accent text-accent-foreground'
             : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
         )
       }
     >
-      <Icon aria-hidden />
+      <Icon className="size-5" aria-hidden />
       {!collapsed && <span className="truncate">{label}</span>}
     </NavLink>
   );
@@ -306,12 +300,12 @@ function BoardLink({
       aria-label={collapsed ? board.name : undefined}
       className={({ isActive }) =>
         cn(
-          'group flex min-h-10 items-center gap-2.5 rounded-md px-[19px] text-sm transition-colors',
+          'group flex h-10 min-h-10 shrink-0 items-center rounded-lg text-sm transition-colors',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+          collapsed ? 'mx-auto w-10 justify-center px-0' : 'w-full justify-start gap-2.5 px-[19px]',
           isActive
             ? 'bg-accent font-medium text-accent-foreground'
             : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
-          collapsed && 'px-2.5',
         )
       }
     >
