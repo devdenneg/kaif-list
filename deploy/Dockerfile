@@ -1,24 +1,30 @@
 # syntax=docker/dockerfile:1.7
 # Многоступенчатая сборка монорепозитория.
-# Цели: api, bot, web — каждая собирается отдельно, но зависимости ставятся один раз.
+# Цели: api, bot, web.
+#
+# Зависимости для рантайма ставятся отдельно для каждого приложения.
+# Иначе в образ API попадают React, TipTap и Recharts, а в образ бота —
+# Prisma с движками: на сервере с диском в 10 ГБ это разница в гигабайты.
 
-# ───────────────────────────── Зависимости ──────────────────────────────────
-FROM node:22-bookworm-slim AS deps
+# ─────────────────────────────── Основа ─────────────────────────────────────
+FROM node:22-bookworm-slim AS base
 WORKDIR /app
 
-# Копируем только манифесты — слой с зависимостями кешируется,
-# пока не изменится package.json или package-lock.json.
 # openssl нужен Prisma, чтобы правильно определить целевую платформу движка.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends openssl ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 
+# Копируем только манифесты — слой с зависимостями кешируется,
+# пока не изменится package.json или package-lock.json.
 COPY package.json package-lock.json* .npmrc ./
 COPY packages/shared/package.json packages/shared/
 COPY apps/api/package.json apps/api/
 COPY apps/bot/package.json apps/bot/
 COPY apps/web/package.json apps/web/
 
+# ───────────────────── Зависимости для сборки ───────────────────────────────
+FROM base AS deps
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --include=dev
 
@@ -39,26 +45,31 @@ RUN npm run build -w @kaif/shared \
  && npm run build -w @kaif/bot \
  && npx vite build --config apps/web/vite.config.ts
 
-# ──────────────────────── Продакшен-зависимости ─────────────────────────────
-FROM deps AS prod-deps
-WORKDIR /app
+# ──────────────── Продакшен-зависимости: API ────────────────────────────────
+FROM base AS prod-deps-api
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --omit=dev -w @kaif/api -w @kaif/shared --include-workspace-root
+
+# Клиент Prisma генерируется ПОСЛЕ установки: npm считает каталог .prisma
+# лишним и удаляет его при любой последующей чистке зависимостей.
 COPY apps/api/prisma ./apps/api/prisma
-# Порядок важен: npm prune считает сгенерированный каталог .prisma лишним
-# и удаляет его, поэтому сначала чистим зависимости, а генерируем после.
-RUN npm prune --omit=dev \
- && npx prisma generate --schema apps/api/prisma/schema.prisma
+RUN npx prisma generate --schema apps/api/prisma/schema.prisma
+
+# ──────────────── Продакшен-зависимости: бот ────────────────────────────────
+FROM base AS prod-deps-bot
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --omit=dev -w @kaif/bot -w @kaif/shared --include-workspace-root
 
 # ──────────────────────────────── API ───────────────────────────────────────
 FROM node:22-bookworm-slim AS api
 WORKDIR /app
 ENV NODE_ENV=production
 
-# Файловые операции и sharp требуют системных библиотек изображений.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends dumb-init ca-certificates openssl \
  && rm -rf /var/lib/apt/lists/*
 
-COPY --from=prod-deps /app/node_modules ./node_modules
+COPY --from=prod-deps-api /app/node_modules ./node_modules
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 COPY --from=builder /app/packages/shared/package.json ./packages/shared/
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
@@ -86,7 +97,7 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends dumb-init ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 
-COPY --from=prod-deps /app/node_modules ./node_modules
+COPY --from=prod-deps-bot /app/node_modules ./node_modules
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 COPY --from=builder /app/packages/shared/package.json ./packages/shared/
 COPY --from=builder /app/apps/bot/dist ./apps/bot/dist
