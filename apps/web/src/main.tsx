@@ -16,7 +16,8 @@ ReactDOM.createRoot(container).render(
 // и чтобы оболочка открывалась без сети. В разработке он только мешает.
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    void navigator.serviceWorker.register('/sw.js').catch(() => {
+    const version = import.meta.env.VITE_BUILD_ID ?? 'dev';
+    void navigator.serviceWorker.register(`/sw.js?v=${version}`).catch(() => {
       // Регистрация может не пройти в приватном режиме — это не ошибка приложения.
     });
   });

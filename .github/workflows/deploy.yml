@@ -103,6 +103,8 @@ jobs:
           file: deploy/Dockerfile
           target: web
           push: true
+          build-args: |
+            VITE_BUILD_ID=${{ github.sha }}
           tags: |
             ${{ env.IMAGE_PREFIX }}-web:${{ github.sha }}
             ${{ env.IMAGE_PREFIX }}-web:latest

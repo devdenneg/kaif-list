@@ -39,6 +39,11 @@ COPY apps ./apps
 ARG VITE_API_URL=""
 ENV VITE_API_URL=${VITE_API_URL}
 
+# Идентификатор сборки версионирует кеш сервис-воркера: без него
+# после выкатки в браузере остались бы файлы предыдущей версии.
+ARG VITE_BUILD_ID="dev"
+ENV VITE_BUILD_ID=${VITE_BUILD_ID}
+
 RUN npm run build -w @kaif/shared \
  && npx prisma generate --schema apps/api/prisma/schema.prisma \
  && npm run build -w @kaif/api \

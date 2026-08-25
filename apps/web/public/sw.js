@@ -9,7 +9,13 @@
  *    Так пользователь не застревает на старой версии приложения.
  */
 
-const CACHE = 'kaif-v1';
+/**
+ * Версия берётся из адреса регистрации: /sw.js?v=<идентификатор сборки>.
+ * Без этого имя кеша было бы постоянным, старые файлы оставались бы
+ * навсегда, а вкладка могла получить оболочку от предыдущей версии.
+ */
+const VERSION = new URL(self.location.href).searchParams.get('v') || 'dev';
+const CACHE = `kaif-${VERSION}`;
 const APP_SHELL = '/index.html';
 
 self.addEventListener('install', (event) => {

@@ -4,38 +4,38 @@ import { useAuthStore } from '@/stores/auth';
 import { AppShell } from '@/app/app-shell';
 import { FullScreenLoader } from '@/app/loader';
 import { LoginPage } from '@/features/auth/login-page';
+import { RouteError } from '@/app/route-error';
+import { lazyWithRetry } from '@/lib/lazy-with-retry';
 import { OnboardingPage } from '@/features/auth/onboarding-page';
 
-const BoardsPage = React.lazy(() =>
+const BoardsPage = lazyWithRetry('boards/boards-page', () =>
   import('@/features/boards/boards-page').then((m) => ({ default: m.BoardsPage })),
 );
-const BoardPage = React.lazy(() =>
+const BoardPage = lazyWithRetry('board/board-page', () =>
   import('@/features/board/board-page').then((m) => ({ default: m.BoardPage })),
 );
-const BacklogPage = React.lazy(() =>
+const BacklogPage = lazyWithRetry('backlog/backlog-page', () =>
   import('@/features/backlog/backlog-page').then((m) => ({ default: m.BacklogPage })),
 );
-const PeoplePage = React.lazy(() =>
+const PeoplePage = lazyWithRetry('people/people-page', () =>
   import('@/features/people/people-page').then((m) => ({ default: m.PeoplePage })),
 );
-const DashboardPage = React.lazy(() =>
+const DashboardPage = lazyWithRetry('dashboard/dashboard-page', () =>
   import('@/features/dashboard/dashboard-page').then((m) => ({ default: m.DashboardPage })),
 );
-const MyTasksPage = React.lazy(() =>
+const MyTasksPage = lazyWithRetry('my-tasks/my-tasks-page', () =>
   import('@/features/my-tasks/my-tasks-page').then((m) => ({ default: m.MyTasksPage })),
 );
-const TaskPage = React.lazy(() =>
+const TaskPage = lazyWithRetry('task/task-page', () =>
   import('@/features/task/task-page').then((m) => ({ default: m.TaskPage })),
 );
-const NotificationsPage = React.lazy(() =>
-  import('@/features/notifications/notifications-page').then((m) => ({
-    default: m.NotificationsPage,
-  })),
+const NotificationsPage = lazyWithRetry('notifications/notifications-page', () =>
+  import('@/features/notifications/notifications-page').then((m) => ({ default: m.NotificationsPage })),
 );
-const SettingsPage = React.lazy(() =>
+const SettingsPage = lazyWithRetry('settings/settings-page', () =>
   import('@/features/settings/settings-page').then((m) => ({ default: m.SettingsPage })),
 );
-const AdminPage = React.lazy(() =>
+const AdminPage = lazyWithRetry('admin/admin-page', () =>
   import('@/features/admin/admin-page').then((m) => ({ default: m.AdminPage })),
 );
 
@@ -96,10 +96,14 @@ export const router = createBrowserRouter([
         <LoginPage />
       </PublicOnlyRoute>
     ),
+    errorElement: <RouteError />,
   },
-  { path: '/onboarding', element: <OnboardingRoute /> },
+  { path: '/onboarding', element: <OnboardingRoute />, errorElement: <RouteError /> },
   {
     element: <ProtectedRoute />,
+    // Ошибка внутри любой страницы показывается в оболочке приложения:
+    // навигация остаётся на месте, и человек может уйти на рабочий экран.
+    errorElement: <RouteError />,
     children: [
       { path: '/', element: <Navigate to="/boards" replace /> },
       { path: '/boards', element: <BoardsPage /> },
