@@ -53,6 +53,11 @@ const PERSONAL_TYPES: readonly NotificationType[] = [
   NotificationType.TASK_OVERDUE,
   NotificationType.SECURITY_ALERT,
   NotificationType.BOARD_INVITED,
+  NotificationType.BOARD_MEMBER_JOINED,
+  // Блокировки — про твою собственную работу: «можно продолжать» должно
+  // доходить даже до тех, кто оставил только личные уведомления.
+  NotificationType.TASK_BLOCKED,
+  NotificationType.TASK_UNBLOCKED,
 ];
 
 /** Пропускать ли уведомление данного типа согласно настройкам. */

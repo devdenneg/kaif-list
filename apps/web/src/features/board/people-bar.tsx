@@ -120,8 +120,8 @@ export function PeopleBar({
                 aria-pressed={active}
                 aria-label={`${active ? 'Снять фильтр' : 'Показать задачи'}: ${member.user.displayName}`}
                 className={cn(
-                  'relative flex shrink-0 items-center rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/25',
-                  compact ? 'size-10 justify-center p-1' : 'h-8 gap-1.5 pl-0.5 pr-2.5',
+                  'relative flex shrink-0 items-center rounded-full border leading-none transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/25',
+                  compact ? 'size-10 justify-center p-0' : 'h-8 gap-1.5 py-0 pl-1 pr-2.5',
                   active
                     ? 'border-primary bg-accent text-accent-foreground'
                     : viaGroup
@@ -129,7 +129,12 @@ export function PeopleBar({
                       : 'border-transparent text-muted-foreground hover:border-border hover:bg-secondary',
                 )}
               >
-                <span className="relative shrink-0">
+                <span
+                  className={cn(
+                    'relative flex shrink-0 items-center justify-center leading-none',
+                    compact ? 'size-8' : 'size-6',
+                  )}
+                >
                   <UserAvatar user={member.user} size={compact ? 'md' : 'sm'} />
                   {onlineIds.has(member.userId) && (
                     <span

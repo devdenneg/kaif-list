@@ -54,6 +54,7 @@ import { TaskProperties } from './task-properties';
 import { TaskComments } from './task-comments';
 import { TaskChecklists } from './task-checklists';
 import { TaskAttachments } from './task-attachments';
+import { BlockedBanner } from './task-links';
 import { TaskActivity } from './task-activity';
 import { TaskTypeIcon } from './task-visuals';
 import { MoveReasonDialog, type ReasonRequest } from './move-reason-dialog';
@@ -337,6 +338,10 @@ export function TaskDetail({
       {/* ── Содержимое ── */}
       <div className="scrollbar-thin flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 lg:flex-row">
         <div className="min-w-0 flex-1 space-y-5">
+          {/* Пока держит блокер, браться за задачу бессмысленно —
+              говорим об этом первым делом, до описания. */}
+          <BlockedBanner task={task} />
+
           {/* Описание */}
           <section>
             <div className="mb-1.5 flex items-center gap-2">

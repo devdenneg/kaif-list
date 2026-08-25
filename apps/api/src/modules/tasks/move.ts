@@ -21,6 +21,7 @@ import { dispatchNotification, taskRecipients } from '../../services/notify.js';
 import { ensureContributor, syncCoreParticipants } from '../../services/participants.js';
 import { publishRealtime } from '../../realtime/bridge.js';
 import { computeRank } from './rank.js';
+import { syncBlockedByBlocker } from './links.js';
 import { getTaskDetail } from './service.js';
 
 /**
@@ -181,6 +182,10 @@ export async function moveTask(
       },
     });
   });
+
+  // Статус изменился — значит, у задач, которые ждут эту, могла пропасть
+  // (или появиться) блокировка. Тем, кого это касается, уходит уведомление.
+  await syncBlockedByBlocker(context.task.id, user.id);
 
   await publishRealtime([
     {

@@ -1,5 +1,7 @@
 import {
   ActivityType,
+  ColumnKey,
+  NotificationType,
   SOCKET_EVENTS,
   TASK_LINK_INVERSE,
   TaskLinkType,
@@ -17,6 +19,7 @@ import {
 } from '../../lib/rbac.js';
 import { mapTaskLink, taskLinkSelect } from '../../lib/mappers.js';
 import { recordActivity } from '../../services/activity.js';
+import { dispatchNotification, taskRecipients } from '../../services/notify.js';
 import { publishRealtime } from '../../realtime/bridge.js';
 
 /**
@@ -60,9 +63,19 @@ export async function createTaskLink(
   });
   if (existing) throw new ConflictError('Такая связь уже существует');
 
+  // Какая из двух задач окажется заблокированной этой связью.
+  const blockedTaskId =
+    input.type === TaskLinkType.BLOCKED_BY
+      ? context.task.id
+      : input.type === TaskLinkType.BLOCKS
+        ? target.id
+        : null;
+
   if (input.type === TaskLinkType.BLOCKED_BY || input.type === TaskLinkType.BLOCKS) {
     await assertNoCycle(context.task.id, target.id, input.type);
   }
+
+  const blockedBefore = blockedTaskId ? await blockedCountOf(blockedTaskId) : 0;
 
   const link = await prisma.$transaction(async (tx) => {
     const created = await tx.taskLink.create({
@@ -106,6 +119,10 @@ export async function createTaskLink(
     data: { boardId: context.board.id, taskId: context.task.id, actorId: user.id, fields: ['links'] },
   });
 
+  if (blockedTaskId) {
+    await notifyBlockChange(blockedTaskId, blockedBefore, user.id);
+  }
+
   return mapTaskLink(link);
 }
 
@@ -121,6 +138,14 @@ export async function deleteTaskLink(
     select: { id: true, toTaskId: true, type: true },
   });
   if (!link) throw new NotFoundError('Связь не найдена');
+
+  const blockedTaskId =
+    link.type === TaskLinkType.BLOCKED_BY
+      ? context.task.id
+      : link.type === TaskLinkType.BLOCKS
+        ? link.toTaskId
+        : null;
+  const blockedBefore = blockedTaskId ? await blockedCountOf(blockedTaskId) : 0;
 
   await prisma.$transaction(async (tx) => {
     await tx.taskLink.delete({ where: { id: linkId } });
@@ -147,19 +172,171 @@ export async function deleteTaskLink(
     event: SOCKET_EVENTS.TASK_UPDATED,
     data: { boardId: context.board.id, taskId: context.task.id, actorId: user.id, fields: ['links'] },
   });
+
+  if (blockedTaskId) {
+    await notifyBlockChange(blockedTaskId, blockedBefore, user.id);
+  }
+}
+
+async function blockedCountOf(taskId: string): Promise<number> {
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    select: { blockedByCount: true },
+  });
+  return task?.blockedByCount ?? 0;
+}
+
+/**
+ * Сообщить, что задача заблокировалась или освободилась.
+ *
+ * Сравниваем счётчик до и после: важен сам переход, а не число блокеров.
+ * Убрали один из трёх — человека дёргать незачем, он всё ещё ждёт.
+ */
+async function notifyBlockChange(
+  taskId: string,
+  countBefore: number,
+  actorId: string | null,
+): Promise<void> {
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    select: { id: true, key: true, title: true, boardId: true, blockedByCount: true },
+  });
+  if (!task) return;
+
+  const wasBlocked = countBefore > 0;
+  const isBlocked = task.blockedByCount > 0;
+  if (wasBlocked === isBlocked) return;
+
+  const recipients = await taskRecipients(task.id, { excludeUserId: actorId });
+  if (recipients.length === 0) return;
+
+  await dispatchNotification({
+    type: isBlocked ? NotificationType.TASK_BLOCKED : NotificationType.TASK_UNBLOCKED,
+    recipientIds: recipients,
+    actorId,
+    boardId: task.boardId,
+    taskId: task.id,
+    payload: { taskKey: task.key, taskTitle: task.title },
+  });
+}
+
+/**
+ * Пересчитать блокировки у задач, которые ждут эту.
+ *
+ * Счётчик блокеров считает только незакрытые задачи, поэтому при закрытии,
+ * архивации или возврате блокера он у зависимых задач устаревает. Раньше это
+ * никто не обновлял: человек закрывал блокер, а его коллега продолжал видеть
+ * «заблокирована» и не мог сдвинуть свою задачу с места.
+ *
+ * Заодно это точка, где рождается самое полезное уведомление в продукте:
+ * «твою задачу разблокировали, можно продолжать».
+ */
+export async function syncBlockedByBlocker(
+  blockerTaskId: string,
+  actorId: string | null,
+): Promise<void> {
+  const dependents = await prisma.taskLink.findMany({
+    where: { toTaskId: blockerTaskId, type: TaskLinkType.BLOCKED_BY },
+    select: { fromTaskId: true },
+  });
+  if (dependents.length === 0) return;
+
+  const blocker = await prisma.task.findUnique({
+    where: { id: blockerTaskId },
+    select: { key: true, title: true },
+  });
+
+  const before = await prisma.task.findMany({
+    where: { id: { in: dependents.map((link) => link.fromTaskId) } },
+    select: { id: true, key: true, title: true, boardId: true, blockedByCount: true },
+  });
+
+  const changed: { task: (typeof before)[number]; blocked: boolean }[] = [];
+
+  await prisma.$transaction(async (tx) => {
+    for (const task of before) {
+      await refreshBlockedCount(tx, task.id);
+    }
+  });
+
+  const after = await prisma.task.findMany({
+    where: { id: { in: before.map((task) => task.id) } },
+    select: { id: true, blockedByCount: true },
+  });
+  const countById = new Map(after.map((row) => [row.id, row.blockedByCount]));
+
+  for (const task of before) {
+    const next = countById.get(task.id) ?? task.blockedByCount;
+    const wasBlocked = task.blockedByCount > 0;
+    const isBlocked = next > 0;
+    if (wasBlocked !== isBlocked) changed.push({ task, blocked: isBlocked });
+  }
+
+  // Экраны обновляем у всех зависимых задач: счётчик мог измениться и там,
+  // где состояние «заблокирована/нет» осталось прежним.
+  await publishRealtime(
+    before.flatMap((task) => [
+      {
+        room: rooms.task(task.id),
+        event: SOCKET_EVENTS.TASK_UPDATED,
+        data: { boardId: task.boardId, taskId: task.id, fields: ['links', 'blockedByCount'] },
+      },
+      {
+        room: rooms.board(task.boardId),
+        event: SOCKET_EVENTS.TASK_UPDATED,
+        data: { boardId: task.boardId, taskId: task.id, fields: ['blockedByCount'] },
+      },
+    ]),
+  );
+
+  for (const { task, blocked } of changed) {
+    const recipients = await taskRecipients(task.id, { excludeUserId: actorId });
+    if (recipients.length === 0) continue;
+
+    await dispatchNotification({
+      type: blocked ? NotificationType.TASK_BLOCKED : NotificationType.TASK_UNBLOCKED,
+      recipientIds: recipients,
+      actorId,
+      boardId: task.boardId,
+      taskId: task.id,
+      payload: {
+        taskKey: task.key,
+        taskTitle: task.title,
+        blockerKey: blocker?.key ?? '',
+      },
+    });
+  }
+}
+
+/** Пересчёт счётчика блокеров у списка задач — без уведомлений. */
+export async function refreshBlockedCounts(taskIds: string[]): Promise<void> {
+  if (taskIds.length === 0) return;
+  await prisma.$transaction(async (tx) => {
+    for (const taskId of taskIds) await refreshBlockedCount(tx, taskId);
+  });
+}
+
+/**
+ * Что считается живым блокером.
+ *
+ * Закрытая или заброшенная в архив задача никого не держит — иначе
+ * «разблокировано» не наступало бы никогда, и счётчик на карточке врал бы.
+ * Вынесено отдельно, потому что на этом условии держится весь смысл
+ * блокировок, а проверить его запросом к базе в тестах негде.
+ */
+export function activeBlockersWhere(taskId: string): Prisma.TaskLinkWhereInput {
+  return {
+    fromTaskId: taskId,
+    type: TaskLinkType.BLOCKED_BY,
+    toTask: { archivedAt: null, columnKey: { not: ColumnKey.DONE } },
+  };
 }
 
 async function refreshBlockedCount(
   tx: Prisma.TransactionClient,
   taskId: string,
 ): Promise<void> {
-  const count = await tx.taskLink.count({
-    where: {
-      fromTaskId: taskId,
-      type: TaskLinkType.BLOCKED_BY,
-      toTask: { archivedAt: null, columnKey: { not: 'DONE' } },
-    },
-  });
+  const count = await tx.taskLink.count({ where: activeBlockersWhere(taskId) });
   await tx.task.update({ where: { id: taskId }, data: { blockedByCount: count } });
 }
 

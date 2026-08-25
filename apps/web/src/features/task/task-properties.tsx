@@ -9,7 +9,6 @@ import {
   Link2,
   Plus,
   Tag,
-  Trash2,
   UserCheck,
   UserCog,
 } from 'lucide-react';
@@ -26,6 +25,7 @@ import {
   type TaskDetailDto,
 } from '@kaif/shared';
 import { useUpdateTask, useTaskLinks, useWatchTask } from '@/api/tasks';
+import { TaskLinks } from './task-links';
 import { useAuthStore } from '@/stores/auth';
 import { ApiError } from '@/lib/api';
 import { toast } from '@/lib/toast';
@@ -324,44 +324,17 @@ export function TaskProperties({
         }
       >
         <div className="py-1.5">
-          <div className="flex min-h-9 items-center gap-2 text-xs text-muted-foreground [@media(pointer:coarse)]:min-h-11">
-            <Link2 className="size-4 shrink-0" />
-
-            {task.links.length === 0 ? (
-              <span>Связей пока нет</span>
-            ) : (
-              <ul className="min-w-0 flex-1 space-y-1">
-                {task.links.map((link) => (
-                  <li
-                    key={link.id}
-                    className="group flex min-h-9 items-center gap-1.5 text-xs [@media(pointer:coarse)]:min-h-11"
-                  >
-                    <span className="shrink-0 text-muted-foreground">
-                      {TASK_LINK_LABELS[link.type]}
-                    </span>
-                    <a
-                      href={`/tasks/${link.task.key}`}
-                      className={cn(
-                        'min-w-0 flex-1 truncate font-medium text-primary hover:underline',
-                        link.task.isArchived && 'line-through opacity-60',
-                      )}
-                    >
-                      {link.task.key} · {link.task.title}
-                    </a>
-                    {task.permissions.canManageLinks && (
-                      <button
-                        type="button"
-                        onClick={() => links.deleteLink.mutate(link.id)}
-                        className="flex size-9 shrink-0 items-center justify-center rounded-md opacity-0 transition-opacity hover:bg-secondary group-hover:opacity-100 focus-visible:opacity-100 [@media(pointer:coarse)]:size-11 [@media(pointer:coarse)]:opacity-100"
-                        aria-label="Удалить связь"
-                      >
-                        <Trash2 className="size-4 text-muted-foreground" />
-                      </button>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
+          <div className="flex min-h-9 items-start gap-2 text-xs text-muted-foreground [@media(pointer:coarse)]:min-h-11">
+            <Link2 className="mt-1 size-4 shrink-0" />
+            <TaskLinks
+              task={task}
+              canManage={task.permissions.canManageLinks}
+              onDelete={(linkId) =>
+                links.deleteLink.mutate(linkId, {
+                  onError: (error) => toast.error('Не удалось убрать связь', error),
+                })
+              }
+            />
           </div>
         </div>
       </PropertySection>

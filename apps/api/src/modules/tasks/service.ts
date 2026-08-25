@@ -47,6 +47,7 @@ import { dispatchNotification, taskRecipients } from '../../services/notify.js';
 import { ensureContributor, syncCoreParticipants } from '../../services/participants.js';
 import { publishRealtime } from '../../realtime/bridge.js';
 import { computeRank } from './rank.js';
+import { refreshBlockedCounts, syncBlockedByBlocker } from './links.js';
 
 /** Поля, которые участвуют в полнотекстовом поиске. */
 function buildSearchText(key: string, title: string, descriptionText: string): string {
@@ -940,6 +941,9 @@ export async function setTaskArchived(
     },
   ]);
 
+  // Архивная задача никого не держит — а восстановленная снова держит.
+  await syncBlockedByBlocker(context.task.id, user.id);
+
   if (archived) {
     const recipients = await taskRecipients(context.task.id, { excludeUserId: user.id });
     await dispatchNotification({
@@ -973,6 +977,12 @@ export async function deleteTask(
     });
   }
 
+  // Кого держала эта задача — запоминаем до удаления: связи уедут каскадом.
+  const dependents = await prisma.taskLink.findMany({
+    where: { toTaskId: context.task.id, type: 'BLOCKED_BY' },
+    select: { fromTaskId: true },
+  });
+
   await prisma.$transaction(async (tx) => {
     await recordActivity(tx, {
       boardId: context.board.id,
@@ -982,6 +992,8 @@ export async function deleteTask(
     });
     await tx.task.delete({ where: { id: context.task.id } });
   });
+
+  await refreshBlockedCounts(dependents.map((link) => link.fromTaskId));
 
   await publishRealtime([
     {

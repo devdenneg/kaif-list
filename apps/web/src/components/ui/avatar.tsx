@@ -35,7 +35,7 @@ export function UserAvatar({
   const avatar = (
     <AvatarPrimitive.Root
       className={cn(
-        'relative inline-flex shrink-0 select-none items-center justify-center overflow-hidden rounded-full',
+        'relative inline-flex shrink-0 select-none items-center justify-center overflow-hidden rounded-full align-middle leading-none',
         sizeClasses[size],
         ring && 'ring-2 ring-background',
         className,

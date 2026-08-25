@@ -27,6 +27,8 @@ export interface NotificationPayload {
   priority?: TaskPriority;
   role?: string;
   fields?: string[];
+  /** Ключ задачи-блокера — в тексте про блокировку и разблокировку. */
+  blockerKey?: string;
   digest?: {
     overdue: number;
     today: number;
@@ -168,6 +170,24 @@ export function buildNotificationText(
         body: `${actor} добавил(а) вас на доску «${payload.boardName ?? ''}»${
           payload.role ? ` с ролью «${payload.role}»` : ''
         }`,
+      };
+
+    case NotificationType.TASK_UNBLOCKED:
+      return {
+        icon: '🟢',
+        title: 'Задача разблокирована',
+        body: payload.blockerKey
+          ? `«${task}» больше ничего не держит: ${payload.blockerKey} закрыта. Можно продолжать`
+          : `«${task}» больше ничего не держит — можно продолжать`,
+      };
+
+    case NotificationType.TASK_BLOCKED:
+      return {
+        icon: '🔴',
+        title: 'Задача заблокирована',
+        body: payload.blockerKey
+          ? `«${task}» ждёт ${payload.blockerKey}`
+          : `«${task}» заблокирована другой задачей`,
       };
 
     case NotificationType.BOARD_MEMBER_JOINED:
