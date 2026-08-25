@@ -17,20 +17,28 @@ fi
 echo "▸ Вход в реестр образов"
 echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin >/dev/null
 
+echo "▸ Фиксирую версии образов в .env"
+# Записываем теги в .env, а не только в переменные окружения: иначе
+# обычный `docker compose ps` или `logs` на сервере падал бы с ошибкой
+# «service has neither an image nor a build context».
+upsert_env() {
+  local key="$1" value="$2"
+  if grep -q "^${key}=" .env; then
+    sed -i "s|^${key}=.*|${key}=${value}|" .env
+  else
+    printf '%s=%s\n' "$key" "$value" >> .env
+  fi
+}
+upsert_env IMAGE_API "$IMAGE_API"
+upsert_env IMAGE_BOT "$IMAGE_BOT"
+upsert_env IMAGE_WEB "$IMAGE_WEB"
+
 echo "▸ Загрузка образов"
-export IMAGE_API IMAGE_BOT IMAGE_WEB
 docker compose pull --quiet
 
 echo "▸ Перезапуск"
 # --remove-orphans убирает сервисы, исчезнувшие из compose-файла.
 docker compose up -d --remove-orphans
-
-echo "▸ Запоминаю версию (пригодится для отката)"
-cat > .current-images <<VERSIONS
-IMAGE_API=$IMAGE_API
-IMAGE_BOT=$IMAGE_BOT
-IMAGE_WEB=$IMAGE_WEB
-VERSIONS
 
 echo "▸ Уборка старых образов — на диске всего 6 ГБ"
 docker image prune -af --filter "until=72h" >/dev/null 2>&1 || true

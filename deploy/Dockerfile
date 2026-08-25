@@ -8,6 +8,11 @@ WORKDIR /app
 
 # Копируем только манифесты — слой с зависимостями кешируется,
 # пока не изменится package.json или package-lock.json.
+# openssl нужен Prisma, чтобы правильно определить целевую платформу движка.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends openssl ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
 COPY package.json package-lock.json* .npmrc ./
 COPY packages/shared/package.json packages/shared/
 COPY apps/api/package.json apps/api/
@@ -38,8 +43,10 @@ RUN npm run build -w @kaif/shared \
 FROM deps AS prod-deps
 WORKDIR /app
 COPY apps/api/prisma ./apps/api/prisma
-RUN npx prisma generate --schema apps/api/prisma/schema.prisma \
- && npm prune --omit=dev
+# Порядок важен: npm prune считает сгенерированный каталог .prisma лишним
+# и удаляет его, поэтому сначала чистим зависимости, а генерируем после.
+RUN npm prune --omit=dev \
+ && npx prisma generate --schema apps/api/prisma/schema.prisma
 
 # ──────────────────────────────── API ───────────────────────────────────────
 FROM node:22-bookworm-slim AS api
@@ -48,7 +55,7 @@ ENV NODE_ENV=production
 
 # Файловые операции и sharp требуют системных библиотек изображений.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends dumb-init ca-certificates \
+ && apt-get install -y --no-install-recommends dumb-init ca-certificates openssl \
  && rm -rf /var/lib/apt/lists/*
 
 COPY --from=prod-deps /app/node_modules ./node_modules

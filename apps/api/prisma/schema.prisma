@@ -2,8 +2,13 @@
 // Все enum'ы дублируют packages/shared/src/enums.ts один-в-один.
 
 generator client {
-  provider        = "prisma-client-js"
-  binaryTargets   = ["native"]
+  provider = "prisma-client-js"
+  // "native" — для локальной разработки.
+  // Второй таргет обязателен для контейнера: базовый образ node:22-bookworm-slim
+  // идёт с OpenSSL 3.0, а автоопределение Prisma в минимальном образе
+  // (без пакета openssl) ошибочно выбирает движок под 1.1 — и клиент
+  // падает при первом же запросе к базе.
+  binaryTargets   = ["native", "debian-openssl-3.0.x"]
   previewFeatures = []
 }
 
