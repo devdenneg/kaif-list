@@ -78,7 +78,12 @@ COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
 COPY package.json ./
 
 # Приложение работает под непривилегированным пользователем.
-RUN mkdir -p /data/storage && chown -R node:node /data /app
+#
+# `chown -R` по /app здесь был бы очень дорогой ошибкой: смена владельца
+# переписывает каждый файл, и слой с node_modules дублируется целиком —
+# в нашем случае это 362 МБ пустого веса. Приложению право записи в /app
+# и не нужно: оно только читает код, а пишет в /data/storage.
+RUN mkdir -p /data/storage && chown -R node:node /data
 USER node
 
 EXPOSE 4000
