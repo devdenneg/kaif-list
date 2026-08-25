@@ -74,7 +74,7 @@ export const Textarea = React.forwardRef<
       ref={ref}
       id={props.id ?? formField?.controlId}
       className={cn(
-        'flex min-h-[96px] w-full rounded-lg border border-input bg-surface px-3 py-2.5 text-sm shadow-sm transition-[border-color,box-shadow,background-color]',
+        'block min-h-[96px] w-full rounded-lg border border-input bg-surface px-3 py-2.5 text-sm shadow-sm transition-[border-color,box-shadow,background-color]',
         'placeholder:text-muted-foreground',
         'focus-visible:border-ring focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/20 focus-visible:ring-offset-0',
         'disabled:cursor-not-allowed disabled:opacity-50',

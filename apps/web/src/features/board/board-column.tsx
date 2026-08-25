@@ -1,7 +1,18 @@
 import * as React from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { ChevronDown, ChevronRight, Plus } from 'lucide-react';
+import {
+  CheckCheck,
+  ChevronDown,
+  ChevronRight,
+  FlaskConical,
+  ListTodo,
+  Pause,
+  Play,
+  Plus,
+  Rocket,
+  type LucideIcon,
+} from 'lucide-react';
 import { COLUMN_LABELS, type ColumnKey, type TaskCardDto } from '@kaif/shared';
 import { Button } from '@/components/ui/button';
 import { Tooltip } from '@/components/ui/tooltip';
@@ -17,6 +28,16 @@ const COLUMN_ACCENT: Record<ColumnKey, string> = {
   QA: 'bg-violet-500',
   READY_TO_RELEASE: 'bg-teal-500',
   DONE: 'bg-emerald-500',
+};
+
+/** В свёрнутом виде длинные названия заменяем узнаваемой пиктограммой и короткой подписью. */
+const COLLAPSED_COLUMN_META: Record<ColumnKey, { label: string; icon: LucideIcon }> = {
+  TODO: { label: 'План', icon: ListTodo },
+  ON_HOLD: { label: 'Пауза', icon: Pause },
+  IN_PROGRESS: { label: 'Работа', icon: Play },
+  QA: { label: 'Тест', icon: FlaskConical },
+  READY_TO_RELEASE: { label: 'Релиз', icon: Rocket },
+  DONE: { label: 'Готово', icon: CheckCheck },
 };
 
 export interface BoardColumnProps {
@@ -61,24 +82,59 @@ export function BoardColumn({
   const isDragging = active !== null;
 
   if (collapsed) {
+    const collapsedMeta = COLLAPSED_COLUMN_META[columnKey];
+    const CollapsedIcon = collapsedMeta.icon;
+
     return (
-      <div className="flex w-11 shrink-0 self-start flex-col items-center gap-2 rounded-xl border border-border bg-surface py-3">
+      <Tooltip
+        side="right"
+        content={
+          <span className="block text-center">
+            <span className="block font-medium">{name}</span>
+            <span className="block text-[10px] opacity-75">
+              Задач: {tasks.length}
+              {wipLimit !== null ? ` · WIP ${tasks.length}/${wipLimit}` : ''}
+            </span>
+            <span className="mt-0.5 block text-[10px] opacity-60">Нажмите, чтобы развернуть</span>
+          </span>
+        }
+      >
         <button
           type="button"
           onClick={onToggleCollapse}
-          className="rounded-md p-1 text-muted-foreground hover:bg-secondary"
+          className={cn(
+            'group relative flex h-28 w-14 shrink-0 self-start flex-col items-center gap-1.5 overflow-hidden rounded-xl border bg-surface px-1.5 py-2',
+            'text-muted-foreground transition-[border-color,background-color,box-shadow] hover:border-primary/35 hover:bg-secondary/45',
+            'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/25 focus-visible:ring-offset-0',
+            overLimit ? 'border-destructive/60' : 'border-border',
+          )}
           aria-label={`Развернуть колонку ${name}`}
         >
-          <ChevronRight className="size-4" />
+          <span
+            className={cn('absolute inset-x-0 top-0 h-0.5', COLUMN_ACCENT[columnKey])}
+            aria-hidden
+          />
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-secondary text-foreground transition-colors group-hover:bg-background">
+            <CollapsedIcon className="size-[18px]" aria-hidden />
+          </span>
+          <span className="w-full truncate text-center text-[10px] font-medium leading-4">
+            {collapsedMeta.label}
+          </span>
+          <span
+            className={cn(
+              'min-w-6 rounded-md px-1.5 py-0.5 text-center text-[11px] font-semibold tabular-nums',
+              overLimit
+                ? 'bg-destructive/15 text-destructive'
+                : atLimit
+                  ? 'bg-warning/15 text-warning'
+                  : 'bg-secondary text-muted-foreground',
+            )}
+          >
+            {tasks.length}
+          </span>
+          <ChevronRight className="mt-auto size-4 transition-transform group-hover:translate-x-0.5" />
         </button>
-        <span className="text-xs font-medium text-muted-foreground">{tasks.length}</span>
-        <span
-          className="mt-1 flex-1 select-none text-xs font-medium text-muted-foreground"
-          style={{ writingMode: 'vertical-rl' }}
-        >
-          {name}
-        </span>
-      </div>
+      </Tooltip>
     );
   }
 

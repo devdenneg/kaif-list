@@ -193,7 +193,17 @@ export interface TaskCardDto {
   reporter: PublicUser;
   labels: TaskLabelRef[];
   dueDate: string | null;
-  startDate: string | null;
+  /**
+   * Сколько раз переносили срок. Хорошая мера того, насколько задача
+   * оказалась сложнее, чем думали, — или насколько ей никто не занимается.
+   */
+  dueDateChangedCount: number;
+  /**
+   * Когда задачу впервые взяли в работу. Заменяет прежнюю «дату начала»:
+   * начало проставлять руками бессмысленно, оно и так известно — это момент,
+   * когда человек перетащил карточку в «В работе».
+   */
+  firstInProgressAt: string | null;
   storyPoints: number | null;
   estimateMinutes: number | null;
   spentMinutes: number | null;

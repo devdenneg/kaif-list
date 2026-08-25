@@ -12,6 +12,7 @@ import { prisma } from '../../lib/prisma.js';
 import { BadRequestError } from '../../lib/errors.js';
 import { assertCan, type BoardContext, type RequestUser } from '../../lib/rbac.js';
 import { recordActivity } from '../../services/activity.js';
+import { recordBulkColumnTransition } from '../../services/flow-metrics.js';
 import { dispatchNotification } from '../../services/notify.js';
 import { publishRealtime } from '../../realtime/bridge.js';
 
@@ -121,51 +122,82 @@ export async function bulkTaskAction(
 
     case 'moveToBoard': {
       const columnKey = input.columnKey ?? ColumnKey.TODO;
+      const now = new Date();
+
       await prisma.$transaction(async (tx) => {
         let last = await tx.task.findFirst({
           where: { boardId: context.board.id, columnKey, isBacklog: false, archivedAt: null },
           orderBy: { rank: 'desc' },
           select: { rank: true },
         });
+
         for (const task of tasks) {
           const rank = rankAfter(last?.rank ?? null);
           await tx.task.update({
             where: { id: task.id },
-            data: { isBacklog: false, columnKey, rank, lastActivityAt: new Date() },
+            data: {
+              isBacklog: false,
+              columnKey,
+              rank,
+              lastActivityAt: now,
+              // Отправка сразу в «Готово» — тоже закрытие задачи.
+              completedAt: columnKey === ColumnKey.DONE ? now : null,
+            },
           });
           last = { rank };
+
+          // История пишется по каждой задаче: одна общая запись без taskId
+          // не попадала в ленту самой задачи и ломала подсчёт переходов.
+          await recordActivity(tx, {
+            boardId: context.board.id,
+            taskId: task.id,
+            actorId: user.id,
+            type: ActivityType.TASK_MOVED_TO_BOARD,
+            payload: { bulk: true, from: task.columnKey, to: columnKey },
+          });
         }
-        await recordActivity(tx, {
+
+        // Отрезки истории колонок — групповыми запросами: до двухсот задач
+        // разом, по запросу на каждую транзакция бы не уложилась в таймаут.
+        await recordBulkColumnTransition(tx, {
           boardId: context.board.id,
+          toColumn: columnKey,
           actorId: user.id,
-          type: ActivityType.TASK_MOVED_TO_BOARD,
-          payload: { bulk: true, count: taskIds.length, columnKey },
+          at: now,
+          tasks: tasks
+            .filter((task) => task.columnKey !== columnKey)
+            .map((task) => ({ id: task.id, fromColumn: task.columnKey })),
         });
       });
       break;
     }
 
     case 'moveToBacklog': {
+      const now = new Date();
+
       await prisma.$transaction(async (tx) => {
         let last = await tx.task.findFirst({
           where: { boardId: context.board.id, isBacklog: true, archivedAt: null },
           orderBy: { rank: 'desc' },
           select: { rank: true },
         });
+
         for (const task of tasks) {
           const rank = rankAfter(last?.rank ?? null);
           await tx.task.update({
             where: { id: task.id },
-            data: { isBacklog: true, rank, lastActivityAt: new Date() },
+            data: { isBacklog: true, rank, lastActivityAt: now },
           });
           last = { rank };
+
+          await recordActivity(tx, {
+            boardId: context.board.id,
+            taskId: task.id,
+            actorId: user.id,
+            type: ActivityType.TASK_MOVED_TO_BACKLOG,
+            payload: { bulk: true, from: task.columnKey },
+          });
         }
-        await recordActivity(tx, {
-          boardId: context.board.id,
-          actorId: user.id,
-          type: ActivityType.TASK_MOVED_TO_BACKLOG,
-          payload: { bulk: true, count: taskIds.length },
-        });
       });
       break;
     }

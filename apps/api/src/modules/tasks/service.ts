@@ -48,6 +48,7 @@ import { ensureContributor, syncCoreParticipants } from '../../services/particip
 import { publishRealtime } from '../../realtime/bridge.js';
 import { computeRank } from './rank.js';
 import { refreshBlockedCounts, syncBlockedByBlocker } from './links.js';
+import { openInitialTransition } from '../../services/flow-metrics.js';
 
 /** Поля, которые участвуют в полнотекстовом поиске. */
 function buildSearchText(key: string, title: string, descriptionText: string): string {
@@ -105,7 +106,6 @@ export async function createTask(
         testerId: input.testerId ?? null,
         storyPoints: input.storyPoints ?? null,
         estimateMinutes: input.estimateMinutes ?? null,
-        startDate: input.startDate ?? null,
         dueDate: input.dueDate ?? null,
         completedAt: columnKey === ColumnKey.DONE ? new Date() : null,
         ...(labelIds.length > 0
@@ -141,6 +141,15 @@ export async function createTask(
         boardId: context.board.id,
       });
     }
+
+    // Первый отрезок жизни задачи: с него считается время в колонке.
+    await openInitialTransition(tx, {
+      taskId: task.id,
+      boardId: context.board.id,
+      columnKey,
+      actorId: user.id,
+      at: new Date(),
+    });
 
     await recordActivity(tx, {
       boardId: context.board.id,
@@ -551,7 +560,6 @@ const FIELD_LABELS: Record<string, string> = {
   assigneeId: 'исполнитель',
   testerId: 'тестировщик',
   labelIds: 'метки',
-  startDate: 'дата начала',
   dueDate: 'дедлайн',
   storyPoints: 'оценка',
   estimateMinutes: 'план по времени',
@@ -651,10 +659,6 @@ export async function updateTask(
   if (input.testerId !== undefined) {
     data.tester = input.testerId ? { connect: { id: input.testerId } } : { disconnect: true };
     changedFields.push('testerId');
-  }
-  if (input.startDate !== undefined) {
-    data.startDate = input.startDate;
-    changedFields.push('startDate');
   }
   if (input.dueDate !== undefined) {
     data.dueDate = input.dueDate;

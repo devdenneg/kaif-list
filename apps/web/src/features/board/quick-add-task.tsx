@@ -63,7 +63,7 @@ export function QuickAddTask({
         }}
         placeholder="Что нужно сделать?"
         rows={2}
-        className="min-h-[56px] resize-none border-0 p-0 shadow-none focus-visible:ring-0"
+        className="min-h-16 resize-none border-0 bg-transparent px-1 py-1.5 leading-6 shadow-none focus-visible:ring-0"
       />
       <div className="mt-2 flex items-center gap-1.5">
         <Button

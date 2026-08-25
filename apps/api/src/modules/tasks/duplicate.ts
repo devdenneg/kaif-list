@@ -11,6 +11,7 @@ import { prisma } from '../../lib/prisma.js';
 import { NotFoundError } from '../../lib/errors.js';
 import { assertCanTask, type RequestUser, type TaskContext } from '../../lib/rbac.js';
 import { recordActivity } from '../../services/activity.js';
+import { openInitialTransition } from '../../services/flow-metrics.js';
 import { syncCoreParticipants } from '../../services/participants.js';
 import { publishRealtime } from '../../realtime/bridge.js';
 import { getTaskDetail } from './service.js';
@@ -45,7 +46,6 @@ export async function duplicateTask(
       testerId: true,
       storyPoints: true,
       estimateMinutes: true,
-      startDate: true,
       dueDate: true,
       labels: { select: { labelId: true } },
       checklists: {
@@ -115,7 +115,6 @@ export async function duplicateTask(
           testerId: input.includeAssignee ? source.testerId : null,
           storyPoints: source.storyPoints,
           estimateMinutes: source.estimateMinutes,
-          startDate: input.includeDueDate ? source.startDate : null,
           dueDate: input.includeDueDate ? source.dueDate : null,
           ...(input.includeLabels && source.labels.length > 0
             ? { labels: { create: source.labels.map((label) => ({ labelId: label.labelId })) } }
@@ -152,12 +151,28 @@ export async function duplicateTask(
         testerId: input.includeAssignee ? source.testerId : null,
       });
 
+      // Копия начинает жить в той же колонке, что и оригинал: отсчёт
+      // времени в колонке должен идти с этого момента, а не с нуля.
+      await openInitialTransition(tx, {
+        taskId: created.id,
+        boardId: context.board.id,
+        columnKey: source.columnKey,
+        actorId: user.id,
+        at: new Date(),
+      });
+
       await recordActivity(tx, {
         boardId: context.board.id,
         taskId: created.id,
         actorId: user.id,
         type: ActivityType.TASK_CREATED,
-        payload: { key, title, duplicatedFrom: context.task.key },
+        payload: {
+          key,
+          title,
+          columnKey: source.columnKey,
+          isBacklog: source.isBacklog,
+          duplicatedFrom: context.task.key,
+        },
       });
 
       createdIds.push(created.id);

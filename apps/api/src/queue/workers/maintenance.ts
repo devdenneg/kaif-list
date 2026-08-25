@@ -20,6 +20,7 @@ export function createMaintenanceWorker(): Worker {
       await cleanupSessions();
       await cleanupNotifications();
       await reconcileTaskCounters();
+      await reconcileOpenTransitions();
     },
     { connection: createRedisConnection('worker-maintenance'), concurrency: 1 },
   ).on('failed', (_job, error) => {
@@ -67,6 +68,80 @@ async function cleanupNotifications(): Promise<void> {
     where: { readAt: { not: null }, createdAt: { lt: new Date(Date.now() - 90 * 86_400_000) } },
   });
   if (result.count > 0) logger.info({ count: result.count }, 'Старые уведомления удалены');
+}
+
+/**
+ * Сверка открытых отрезков в истории колонок.
+ *
+ * У каждой живой задачи должен быть ровно один незакрытый отрезок — тот,
+ * в котором она находится сейчас. Расхождения возможны после сбоя посреди
+ * транзакции или ручной правки в базе, и молча они превращаются во враньё
+ * в отчётах: время в колонке считается по этим отрезкам.
+ *
+ * Чиним два случая: лишние открытые отрезки закрываем, полное отсутствие —
+ * заводим отрезок с момента последней активности. Задачи, размеченные
+ * скриптом разметки, сюда не попадают: у них отрезки уже есть.
+ */
+async function reconcileOpenTransitions(): Promise<void> {
+  const tasks = await prisma.task.findMany({
+    where: { archivedAt: null },
+    select: { id: true, boardId: true, columnKey: true, lastActivityAt: true, createdAt: true },
+    take: 20_000,
+  });
+  if (tasks.length === 0) return;
+
+  const open = await prisma.taskColumnTransition.findMany({
+    where: { taskId: { in: tasks.map((task) => task.id) }, leftAt: null },
+    orderBy: { enteredAt: 'desc' },
+    select: { id: true, taskId: true, enteredAt: true, toColumn: true },
+  });
+
+  const openByTask = new Map<string, typeof open>();
+  for (const row of open) {
+    const list = openByTask.get(row.taskId) ?? [];
+    list.push(row);
+    openByTask.set(row.taskId, list);
+  }
+
+  const now = new Date();
+  let closed = 0;
+  let created = 0;
+
+  for (const task of tasks) {
+    const rows = openByTask.get(task.id) ?? [];
+
+    // Лишние открытые отрезки: оставляем самый свежий, остальные закрываем.
+    for (const stale of rows.slice(1)) {
+      await prisma.taskColumnTransition.update({
+        where: { id: stale.id },
+        data: {
+          leftAt: now,
+          durationMinutes: Math.max(
+            0,
+            Math.round((now.getTime() - stale.enteredAt.getTime()) / 60_000),
+          ),
+        },
+      });
+      closed += 1;
+    }
+
+    if (rows.length === 0) {
+      await prisma.taskColumnTransition.create({
+        data: {
+          taskId: task.id,
+          boardId: task.boardId,
+          fromColumn: null,
+          toColumn: task.columnKey,
+          enteredAt: task.lastActivityAt ?? task.createdAt,
+        },
+      });
+      created += 1;
+    }
+  }
+
+  if (closed > 0 || created > 0) {
+    logger.info({ closed, created }, 'История колонок сверена');
+  }
 }
 
 /** Сверка счётчиков комментариев, вложений и чек-листов. */

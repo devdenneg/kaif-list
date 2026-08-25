@@ -39,7 +39,6 @@ export const createTaskSchema = z.object({
   testerId: idSchema.nullable().optional(),
   labelIds: z.array(idSchema).max(20).optional(),
   watcherIds: z.array(idSchema).max(50).optional(),
-  startDate: nullableDateSchema.optional(),
   dueDate: nullableDateSchema.optional(),
   storyPoints: z.number().int().min(LIMITS.storyPoints.min).max(LIMITS.storyPoints.max).nullable().optional(),
   estimateMinutes: z
@@ -72,8 +71,7 @@ export const updateTaskSchema = z
     assigneeId: idSchema.nullable().optional(),
     testerId: idSchema.nullable().optional(),
     labelIds: z.array(idSchema).max(20).optional(),
-    startDate: nullableDateSchema.optional(),
-    dueDate: nullableDateSchema.optional(),
+      dueDate: nullableDateSchema.optional(),
     storyPoints: z
       .number()
       .int()

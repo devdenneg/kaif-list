@@ -489,7 +489,6 @@ model Task {
   estimateMinutes Int?
   spentMinutes    Int?
 
-  startDate           DateTime?
   dueDate             DateTime?
   /// Сколько раз переносили дедлайн — полезная метрика дисциплины.
   dueDateChangedCount Int       @default(0)

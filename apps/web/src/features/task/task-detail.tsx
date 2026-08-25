@@ -9,6 +9,7 @@ import {
   CopyPlus,
   MoreHorizontal,
   Pencil,
+  Plus,
   SlidersHorizontal,
   Trash2,
   X,
@@ -27,6 +28,7 @@ import {
   useDeleteTask,
   useDuplicateTask,
   useMoveTask,
+  useTaskLinks,
   useTaskMovePending,
   useUpdateTask,
 } from '@/api/tasks';
@@ -48,13 +50,15 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { RichTextEditor } from '@/components/rich-text/editor';
 import { RichTextViewer } from '@/components/rich-text/viewer';
 import { TaskProperties } from './task-properties';
 import { TaskComments } from './task-comments';
 import { TaskChecklists } from './task-checklists';
 import { TaskAttachments } from './task-attachments';
-import { BlockedBanner } from './task-links';
+import { BlockedBanner, TaskLinksSection } from './task-links';
+import { TaskLinkPicker } from './task-link-picker';
 import { TaskActivity } from './task-activity';
 import { TaskTypeIcon } from './task-visuals';
 import { MoveReasonDialog, type ReasonRequest } from './move-reason-dialog';
@@ -88,6 +92,8 @@ export function TaskDetail({
 
   const [editingTitle, setEditingTitle] = React.useState(false);
   const [title, setTitle] = React.useState(task.title);
+  const { createLink, deleteLink } = useTaskLinks(task.id, task.boardId);
+  const [linkOpen, setLinkOpen] = React.useState(false);
   const [editingDescription, setEditingDescription] = React.useState(false);
   const [description, setDescription] = React.useState<RichTextDoc | null>(task.description);
 
@@ -421,6 +427,46 @@ export function TaskDetail({
             {...(task.permissions.canUpdate
               ? { onInsertIntoDescription: insertIntoDescription }
               : {})}
+          />
+
+          {/* Связи — важный блок: что мешает и что ждёт нас. Читается вместе
+              с описанием, поэтому стоит здесь, а не только в боковой панели. */}
+          <TaskLinksSection
+            task={task}
+            canManage={task.permissions.canManageLinks}
+            onDelete={(linkId) =>
+              deleteLink.mutate(linkId, {
+                onError: (error: unknown) => toast.error('Не удалось убрать связь', error),
+              })
+            }
+            onAdd={
+              task.permissions.canManageLinks ? (
+                <Popover open={linkOpen} onOpenChange={setLinkOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="sm">
+                      <Plus />
+                      Связать
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="w-80 p-2">
+                    <TaskLinkPicker
+                      task={task}
+                      loading={createLink.isPending}
+                      onSubmit={(type, key) =>
+                        createLink.mutate(
+                          { type, targetTaskKey: key },
+                          {
+                            onSuccess: () => setLinkOpen(false),
+                            onError: (error: unknown) =>
+                              toast.error('Не удалось связать', error),
+                          },
+                        )
+                      }
+                    />
+                  </PopoverContent>
+                </Popover>
+              ) : null
+            }
           />
 
           {/* Обсуждение и история */}

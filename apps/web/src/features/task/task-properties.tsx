@@ -3,7 +3,6 @@ import {
   Bell,
   BellOff,
   CalendarClock,
-  CalendarPlus,
   Clock,
   Gauge,
   Link2,
@@ -16,9 +15,7 @@ import {
   COLUMN_LABELS,
   COLUMN_ORDER,
   PRIORITY_LABELS,
-  TASK_LINK_LABELS,
   TASK_TYPE_LABELS,
-  TaskLinkType,
   TaskPriority,
   TaskType,
   type BoardDto,
@@ -26,6 +23,8 @@ import {
 } from '@kaif/shared';
 import { useUpdateTask, useTaskLinks, useWatchTask } from '@/api/tasks';
 import { TaskLinks } from './task-links';
+import { DueSummary } from './due-summary';
+import { TaskLinkPicker } from './task-link-picker';
 import { useAuthStore } from '@/stores/auth';
 import { ApiError } from '@/lib/api';
 import { toast } from '@/lib/toast';
@@ -211,17 +210,6 @@ export function TaskProperties({
       </PropertySection>
 
       <PropertySection title="Сроки и оценка">
-        <Field icon={<CalendarPlus />} label="Начало" layout="stacked">
-          <DateTimePicker
-            value={task.startDate}
-            onChange={(value) => update({ startDate: value })}
-            disabled={!editable}
-            placeholder="Добавить дату начала"
-            aria-label="Дата и время начала"
-            {...(timeZone ? { timeZone } : {})}
-          />
-        </Field>
-
         <Field icon={<CalendarClock />} label="Дедлайн" layout="stacked">
           <div className="space-y-1.5">
             <DateTimePicker
@@ -242,6 +230,7 @@ export function TaskProperties({
                 />
               </div>
             )}
+            <DueSummary task={task} {...(timeZone ? { timeZone } : {})} />
           </div>
         </Field>
 
@@ -305,8 +294,9 @@ export function TaskProperties({
                   <Plus />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent align="end" className="w-72">
-                <AddLinkForm
+              <PopoverContent align="end" className="w-80 p-2">
+                <TaskLinkPicker
+                  task={task}
                   onSubmit={(type, key) => {
                     links.createLink.mutate(
                       { type, targetTaskKey: key },
@@ -437,51 +427,3 @@ function PropertySection({
   );
 }
 
-function AddLinkForm({
-  onSubmit,
-  loading,
-}: {
-  onSubmit: (type: TaskLinkType, key: string) => void;
-  loading: boolean;
-}): React.ReactElement {
-  const [type, setType] = React.useState<TaskLinkType>(TaskLinkType.RELATES);
-  const [key, setKey] = React.useState('');
-
-  return (
-    <div className="space-y-2">
-      <Select value={type} onValueChange={(value) => setType(value as TaskLinkType)}>
-        <SelectTrigger className="h-8 [@media(pointer:coarse)]:h-11">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {Object.values(TaskLinkType).map((item) => (
-            <SelectItem key={item} value={item}>
-              {TASK_LINK_LABELS[item]}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      <Input
-        value={key}
-        onChange={(event) => setKey(event.target.value.toUpperCase())}
-        placeholder="Ключ задачи, например OPS-12"
-        className="h-8 font-mono [@media(pointer:coarse)]:h-11"
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' && key.trim()) onSubmit(type, key.trim());
-        }}
-      />
-
-      <Button
-        variant="primary"
-        size="sm"
-        className="w-full [@media(pointer:coarse)]:min-h-11"
-        disabled={!key.trim()}
-        loading={loading}
-        onClick={() => onSubmit(type, key.trim())}
-      >
-        Связать
-      </Button>
-    </div>
-  );
-}

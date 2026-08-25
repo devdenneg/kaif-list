@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Link } from 'react-router-dom';
-import { Ban, CheckCircle2, ChevronRight, Trash2 } from 'lucide-react';
+import { Ban, CheckCircle2, ChevronRight, Link2, Trash2 } from 'lucide-react';
 import {
   COLUMN_LABELS,
   ColumnKey,
@@ -133,6 +133,49 @@ function LinkRow({
         </button>
       )}
     </li>
+  );
+}
+
+/**
+ * Блок связей в основной колонке, сразу под вложениями.
+ *
+ * В боковой панели связи тоже есть, но там они соседствуют с приоритетом
+ * и оценкой — а «что мешает» и «что ждёт нас» человек читает вместе с
+ * описанием, а не в списке свойств.
+ */
+export function TaskLinksSection({
+  task,
+  onDelete,
+  onAdd,
+  canManage,
+}: {
+  task: TaskDetailDto;
+  onDelete: (linkId: string) => void;
+  onAdd: React.ReactNode;
+  canManage: boolean;
+}): React.ReactElement | null {
+  // Пустой блок в основной колонке не нужен: добавить связь можно из панели.
+  if (task.links.length === 0 && !canManage) return null;
+
+  return (
+    <section className="space-y-2">
+      <div className="flex items-center gap-2">
+        <Link2 className="size-4 text-muted-foreground" />
+        <h3 className="text-sm font-semibold">Связи</h3>
+        {task.links.length > 0 && (
+          <span className="text-xs text-muted-foreground">{task.links.length}</span>
+        )}
+        <div className="ml-auto">{onAdd}</div>
+      </div>
+
+      {task.links.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-border px-3 py-3 text-center text-xs text-muted-foreground">
+          Связей нет. Свяжите с тем, что мешает или зависит от этой задачи.
+        </p>
+      ) : (
+        <TaskLinks task={task} onDelete={onDelete} canManage={canManage} />
+      )}
+    </section>
   );
 }
 
