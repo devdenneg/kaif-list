@@ -71,9 +71,23 @@ export const TELEGRAM_BATCH_DELAY_MS = 12_000;
  * уведомления по той же задаче: в вебе они появлялись, в Telegram — нет.
  * Номер окна делает идентификатор уникальным для каждого интервала склейки,
  * а лишняя джоба безвредна — воркер просто не найдёт неотправленного.
+ *
+ * Отделяется подчёркиванием, а не двоеточием: BullMQ разрешает двоеточие
+ * в идентификаторе только если частей ровно три — иначе `Custom Id cannot
+ * contain :` и уведомление не уходит вообще.
  */
 function batchWindow(): number {
   return Math.floor(Date.now() / TELEGRAM_BATCH_DELAY_MS);
+}
+
+/** Идентификатор джобы склейки по паре «человек + задача». */
+export function taskNotificationJobId(userId: string, taskId: string, window: number): string {
+  return `tg:${userId}:${taskId}_${window}`;
+}
+
+/** Идентификатор джобы одиночного уведомления. */
+export function singleNotificationJobId(notificationId: string, window: number): string {
+  return `tg:one:${notificationId}_${window}`;
 }
 
 export async function enqueueTaskNotification(userId: string, taskId: string): Promise<void> {
@@ -82,7 +96,7 @@ export async function enqueueTaskNotification(userId: string, taskId: string): P
       'task-notifications',
       { kind: 'task-notifications', userId, taskId } satisfies TelegramJob,
       {
-        jobId: `tg:${userId}:${taskId}:${batchWindow()}`,
+        jobId: taskNotificationJobId(userId, taskId, batchWindow()),
         delay: TELEGRAM_BATCH_DELAY_MS,
         removeOnComplete: true,
       },
@@ -100,7 +114,7 @@ export async function enqueueSingleNotification(
     await telegramQueue.add(
       'single-notification',
       { kind: 'single-notification', userId, notificationId } satisfies TelegramJob,
-      { jobId: `tg:one:${notificationId}:${batchWindow()}`, removeOnComplete: true },
+      { jobId: singleNotificationJobId(notificationId, batchWindow()), removeOnComplete: true },
     );
   } catch (error) {
     logger.error({ err: error, notificationId }, 'Не удалось поставить уведомление в очередь');

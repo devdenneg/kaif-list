@@ -136,7 +136,15 @@ function sanitizeAttrs(type: string, attrs: unknown): Record<string, unknown> | 
       if (!src) return undefined;
       const alt = typeof input.alt === 'string' ? input.alt.slice(0, 200) : null;
       const title = typeof input.title === 'string' ? input.title.slice(0, 200) : null;
-      return { src, alt, title };
+      // Размер и выравнивание задаёт автор описания. Ширина — только проценты
+      // в разумных пределах: произвольная строка отсюда уедет прямо в style.
+      const rawWidth = Number(input.width);
+      const width =
+        Number.isFinite(rawWidth) && rawWidth >= 10 && rawWidth <= 100
+          ? Math.round(rawWidth)
+          : null;
+      const align = input.align === 'center' || input.align === 'left' ? input.align : null;
+      return { src, alt, title, width, align };
     }
     case 'mention': {
       const id = typeof input.id === 'string' ? input.id.slice(0, 40) : null;

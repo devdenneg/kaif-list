@@ -269,6 +269,21 @@
     @apply my-2 max-h-96 rounded-lg border border-border object-contain;
   }
 
+  /* Автор задал ширину явно — значит, картинка важна и обрезать её по высоте
+     нельзя: скриншот с подсказкой «смотри сюда» должен быть виден целиком. */
+  .prose-kaif img[data-width] {
+    @apply max-h-none;
+  }
+
+  .prose-kaif img[data-align='center'] {
+    @apply mx-auto block;
+  }
+
+  /* Выделенная картинка — с ней сейчас работает панель размера. */
+  .tiptap img.ProseMirror-selectednode {
+    @apply ring-2 ring-ring ring-offset-2 ring-offset-surface;
+  }
+
   .prose-kaif hr {
     @apply my-4 border-border;
   }

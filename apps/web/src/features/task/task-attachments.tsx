@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Download, FileText, Paperclip, Trash2, Upload } from 'lucide-react';
+import { Download, FileText, Paperclip, TextCursorInput, Trash2, Upload } from 'lucide-react';
 import { LIMITS, type AttachmentDto, type TaskDetailDto } from '@kaif/shared';
 import { api } from '@/lib/api';
 import { invalidateEntity, invalidateTaskScopes } from '@/lib/query-client';
@@ -16,9 +16,15 @@ import { toast } from '@/lib/toast';
 export function TaskAttachments({
   task,
   editable,
+  onInsertIntoDescription,
 }: {
   task: TaskDetailDto;
   editable: boolean;
+  /**
+   * Поставить картинку в описание. Обычный сценарий: тестировщик приложил
+   * скриншот, а автор ставит его туда, где объясняет, куда смотреть.
+   */
+  onInsertIntoDescription?: (attachment: AttachmentDto) => void;
 }): React.ReactElement {
   const [uploading, setUploading] = React.useState(false);
   const [dragOver, setDragOver] = React.useState(false);
@@ -123,6 +129,18 @@ export function TaskAttachments({
               key={attachment.id}
               className="group relative overflow-hidden rounded-lg border border-border"
             >
+              {onInsertIntoDescription && (
+                <Tooltip content="Поставить в описание">
+                  <button
+                    type="button"
+                    onClick={() => onInsertIntoDescription(attachment)}
+                    aria-label={`Поставить ${attachment.filename} в описание`}
+                    className="absolute left-1 top-1 z-10 inline-flex size-7 items-center justify-center rounded-md bg-background/80 text-muted-foreground opacity-0 backdrop-blur transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100 [&_svg]:size-3.5"
+                  >
+                    <TextCursorInput />
+                  </button>
+                </Tooltip>
+              )}
               <button
                 type="button"
                 onClick={() => setLightboxIndex(index)}
@@ -216,9 +234,12 @@ export function TaskAttachments({
         multiple
         className="hidden"
         onChange={(event) => {
-          const files = event.target.files;
+          // Список файлов у поля живой: сброс value очищает и его. Поэтому
+          // сначала копируем выбранное, и только потом освобождаем поле —
+          // иначе загружать оказывается нечего, причём совершенно молча.
+          const files = Array.from(event.target.files ?? []);
           event.target.value = '';
-          if (files) void upload(files);
+          if (files.length > 0) void upload(files);
         }}
       />
     </section>

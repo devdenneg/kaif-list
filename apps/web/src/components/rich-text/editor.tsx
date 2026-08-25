@@ -1,9 +1,15 @@
 import * as React from 'react';
-import { EditorContent, useEditor, type Editor, type JSONContent } from '@tiptap/react';
+import {
+  BubbleMenu,
+  EditorContent,
+  useEditor,
+  type Editor,
+  type JSONContent,
+} from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import Link from '@tiptap/extension-link';
-import Image from '@tiptap/extension-image';
+
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import Underline from '@tiptap/extension-underline';
@@ -12,10 +18,13 @@ import TextAlign from '@tiptap/extension-text-align';
 import Mention from '@tiptap/extension-mention';
 import type { PublicUser, RichTextDoc } from '@kaif/shared';
 import {
+  AlignCenter,
+  AlignLeft,
   Bold,
   Code,
   Heading2,
   ImagePlus,
+  Paperclip,
   Italic,
   Link2,
   List,
@@ -24,6 +33,7 @@ import {
   Quote,
   Redo2,
   Strikethrough,
+  Trash2,
   Underline as UnderlineIcon,
   Undo2,
 } from 'lucide-react';
@@ -33,6 +43,12 @@ import { Tooltip } from '@/components/ui/tooltip';
 import { useFormFieldA11y } from '@/components/ui/input';
 import { toast } from '@/lib/toast';
 import { createMentionSuggestion } from './mention-suggestion';
+import { IMAGE_WIDTHS, SizedImage } from './sized-image';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 
 export interface RichTextEditorProps {
   value: RichTextDoc | null;
@@ -46,6 +62,12 @@ export interface RichTextEditorProps {
   toolbar?: boolean;
   /** Куда привязывать загруженные изображения. */
   uploadTarget?: { boardId?: string; taskId?: string };
+  /**
+   * Уже приложенные к задаче картинки — их можно вставить в текст,
+   * не загружая заново. Главный сценарий: тестировщик приложил скриншот,
+   * а автор ставит его в нужное место описания.
+   */
+  attachments?: { id: string; url: string; filename: string; isImage: boolean }[];
   onSubmit?: () => void;
   autoFocus?: boolean;
 }
@@ -67,6 +89,7 @@ export function RichTextEditor({
   className,
   toolbar = true,
   uploadTarget,
+  attachments = [],
   onSubmit,
   autoFocus = false,
 }: RichTextEditorProps): React.ReactElement {
@@ -119,7 +142,7 @@ export function RichTextEditor({
         protocols: ['http', 'https', 'mailto'],
         HTMLAttributes: { rel: 'noopener noreferrer nofollow', target: '_blank' },
       }),
-      Image.configure({ inline: false, allowBase64: false }),
+      SizedImage.configure({ inline: false, allowBase64: false }),
       TaskList,
       TaskItem.configure({ nested: true }),
       Mention.configure({
@@ -192,6 +215,7 @@ export function RichTextEditor({
   }, [editor, editable]);
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const imageAttachments = attachments.filter((attachment) => attachment.isImage);
 
   if (!editor) {
     return <div className="skeleton" style={{ minHeight }} />;
@@ -205,6 +229,57 @@ export function RichTextEditor({
         className,
       )}
     >
+      {/* Картинку выделили — показываем, что с ней можно сделать. */}
+      {editable && (
+        <BubbleMenu
+          editor={editor}
+          shouldShow={({ editor: instance }) => instance.isActive('image')}
+          tippyOptions={{ duration: 120, placement: 'top' }}
+          className="flex items-center gap-0.5 rounded-lg border border-border bg-popover p-1 shadow-card"
+        >
+          {IMAGE_WIDTHS.map((width) => (
+            <button
+              key={width}
+              type="button"
+              onClick={() => editor.chain().focus().updateAttributes('image', { width }).run()}
+              className={cn(
+                'rounded-md px-2 py-1 text-xs font-medium transition-colors',
+                editor.getAttributes('image').width === width
+                  ? 'bg-accent text-accent-foreground'
+                  : 'text-muted-foreground hover:bg-secondary',
+              )}
+            >
+              {width}%
+            </button>
+          ))}
+
+          <Divider />
+
+          <ToolbarButton
+            icon={<AlignLeft />}
+            label="По левому краю"
+            active={editor.getAttributes('image').align !== 'center'}
+            onClick={() => editor.chain().focus().updateAttributes('image', { align: 'left' }).run()}
+          />
+          <ToolbarButton
+            icon={<AlignCenter />}
+            label="По центру"
+            active={editor.getAttributes('image').align === 'center'}
+            onClick={() =>
+              editor.chain().focus().updateAttributes('image', { align: 'center' }).run()
+            }
+          />
+
+          <Divider />
+
+          <ToolbarButton
+            icon={<Trash2 />}
+            label="Убрать из описания"
+            onClick={() => editor.chain().focus().deleteSelection().run()}
+          />
+        </BubbleMenu>
+      )}
+
       {toolbar && editable && (
         <div className="scrollbar-thin flex items-center gap-0.5 overflow-x-auto border-b border-border px-1.5 py-1">
           <ToolbarButton
@@ -290,10 +365,53 @@ export function RichTextEditor({
           />
           <ToolbarButton
             icon={<ImagePlus />}
-            label="Изображение"
+            label="Загрузить изображение"
             loading={uploading}
             onClick={() => fileInputRef.current?.click()}
           />
+          {imageAttachments.length > 0 && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  title="Вставить из вложений"
+                  aria-label="Вставить из вложений"
+                  className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground [&_svg]:size-4"
+                >
+                  <Paperclip />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-72 p-2">
+                <p className="mb-1.5 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Вложения задачи
+                </p>
+                <div className="scrollbar-thin grid max-h-64 grid-cols-3 gap-1.5 overflow-y-auto">
+                  {imageAttachments.map((attachment) => (
+                    <button
+                      key={attachment.id}
+                      type="button"
+                      onClick={() =>
+                        editor
+                          .chain()
+                          .focus()
+                          .setImage({ src: attachment.url, alt: attachment.filename })
+                          .run()
+                      }
+                      title={attachment.filename}
+                      className="overflow-hidden rounded-md border border-border transition-colors hover:border-primary"
+                    >
+                      <img
+                        src={attachment.url}
+                        alt={attachment.filename}
+                        className="h-16 w-full object-cover"
+                        loading="lazy"
+                      />
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
 
           <div className="ml-auto flex items-center gap-0.5">
             <ToolbarButton

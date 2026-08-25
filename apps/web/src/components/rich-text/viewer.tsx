@@ -123,12 +123,25 @@ function NodeRenderer({ node }: { node: RichTextNode }): React.ReactElement | nu
     case 'image': {
       const src = typeof node.attrs?.src === 'string' ? node.attrs.src : '';
       if (!src) return null;
+
+      // Ширина и выравнивание заданы автором описания — в просмотре картинка
+      // должна выглядеть ровно так же, иначе смысл «смотри сюда» теряется.
+      const width = Number(node.attrs?.width);
+      const centered = node.attrs?.align === 'center';
+
       return (
-        <a href={src} target="_blank" rel="noopener noreferrer">
+        <a
+          href={src}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={cn('block', centered && 'mx-auto w-fit')}
+          style={Number.isFinite(width) && width > 0 ? { width: `${width}%` } : undefined}
+        >
           <img
             src={src}
             alt={typeof node.attrs?.alt === 'string' ? node.attrs.alt : ''}
             loading="lazy"
+            className="w-full"
           />
         </a>
       );
