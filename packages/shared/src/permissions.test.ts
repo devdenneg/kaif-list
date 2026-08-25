@@ -41,10 +41,17 @@ describe('матрица прав', () => {
     expect(can(ctx(BoardRole.MEMBER), 'task.delete')).toBe(false);
   });
 
-  it('наблюдатель не видит разбор работы команды', () => {
+  it('аналитику доски смотрят только владелец и администраторы', () => {
     expect(can(ctx(BoardRole.VIEWER), 'board.analytics.view')).toBe(false);
-    expect(can(ctx(BoardRole.MEMBER), 'board.analytics.view')).toBe(true);
+    expect(can(ctx(BoardRole.MEMBER), 'board.analytics.view')).toBe(false);
     expect(can(ctx(BoardRole.ADMIN), 'board.analytics.view')).toBe(true);
+    expect(can(ctx(BoardRole.OWNER), 'board.analytics.view')).toBe(true);
+  });
+
+  it('загрузку коллег видит каждый, кто работает на доске', () => {
+    expect(can(ctx(BoardRole.VIEWER), 'board.workload.view')).toBe(false);
+    expect(can(ctx(BoardRole.MEMBER), 'board.workload.view')).toBe(true);
+    expect(can(ctx(BoardRole.ADMIN), 'board.workload.view')).toBe(true);
   });
 
   it('свою задачу автор удаляет сам, чужую — нет', () => {

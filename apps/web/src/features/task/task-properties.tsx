@@ -5,8 +5,6 @@ import {
   CalendarClock,
   Clock,
   Gauge,
-  Link2,
-  Plus,
   Tag,
   UserCheck,
   UserCog,
@@ -21,10 +19,8 @@ import {
   type BoardDto,
   type TaskDetailDto,
 } from '@kaif/shared';
-import { useUpdateTask, useTaskLinks, useWatchTask } from '@/api/tasks';
-import { TaskLinks } from './task-links';
+import { useUpdateTask, useWatchTask } from '@/api/tasks';
 import { DueSummary } from './due-summary';
-import { TaskLinkPicker } from './task-link-picker';
 import { useAuthStore } from '@/stores/auth';
 import { ApiError } from '@/lib/api';
 import { toast } from '@/lib/toast';
@@ -39,7 +35,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { UserPicker } from './user-picker';
 import { LabelPicker } from './label-picker';
 import { DueBadge, PriorityIcon, TaskTypeIcon } from './task-visuals';
@@ -59,12 +54,10 @@ export function TaskProperties({
 }): React.ReactElement {
   const updateTask = useUpdateTask(task.id, task.boardId);
   const watchTask = useWatchTask(task.id);
-  const links = useTaskLinks(task.id, task.boardId);
   const timeZone = useAuthStore((state) => state.user?.timezone);
 
   const [reasonRequest, setReasonRequest] = React.useState<ReasonRequest | null>(null);
   const [pendingUpdate, setPendingUpdate] = React.useState<Record<string, unknown> | null>(null);
-  const [linkOpen, setLinkOpen] = React.useState(false);
 
   const editable = task.permissions.canUpdate;
 
@@ -278,56 +271,6 @@ export function TaskProperties({
         </Field>
       </PropertySection>
 
-      {/* ── Связи между задачами ── */}
-      <PropertySection
-        title="Связи"
-        action={
-          task.permissions.canManageLinks ? (
-            <Popover open={linkOpen} onOpenChange={setLinkOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="size-8 [@media(pointer:coarse)]:size-11"
-                  aria-label="Добавить связь"
-                >
-                  <Plus />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="end" className="w-80 p-2">
-                <TaskLinkPicker
-                  task={task}
-                  onSubmit={(type, key) => {
-                    links.createLink.mutate(
-                      { type, targetTaskKey: key },
-                      {
-                        onSuccess: () => setLinkOpen(false),
-                        onError: (error) => toast.error('Не удалось связать', error),
-                      },
-                    );
-                  }}
-                  loading={links.createLink.isPending}
-                />
-              </PopoverContent>
-            </Popover>
-          ) : null
-        }
-      >
-        <div className="py-1.5">
-          <div className="flex min-h-9 items-start gap-2 text-xs text-muted-foreground [@media(pointer:coarse)]:min-h-11">
-            <Link2 className="mt-1 size-4 shrink-0" />
-            <TaskLinks
-              task={task}
-              canManage={task.permissions.canManageLinks}
-              onDelete={(linkId) =>
-                links.deleteLink.mutate(linkId, {
-                  onError: (error) => toast.error('Не удалось убрать связь', error),
-                })
-              }
-            />
-          </div>
-        </div>
-      </PropertySection>
 
       <Button
         variant={task.watching ? 'secondary' : 'outline'}

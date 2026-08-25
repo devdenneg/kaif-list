@@ -259,7 +259,7 @@ function SidebarLink({
           'h-10 min-h-10 shrink-0 rounded-lg text-sm font-medium transition-colors',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
           collapsed
-            ? 'mx-auto grid w-10 place-items-center px-0'
+            ? 'relative mx-auto block w-10 px-0'
             : 'flex w-full items-center justify-start gap-2.5 px-3.5',
           isActive
             ? 'bg-accent text-accent-foreground'
@@ -267,7 +267,13 @@ function SidebarLink({
         )
       }
     >
-      <Icon className="size-5" aria-hidden />
+      <Icon
+        className={cn(
+          'size-5',
+          collapsed && 'absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2',
+        )}
+        aria-hidden
+      />
       {!collapsed && <span className="truncate">{label}</span>}
     </NavLink>
   );
@@ -305,7 +311,7 @@ function BoardLink({
           'group h-10 min-h-10 shrink-0 rounded-lg text-sm transition-colors',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
           collapsed
-            ? 'mx-auto grid w-10 place-items-center px-0'
+            ? 'relative mx-auto block w-10 px-0'
             : 'flex w-full items-center justify-start gap-2.5 px-[19px]',
           isActive
             ? 'bg-accent font-medium text-accent-foreground'
@@ -317,7 +323,7 @@ function BoardLink({
         className={cn(
           'shrink-0',
           collapsed
-            ? 'flex size-7 items-center justify-center rounded-md border bg-secondary text-[11px] font-bold leading-none'
+            ? 'absolute left-1/2 top-1/2 flex size-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-md border bg-secondary text-[11px] font-bold leading-none'
             : 'size-2.5 rounded-sm',
         )}
         style={

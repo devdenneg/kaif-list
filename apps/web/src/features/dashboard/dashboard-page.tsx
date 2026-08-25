@@ -3,20 +3,21 @@ import { Link, useParams } from 'react-router-dom';
 import {
   Area,
   AreaChart,
-  Bar,
-  BarChart,
   CartesianGrid,
-  Cell,
-  Legend,
-  Pie,
-  PieChart,
   ResponsiveContainer,
   Tooltip as ChartTooltip,
   XAxis,
   YAxis,
 } from 'recharts';
-import { ArrowLeft, BarChart3, Clock, TrendingUp, Users } from 'lucide-react';
-import { COLUMN_LABELS, PRIORITY_LABELS, can, type TaskPriority } from '@kaif/shared';
+import { ArrowLeft, BarChart3 } from 'lucide-react';
+import {
+  COLUMN_LABELS,
+  PRIORITY_LABELS,
+  TASK_TYPE_LABELS,
+  can,
+  type PersonStatsDto,
+  type TaskPriority,
+} from '@kaif/shared';
 import { useBoard, useBoardAnalytics } from '@/api/boards';
 import { useAuthStore } from '@/stores/auth';
 import { Button } from '@/components/ui/button';
@@ -30,6 +31,15 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { FullScreenLoader } from '@/app/loader';
+import { cn } from '@/lib/utils';
+import {
+  AttentionList,
+  AttentionTile,
+  BarRow,
+  DeltaStat,
+  Panel,
+  formatNumber,
+} from './analytics-parts';
 
 const PRIORITY_COLORS: Record<TaskPriority, string> = {
   BLOCKER: '#dc2626',
@@ -41,15 +51,19 @@ const PRIORITY_COLORS: Record<TaskPriority, string> = {
 };
 
 /**
- * Аналитика доски: сколько создаём и закрываем, за сколько дней проходит
- * задача и где она застревает. Это то, ради чего руководитель вообще
- * открывает трекер.
+ * Аналитика доски.
+ *
+ * Порядок на экране — это и есть главное решение: сверху то, с чем надо
+ * что-то делать сегодня, ниже динамика за период, затем разбор по людям,
+ * и только потом распределения и графики. Руководитель заходит сюда не
+ * любоваться диаграммами, а понять, где горит и кто не вывозит.
  */
 export function DashboardPage(): React.ReactElement {
   const { boardKey } = useParams<{ boardKey: string }>();
   const [days, setDays] = React.useState(30);
   const user = useAuthStore((state) => state.user);
   const { data: board, isLoading } = useBoard(boardKey);
+
   const canSee =
     user && board
       ? can(
@@ -61,6 +75,7 @@ export function DashboardPage(): React.ReactElement {
           'board.analytics.view',
         )
       : false;
+
   const { data: analytics, isLoading: analyticsLoading } = useBoardAnalytics(
     canSee ? board?.id : undefined,
     days,
@@ -75,7 +90,7 @@ export function DashboardPage(): React.ReactElement {
         <EmptyState
           icon={<BarChart3 />}
           title="Аналитика недоступна"
-          description="Разбор работы команды видят участники доски и её администраторы."
+          description="Разбор работы команды видят владелец доски и её администраторы."
           action={
             <Button variant="primary" asChild>
               <Link to={`/boards/${board.key}`}>К доске</Link>
@@ -86,11 +101,13 @@ export function DashboardPage(): React.ReactElement {
     );
   }
 
+  const boardHref = `/boards/${board.key}`;
+
   return (
-    <div className="mx-auto w-full max-w-6xl p-4 sm:p-6">
+    <div className="mx-auto w-full max-w-7xl p-4 sm:p-6">
       <header className="mb-5">
         <Button variant="ghost" size="sm" asChild className="mb-2">
-          <Link to={`/boards/${board.key}`}>
+          <Link to={boardHref}>
             <ArrowLeft />К доске
           </Link>
         </Button>
@@ -101,295 +118,381 @@ export function DashboardPage(): React.ReactElement {
               <BarChart3 className="size-5 text-muted-foreground" />
               Аналитика
             </h1>
-            <p className="truncate text-sm text-muted-foreground">{board.name}</p>
+            <p className="text-sm text-muted-foreground">{board.name}</p>
           </div>
 
           <Select value={String(days)} onValueChange={(value) => setDays(Number(value))}>
-            <SelectTrigger className="w-full xs:w-40">
+            <SelectTrigger className="w-40">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="7">7 дней</SelectItem>
+              <SelectItem value="14">14 дней</SelectItem>
               <SelectItem value="30">30 дней</SelectItem>
               <SelectItem value="90">90 дней</SelectItem>
+              <SelectItem value="180">180 дней</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </header>
 
       {analyticsLoading || !analytics ? (
-        <div className="grid gap-4 lg:grid-cols-2">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <Skeleton key={index} className="h-64 rounded-xl" />
-          ))}
+        <div className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <Skeleton key={index} className="h-20 rounded-xl" />
+            ))}
+          </div>
+          <Skeleton className="h-64 rounded-xl" />
+          <Skeleton className="h-80 rounded-xl" />
         </div>
       ) : (
-        <div className="space-y-4">
-          {/* ── Сводка ── */}
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard
-              icon={<Clock />}
-              label="Среднее время цикла"
-              value={`${analytics.cycleTimeDays.median} дн`}
-              hint={`90% задач ≤ ${analytics.cycleTimeDays.p90} дн`}
-            />
-            <StatCard
-              icon={<TrendingUp />}
-              label="Закрыто за период"
-              value={String(analytics.throughput.reduce((sum, day) => sum + day.done, 0))}
-              hint={`Создано: ${analytics.throughput.reduce((sum, day) => sum + day.created, 0)}`}
-            />
-            <StatCard
-              icon={<BarChart3 />}
+        <div className="space-y-5">
+          {/* ── 1. Что требует решения сегодня ── */}
+          <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
+            <AttentionTile
               label="Просрочено"
-              value={String(analytics.overdueCount)}
-              tone={analytics.overdueCount > 0 ? 'danger' : 'default'}
+              value={analytics.attentionCounts.overdue}
+              tone="danger"
+              to={boardHref}
             />
-            <StatCard
-              icon={<Users />}
+            <AttentionTile
+              label="Заблокировано"
+              value={analytics.attentionCounts.blocked}
+              tone="danger"
+              to={boardHref}
+            />
+            <AttentionTile
+              label="Застряло"
+              value={analytics.attentionCounts.stale}
+              tone="warning"
+              hint="не двигались неделю"
+              to={boardHref}
+            />
+            <AttentionTile
               label="Без исполнителя"
-              value={String(analytics.unassignedCount)}
-              tone={analytics.unassignedCount > 5 ? 'warning' : 'default'}
+              value={analytics.attentionCounts.unassigned}
+              tone="warning"
+              to={boardHref}
+            />
+            <AttentionTile
+              label="Срок на неделе"
+              value={analytics.attentionCounts.dueThisWeek}
+              to={boardHref}
+            />
+            <AttentionTile
+              label="В работе"
+              value={analytics.attentionCounts.inProgress}
+              tone="success"
+              to={boardHref}
             />
           </div>
 
+          {/* ── 2. Как идут дела ── */}
+          <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
+            <DeltaStat label="Закрыто" delta={analytics.flow.completed} />
+            <DeltaStat label="Создано" delta={analytics.flow.created} goodDirection="down" />
+            <DeltaStat
+              label="Время цикла"
+              delta={analytics.flow.cycleTimeDays}
+              unit=" дн"
+              goodDirection="down"
+              hint={
+                analytics.cycleTime.sample > 0
+                  ? `медиана · 90% ≤ ${formatNumber(analytics.cycleTime.p90)} дн`
+                  : 'ещё нечего считать'
+              }
+            />
+            <DeltaStat
+              label="Возвраты"
+              delta={analytics.flow.returned}
+              goodDirection="down"
+              hint="назад по конвейеру"
+            />
+            <DeltaStat
+              label="Переоткрыто"
+              delta={analytics.flow.reopened}
+              goodDirection="down"
+              hint="доставали из «Готово»"
+            />
+          </div>
+
+          {/* ── 3. Люди ── */}
+          <Panel
+            title="Люди"
+            subtitle={`Загрузка сейчас и результат за ${days} дн. Сверху те, у кого больше работы`}
+          >
+            <PeopleTable people={analytics.people} />
+          </Panel>
+
+          {/* ── 4. Требуют внимания — конкретные задачи ── */}
           <div className="grid gap-4 lg:grid-cols-2">
-            {/* ── Динамика ── */}
-            <Panel title="Создано и закрыто">
-              <ResponsiveContainer width="100%" height={240}>
-                <AreaChart data={analytics.throughput}>
-                  <defs>
-                    <linearGradient id="created" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.35} />
-                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="done" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#22c55e" stopOpacity={0.35} />
-                      <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis
-                    dataKey="date"
-                    tickFormatter={(value: string) => value.slice(5)}
-                    tick={{ fontSize: 11 }}
-                    stroke="hsl(var(--muted-foreground))"
-                  />
-                  <YAxis
-                    allowDecimals={false}
-                    tick={{ fontSize: 11 }}
-                    stroke="hsl(var(--muted-foreground))"
-                  />
-                  <ChartTooltip
-                    contentStyle={{
-                      background: 'hsl(var(--popover))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: 8,
-                      fontSize: 12,
-                    }}
-                  />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Area
-                    type="monotone"
-                    dataKey="created"
-                    name="Создано"
-                    stroke="#6366f1"
-                    fill="url(#created)"
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="done"
-                    name="Закрыто"
-                    stroke="#22c55e"
-                    fill="url(#done)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+            <Panel title="Просрочено" subtitle="Самые давние сверху">
+              <AttentionList
+                tasks={analytics.attention.overdue}
+                empty="Просроченных задач нет"
+                reason={(task) => (task.dueDate ? overdueBy(task.dueDate) : '')}
+              />
             </Panel>
 
-            {/* ── Приоритеты ── */}
-            <Panel title="Активные задачи по приоритету">
-              <ResponsiveContainer width="100%" height={240}>
-                <PieChart>
-                  <Pie
-                    data={analytics.byPriority.map((item) => ({
-                      name: PRIORITY_LABELS[item.priority],
-                      value: item.count,
-                      priority: item.priority,
-                    }))}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={55}
-                    outerRadius={90}
-                    paddingAngle={2}
-                  >
-                    {analytics.byPriority.map((item) => (
-                      <Cell key={item.priority} fill={PRIORITY_COLORS[item.priority]} />
-                    ))}
-                  </Pie>
-                  <ChartTooltip
-                    contentStyle={{
-                      background: 'hsl(var(--popover))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: 8,
-                      fontSize: 12,
-                    }}
-                  />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
-                </PieChart>
-              </ResponsiveContainer>
+            <Panel title="Заблокировано" subtitle="Ждут, пока закроют другую задачу">
+              <AttentionList
+                tasks={analytics.attention.blocked}
+                empty="Заблокированных задач нет"
+                reason={(task) => `${task.blockedByCount} блок.`}
+              />
             </Panel>
 
-            {/* ── Колонки ── */}
-            <Panel title="Распределение по колонкам">
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart
-                  data={analytics.byColumn.map((item) => ({
-                    name: COLUMN_LABELS[item.column],
-                    count: item.count,
-                  }))}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis
-                    dataKey="name"
-                    tick={{ fontSize: 10 }}
-                    stroke="hsl(var(--muted-foreground))"
-                  />
-                  <YAxis
-                    allowDecimals={false}
-                    tick={{ fontSize: 11 }}
-                    stroke="hsl(var(--muted-foreground))"
-                  />
-                  <ChartTooltip
-                    cursor={{ fill: 'hsl(var(--secondary))' }}
-                    contentStyle={{
-                      background: 'hsl(var(--popover))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: 8,
-                      fontSize: 12,
-                    }}
-                  />
-                  <Bar dataKey="count" name="Задач" fill="#6366f1" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+            <Panel title="Застряло" subtitle="Дольше всего без движения">
+              <AttentionList
+                tasks={analytics.attention.stale}
+                empty="Всё в движении"
+                reason={(task) => `${formatNumber(task.idleDays)} дн`}
+              />
             </Panel>
 
-            {/* ── Где застревают ── */}
-            <Panel title="Где задачи стоят дольше всего" hint="Среднее время без движения, дней">
+            <Panel title="Чаще всего возвращали" subtitle="Признак нечёткой постановки">
+              <AttentionList
+                tasks={analytics.attention.mostReturned}
+                empty="Возвратов не было"
+                reason={(task) => `${task.returnCount} раз`}
+              />
+            </Panel>
+          </div>
+
+          {/* ── 5. Поток ── */}
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Panel title="Создано и закрыто" subtitle="По дням за выбранный период">
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={analytics.throughput}>
+                    <defs>
+                      <linearGradient id="created" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.35} />
+                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="done" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#22c55e" stopOpacity={0.35} />
+                        <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fontSize: 11 }}
+                      tickFormatter={(value: string) => value.slice(5)}
+                      stroke="hsl(var(--muted-foreground))"
+                    />
+                    <YAxis
+                      allowDecimals={false}
+                      tick={{ fontSize: 11 }}
+                      stroke="hsl(var(--muted-foreground))"
+                      width={28}
+                    />
+                    <ChartTooltip
+                      contentStyle={{
+                        background: 'hsl(var(--popover))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: 8,
+                        fontSize: 12,
+                      }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="created"
+                      name="Создано"
+                      stroke="#6366f1"
+                      fill="url(#created)"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="done"
+                      name="Закрыто"
+                      stroke="#22c55e"
+                      fill="url(#done)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </Panel>
+
+            <Panel
+              title="Сколько задача стоит в колонке"
+              subtitle="Медиана по завершённым отрезкам, дней"
+            >
               <div className="space-y-2">
-                {analytics.bottlenecks.map((item) => {
-                  const max = Math.max(1, ...analytics.bottlenecks.map((b) => b.averageDaysStuck));
-                  return (
-                    <div key={item.column} className="flex min-w-0 items-center gap-2 text-sm">
-                      <span className="w-28 shrink-0 truncate text-muted-foreground sm:w-36">
-                        {COLUMN_LABELS[item.column]}
-                      </span>
-                      <div className="h-2 flex-1 overflow-hidden rounded-full bg-secondary">
-                        <div
-                          className="h-full rounded-full bg-primary"
-                          style={{ width: `${(item.averageDaysStuck / max) * 100}%` }}
-                        />
-                      </div>
-                      <span className="w-10 shrink-0 text-right text-xs text-muted-foreground sm:w-12">
-                        {item.averageDaysStuck}
-                      </span>
-                    </div>
-                  );
-                })}
+                {analytics.columnTime.map((row) => (
+                  <BarRow
+                    key={row.column}
+                    label={COLUMN_LABELS[row.column]}
+                    value={row.medianDays}
+                    max={Math.max(...analytics.columnTime.map((item) => item.medianDays), 1)}
+                    suffix=" дн"
+                  />
+                ))}
+                <p className="pt-1 text-[11px] text-muted-foreground">
+                  Считается по реальным переходам между колонками, а не по дате последнего
+                  изменения.
+                </p>
               </div>
             </Panel>
           </div>
 
-          {/* ── Нагрузка людей ── */}
-          <Panel title="Нагрузка по людям">
-            {analytics.byAssignee.length === 0 ? (
-              <p className="py-4 text-center text-sm text-muted-foreground">
-                Активных задач с исполнителями нет
-              </p>
-            ) : (
+          {/* ── 6. Распределения ── */}
+          <div className="grid gap-4 lg:grid-cols-3">
+            <Panel title="По колонкам" subtitle="Все незакрытые задачи доски">
               <div className="space-y-2">
-                {analytics.byAssignee.map((item) => {
-                  const max = Math.max(...analytics.byAssignee.map((entry) => entry.count));
-                  return (
-                    <div
-                      key={item.user.id}
-                      className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1.5"
-                    >
-                      <UserAvatar user={item.user} size="sm" className="row-span-2" />
-                      <span className="min-w-0 truncate text-sm">{item.user.displayName}</span>
-                      <span className="shrink-0 text-right text-xs text-muted-foreground">
-                        {item.count}
-                        {item.overdue > 0 && (
-                          <span className="ml-1 text-destructive">({item.overdue})</span>
-                        )}
-                      </span>
-                      <div className="col-span-2 col-start-2 h-2.5 min-w-0 overflow-hidden rounded-full bg-secondary">
-                        <div
-                          className="h-full rounded-full bg-primary"
-                          style={{ width: `${(item.count / max) * 100}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
+                {analytics.byColumn.map((row) => (
+                  <BarRow
+                    key={row.column}
+                    label={COLUMN_LABELS[row.column]}
+                    value={row.count}
+                    max={Math.max(...analytics.byColumn.map((item) => item.count), 1)}
+                  />
+                ))}
               </div>
-            )}
-          </Panel>
+            </Panel>
+
+            <Panel title="По приоритету" subtitle="Активные задачи">
+              <div className="space-y-2">
+                {analytics.byPriority.length === 0 ? (
+                  <p className="py-3 text-center text-xs text-muted-foreground">Активных нет</p>
+                ) : (
+                  analytics.byPriority.map((row) => (
+                    <BarRow
+                      key={row.priority}
+                      label={PRIORITY_LABELS[row.priority]}
+                      value={row.count}
+                      max={Math.max(...analytics.byPriority.map((item) => item.count), 1)}
+                      color={PRIORITY_COLORS[row.priority]}
+                    />
+                  ))
+                )}
+              </div>
+            </Panel>
+
+            <Panel title="По типу" subtitle="Активные задачи">
+              <div className="space-y-2">
+                {analytics.byType.length === 0 ? (
+                  <p className="py-3 text-center text-xs text-muted-foreground">Активных нет</p>
+                ) : (
+                  analytics.byType.map((row) => (
+                    <BarRow
+                      key={row.type}
+                      label={TASK_TYPE_LABELS[row.type]}
+                      value={row.count}
+                      max={Math.max(...analytics.byType.map((item) => item.count), 1)}
+                    />
+                  ))
+                )}
+              </div>
+            </Panel>
+          </div>
         </div>
       )}
     </div>
   );
 }
 
-function Panel({
-  title,
-  hint,
-  children,
-}: {
-  title: string;
-  hint?: string;
-  children: React.ReactNode;
-}): React.ReactElement {
+/** Таблица людей. Каждый столбец отвечает на отдельный вопрос руководителя. */
+function PeopleTable({ people }: { people: PersonStatsDto[] }): React.ReactElement {
+  if (people.length === 0) {
+    return <p className="py-4 text-center text-sm text-muted-foreground">На доске никого нет</p>;
+  }
+
+  const maxActive = Math.max(...people.map((person) => person.active), 1);
+
   return (
-    <section className="min-w-0 overflow-hidden rounded-xl border border-border bg-card p-3 shadow-card sm:p-4">
-      <h2 className="text-sm font-semibold">{title}</h2>
-      {hint && <p className="mb-2 text-xs text-muted-foreground">{hint}</p>}
-      <div className="mt-2">{children}</div>
-    </section>
+    <div className="scrollbar-thin -mx-1 overflow-x-auto px-1">
+      <table className="w-full min-w-[46rem] text-sm">
+        <thead>
+          <tr className="border-b border-border text-left text-[11px] uppercase tracking-wide text-muted-foreground">
+            <th className="pb-2 font-medium">Человек</th>
+            <th className="pb-2 text-right font-medium">Загрузка</th>
+            <th className="pb-2 text-right font-medium">В работе</th>
+            <th className="pb-2 text-right font-medium">На тесте</th>
+            <th className="pb-2 text-right font-medium">Просрочено</th>
+            <th className="pb-2 text-right font-medium">Ждёт</th>
+            <th className="pb-2 text-right font-medium">Закрыл</th>
+            <th className="pb-2 text-right font-medium">Цикл</th>
+            <th className="pb-2 text-right font-medium">Возвраты</th>
+            <th className="pb-2 text-right font-medium">Поставил</th>
+          </tr>
+        </thead>
+        <tbody>
+          {people.map((person) => (
+            <tr key={person.user.id} className="border-b border-border/60 last:border-0">
+              <td className="py-2">
+                <span className="flex items-center gap-2">
+                  <UserAvatar user={person.user} size="xs" />
+                  <span className="min-w-0 truncate">{person.user.displayName}</span>
+                </span>
+              </td>
+              <td className="py-2 text-right">
+                <span className="flex items-center justify-end gap-2">
+                  <span className="hidden h-1.5 w-16 overflow-hidden rounded-full bg-secondary sm:block">
+                    <span
+                      className={cn(
+                        'block h-full rounded-full',
+                        person.active / maxActive > 0.8
+                          ? 'bg-destructive'
+                          : person.active / maxActive > 0.5
+                            ? 'bg-warning'
+                            : 'bg-success',
+                      )}
+                      style={{ width: `${(person.active / maxActive) * 100}%` }}
+                    />
+                  </span>
+                  <span className="tabular-nums">{person.active}</span>
+                </span>
+              </td>
+              <Cell value={person.inProgress} />
+              <Cell value={person.qa} />
+              <Cell value={person.overdue} tone={person.overdue > 0 ? 'danger' : undefined} />
+              <Cell value={person.blocked} tone={person.blocked > 0 ? 'warning' : undefined} />
+              <Cell value={person.completed} tone={person.completed > 0 ? 'success' : undefined} />
+              <td className="py-2 text-right tabular-nums text-muted-foreground">
+                {person.medianCycleDays > 0 ? `${formatNumber(person.medianCycleDays)} дн` : '—'}
+              </td>
+              <Cell value={person.returned} tone={person.returned > 0 ? 'warning' : undefined} />
+              <Cell value={person.reported} />
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
-function StatCard({
-  icon,
-  label,
+function Cell({
   value,
-  hint,
-  tone = 'default',
+  tone,
 }: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  hint?: string;
-  tone?: 'default' | 'danger' | 'warning';
+  value: number;
+  tone?: 'danger' | 'warning' | 'success';
 }): React.ReactElement {
   return (
-    <div className="rounded-xl border border-border bg-card p-4 shadow-card">
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground [&_svg]:size-3.5">
-        {icon}
-        {label}
-      </div>
-      <p
-        className={
-          tone === 'danger'
-            ? 'mt-1 text-2xl font-semibold text-destructive'
+    <td
+      className={cn(
+        'py-2 text-right tabular-nums',
+        value === 0
+          ? 'text-muted-foreground'
+          : tone === 'danger'
+            ? 'font-medium text-destructive'
             : tone === 'warning'
-              ? 'mt-1 text-2xl font-semibold text-warning'
-              : 'mt-1 text-2xl font-semibold'
-        }
-      >
-        {value}
-      </p>
-      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
-    </div>
+              ? 'font-medium text-warning'
+              : tone === 'success'
+                ? 'text-success'
+                : 'text-foreground',
+      )}
+    >
+      {value === 0 ? '—' : value}
+    </td>
   );
+}
+
+function overdueBy(dueDate: string): string {
+  const days = Math.floor((Date.now() - new Date(dueDate).getTime()) / 86_400_000);
+  if (days < 1) return 'сегодня';
+  return `на ${days} дн`;
 }

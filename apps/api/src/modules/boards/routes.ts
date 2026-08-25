@@ -146,7 +146,7 @@ export async function registerBoardRoutes(app: FastifyInstance): Promise<void> {
     const user = requireUser(request);
     const { boardId } = boardParams.parse(request.params);
     const context = await loadBoardContext(user, boardId);
-    assertCan(user, context, 'board.analytics.view');
+    assertCan(user, context, 'board.workload.view');
     return reply.send({ items: await memberWorkload(context) });
   });
 

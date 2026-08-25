@@ -40,7 +40,7 @@ export function PeoplePage(): React.ReactElement {
             boardRole: board.myRole,
             boardArchived: board.isArchived,
           },
-          'board.analytics.view',
+          'board.workload.view',
         )
       : false;
   const { data: workload, isLoading: workloadLoading } = useBoardWorkload(

@@ -390,15 +390,94 @@ export interface MemberWorkloadDto {
   done30d: number;
 }
 
+/** Значение за период рядом с таким же прошлым периодом. */
+export interface MetricDelta {
+  current: number;
+  previous: number;
+}
+
+export interface DistributionStat {
+  median: number;
+  average: number;
+  p90: number;
+  /** По скольким задачам посчитано: одна задача — это ещё не статистика. */
+  sample: number;
+}
+
+/** Строка таблицы людей. Всё, что можно сказать про человека на этой доске. */
+export interface PersonStatsDto {
+  user: PublicUser;
+  /** Сейчас на человеке. */
+  active: number;
+  inProgress: number;
+  qa: number;
+  overdue: number;
+  blocked: number;
+  /** За выбранный период. */
+  completed: number;
+  medianCycleDays: number;
+  returned: number;
+  reported: number;
+  tested: number;
+}
+
+export interface AttentionTaskDto {
+  id: string;
+  key: string;
+  title: string;
+  columnKey: ColumnKey;
+  priority: TaskPriority;
+  assignee: PublicUser | null;
+  dueDate: string | null;
+  /** Сколько дней задача не двигалась. */
+  idleDays: number;
+  returnCount: number;
+  blockedByCount: number;
+}
+
 export interface BoardAnalyticsDto {
-  throughput: { date: string; done: number; created: number }[];
-  cycleTimeDays: { median: number; average: number; p90: number };
+  period: { days: number; from: string; to: string };
+
+  /** Что требует решения прямо сейчас. Самое важное на экране. */
+  attentionCounts: {
+    overdue: number;
+    blocked: number;
+    unassigned: number;
+    stale: number;
+    inProgress: number;
+    dueThisWeek: number;
+  };
+
+  /** Как идут дела — в сравнении с таким же прошлым периодом. */
+  flow: {
+    created: MetricDelta;
+    completed: MetricDelta;
+    cycleTimeDays: MetricDelta;
+    returned: MetricDelta;
+    reopened: MetricDelta;
+  };
+
+  cycleTime: DistributionStat;
+  leadTime: DistributionStat;
+
+  throughput: { date: string; created: number; done: number }[];
+
+  /** Сколько задача реально проводит в каждой колонке, дней. */
+  columnTime: { column: ColumnKey; medianDays: number; averageDays: number; sample: number }[];
+
   byPriority: { priority: TaskPriority; count: number }[];
+  byType: { type: TaskType; count: number }[];
   byColumn: { column: ColumnKey; count: number }[];
-  byAssignee: { user: PublicUser; count: number; overdue: number }[];
-  bottlenecks: { column: ColumnKey; averageDaysStuck: number }[];
-  overdueCount: number;
-  unassignedCount: number;
+
+  people: PersonStatsDto[];
+
+  /** Конкретные задачи, с которыми надо что-то делать. */
+  attention: {
+    overdue: AttentionTaskDto[];
+    blocked: AttentionTaskDto[];
+    stale: AttentionTaskDto[];
+    mostReturned: AttentionTaskDto[];
+  };
 }
 
 /** Единый формат ошибки API. */

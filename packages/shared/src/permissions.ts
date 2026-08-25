@@ -20,6 +20,7 @@ export type Action =
   | 'board.label.manage'
   | 'board.column.manage'
   | 'board.analytics.view'
+  | 'board.workload.view'
   // Задачи
   | 'task.view'
   | 'task.create'
@@ -130,8 +131,13 @@ export function can(ctx: AccessContext, action: Action): boolean {
   switch (action) {
     // --- Доска ---
     case 'board.analytics.view':
-      // Наблюдатель смотрит доску, но не разбор работы коллег по именам:
-      // это внутренняя кухня команды, а не витрина для заказчика.
+      // Разбор работы команды по именам и срокам — инструмент управления,
+      // а не общая витрина. Смотрят владелец и администраторы доски.
+      return isAdmin;
+
+    case 'board.workload.view':
+      // Загрузка коллег — рабочая информация: по ней решают, кому отдать
+      // задачу. Её видит каждый, кто на доске работает, но не наблюдатель.
       return isMember;
 
     case 'board.view':

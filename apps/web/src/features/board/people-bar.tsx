@@ -43,7 +43,7 @@ export function PeopleBar({
           boardRole: board.myRole,
           boardArchived: board.isArchived,
         },
-        'board.analytics.view',
+        'board.workload.view',
       )
     : false;
   const { data: workload } = useBoardWorkload(board.id, canSeeStats);
