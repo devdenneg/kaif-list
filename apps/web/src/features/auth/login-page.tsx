@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { CheckCircle2, KanbanSquare, RefreshCw, Send, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, KanbanSquare, RefreshCw, Send, ShieldAlert, ShieldCheck } from 'lucide-react';
 import type { AuthResult, LoginCodeDto, LoginCodeStatusDto } from '@kaif/shared';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth';
@@ -143,7 +143,7 @@ export function LoginPage(): React.ReactElement {
                 </li>
                 <li className="flex items-start gap-2">
                   <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-success" />
-                  Код одноразовый и живёт две минуты
+                  Код одноразовый, живёт две минуты и требует подтверждения в боте
                 </li>
                 <li className="flex items-start gap-2">
                   <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-success" />
@@ -158,13 +158,29 @@ export function LoginPage(): React.ReactElement {
               <div className="flex flex-col items-center gap-3">
                 <Spinner className="size-6" />
                 <div>
-                  <h2 className="text-lg font-semibold">Ждём подтверждения</h2>
+                  <h2 className="text-lg font-semibold">Подтвердите вход в Telegram</h2>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Откройте бота <span className="font-medium">@{loginCode.botUsername}</span> и нажмите
-                    «Запустить». Больше ничего делать не нужно.
+                    Бот <span className="font-medium">@{loginCode.botUsername}</span> покажет код.
+                    Сверьте его с кодом ниже и нажмите «Это я».
                   </p>
                 </div>
               </div>
+
+              {/* Код сверяют глазами: именно это не даёт впустить чужой браузер,
+                  если ссылку на вход прислал посторонний. */}
+              <div className="rounded-xl border border-border bg-secondary/50 py-4">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Код подтверждения
+                </p>
+                <p className="mt-1 font-mono text-3xl font-bold tracking-[0.3em] text-foreground">
+                  {loginCode.verificationCode}
+                </p>
+              </div>
+
+              <p className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-left text-xs text-warning">
+                <ShieldAlert className="mt-0.5 size-3.5 shrink-0" />
+                Если код в боте отличается — вход запрашиваете не вы. Нажмите там «Это не я».
+              </p>
 
               <a
                 href={loginCode.deepLink}

@@ -59,6 +59,8 @@ export interface SessionDto {
 
 export interface LoginCodeDto {
   code: string;
+  /** Короткий код, который надо сверить с тем, что покажет бот. */
+  verificationCode: string;
   /** Готовая ссылка на бота: `https://t.me/<bot>?start=<code>`. */
   deepLink: string;
   botUsername: string;

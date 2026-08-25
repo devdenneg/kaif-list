@@ -26,6 +26,7 @@ import { verifyMiniAppInitData, verifyWidgetAuth } from '../../lib/telegram-auth
 import { getCurrentUser } from '../users/service.js';
 import {
   consumeLoginCode,
+  reissueAccessToken,
   createLoginCode,
   getLoginCodeStatus,
   issueSession,
@@ -202,15 +203,15 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     const updated = await completeProfile(user.id, body);
     await recordSecurityEvent(user.id, SecurityEventType.PROFILE_COMPLETED, requestMeta(request));
 
-    // Профиль изменился — выдаём свежий access-токен с актуальным флагом.
-    const issued = await issueSession(user.id, requestMeta(request), AuthProvider.TELEGRAM_BOT_CODE);
-    return reply
-      .setCookie(
-        REFRESH_COOKIE_NAME,
-        issued.refreshToken,
-        refreshCookieOptions(refreshTokenTtlSeconds),
-      )
-      .send({ accessToken: issued.accessToken, expiresIn: issued.expiresIn, user: updated });
+    // Профиль изменился — обновляем access-токен для ТЕКУЩЕЙ сессии.
+    // Новую сессию здесь заводить нельзя: один вход давал бы две записи
+    // в списке активных устройств.
+    const accessToken = await reissueAccessToken(user.id, user.sessionId);
+    return reply.send({
+      accessToken,
+      expiresIn: env.ACCESS_TOKEN_TTL_SECONDS,
+      user: updated,
+    });
   });
 
   // ── Активные сессии ───────────────────────────────────────────────────────

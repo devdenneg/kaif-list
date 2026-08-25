@@ -41,6 +41,12 @@ export const completeProfileSchema = z.object({
 });
 export type CompleteProfileInput = z.infer<typeof completeProfileSchema>;
 
+/** Подтверждение или отклонение входа из Telegram. */
+export const confirmLoginSchema = z.object({
+  code: z.string().regex(/^[A-Za-z0-9_-]{16,64}$/, 'Некорректный код входа'),
+  approve: z.boolean(),
+});
+
 export const revokeSessionSchema = z.object({
   sessionId: z.string().min(8).max(40),
 });

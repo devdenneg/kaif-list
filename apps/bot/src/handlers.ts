@@ -42,30 +42,38 @@ export function registerHandlers(
         ...(payload ? { code: payload } : {}),
       });
 
-      if (payload && result.loginApproved) {
+      if (payload && result.pendingLogin) {
+        const pending = result.pendingLogin;
         await ctx.reply(
           [
-            '✅ <b>Вход подтверждён</b>',
+            '🔐 <b>Запрос на вход</b>',
             '',
-            'Возвращайтесь во вкладку браузера — она уже открывает доску.',
-            result.user.profileCompleted
-              ? ''
-              : 'Останется указать имя и аватар — это займёт полминуты.',
-          ]
-            .filter(Boolean)
-            .join('\n'),
-          { parse_mode: 'HTML' },
+            `Устройство: <b>${escapeHtml(pending.deviceLabel ?? 'неизвестно')}</b>`,
+            `Адрес: <code>${escapeHtml(pending.ip ?? 'неизвестен')}</code>`,
+            '',
+            `Код на экране: <code>${escapeHtml(pending.verificationCode)}</code>`,
+            '',
+            '<i>Сверьте код с тем, что показывает браузер. Если вы сейчас никуда'
+              + ' не входили или код не совпадает — нажмите «Это не я».</i>',
+          ].join('\n'),
+          {
+            parse_mode: 'HTML',
+            reply_markup: new InlineKeyboard()
+              .text('✅ Это я, войти', `lg:ok:${payload}`)
+              .row()
+              .text('🚫 Это не я', `lg:no:${payload}`),
+          },
         );
         return;
       }
 
-      if (payload && !result.loginApproved) {
+      if (payload && result.loginError) {
         const reason =
           result.loginError === 'EXPIRED'
             ? 'Код входа истёк — обновите страницу и попробуйте снова.'
             : result.loginError === 'ALREADY_USED'
               ? 'Этот код уже использован. Обновите страницу входа.'
-              : 'Не удалось подтвердить код. Обновите страницу входа.';
+              : 'Не удалось найти запрос на вход. Обновите страницу входа.';
         await ctx.reply(`⚠️ ${reason}`);
         return;
       }
@@ -216,6 +224,53 @@ export function registerHandlers(
     if (!chatId) return;
 
     try {
+      // Подтверждение входа: lg:ok:<код> или lg:no:<код>
+      if (data.startsWith('lg:')) {
+        const [, action, code] = data.split(':');
+        const from = ctx.from;
+        if (!code || !from) {
+          await ctx.answerCallbackQuery('Запрос устарел');
+          return;
+        }
+
+        const approve = action === 'ok';
+        const result = await api.confirmLogin({
+          telegramId: String(from.id),
+          firstName: from.first_name ?? null,
+          lastName: from.last_name ?? null,
+          username: from.username ?? null,
+          languageCode: from.language_code ?? null,
+          chatId: String(chatId),
+          code,
+          approve,
+        });
+
+        await ctx.answerCallbackQuery(
+          result.approved ? 'Вход подтверждён' : approve ? 'Не получилось' : 'Вход отклонён',
+        );
+
+        // Убираем кнопки: повторно нажать на устаревший запрос нельзя.
+        await ctx.editMessageReplyMarkup({ reply_markup: undefined }).catch(() => undefined);
+
+        if (result.approved) {
+          await ctx.reply(
+            '✅ <b>Вход подтверждён</b>\n\nВозвращайтесь во вкладку браузера — она уже открывает доску.',
+            { parse_mode: 'HTML' },
+          );
+        } else if (!approve) {
+          await ctx.reply(
+            '🚫 Вход отклонён, код погашен.\n\nЕсли это были не вы — вход в ваш аккаунт никто не получил.',
+          );
+        } else {
+          const reason =
+            result.reason === 'EXPIRED'
+              ? 'Код истёк — запросите вход заново.'
+              : 'Этот запрос уже недействителен.';
+          await ctx.reply(`⚠️ ${reason}`);
+        }
+        return;
+      }
+
       // Быстрый перенос задачи: mv:<taskId>:<COLUMN>
       if (data.startsWith('mv:')) {
         const [, taskId, column] = data.split(':');

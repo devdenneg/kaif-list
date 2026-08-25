@@ -20,6 +20,16 @@ export class ApiError extends Error {
   }
 }
 
+export interface TelegramIdentity {
+  telegramId: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  username?: string | null;
+  photoUrl?: string | null;
+  languageCode?: string | null;
+  chatId: string;
+}
+
 export class InternalApi {
   constructor(private readonly env: BotEnv) {}
 
@@ -67,21 +77,26 @@ export class InternalApi {
     return payload as T;
   }
 
-  link(input: {
-    telegramId: string;
-    firstName?: string | null;
-    lastName?: string | null;
-    username?: string | null;
-    photoUrl?: string | null;
-    languageCode?: string | null;
-    chatId: string;
-    code?: string;
-  }) {
+  link(input: TelegramIdentity & { code?: string }) {
     return this.request<{
       user: { id: string; displayName: string; profileCompleted: boolean; globalRole: string };
-      loginApproved: boolean;
+      pendingLogin: {
+        verificationCode: string;
+        deviceLabel: string | null;
+        ip: string | null;
+        expiresAt: string;
+      } | null;
       loginError: string | null;
     }>('POST', '/telegram/link', { body: input });
+  }
+
+  /** Человек подтвердил или отклонил вход в веб-интерфейс. */
+  confirmLogin(input: TelegramIdentity & { code: string; approve: boolean }) {
+    return this.request<{ approved: boolean; reason: string | null }>(
+      'POST',
+      '/telegram/login-confirm',
+      { body: input },
+    );
   }
 
   me(chatId: string) {

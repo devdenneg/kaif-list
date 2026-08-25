@@ -11,6 +11,7 @@ import {
 import { prisma } from '../../lib/prisma.js';
 import { env } from '../../config/env.js';
 import { logger } from '../../lib/logger.js';
+import crypto from 'node:crypto';
 import { randomToken, sha256Hex } from '../../lib/crypto.js';
 import {
   refreshTokenTtlSeconds,
@@ -55,9 +56,24 @@ export async function recordSecurityEvent(
 
 export interface LoginCode {
   code: string;
+  verificationCode: string;
   deepLink: string;
   botUsername: string;
   expiresAt: Date;
+}
+
+/**
+ * Короткий код для сверки глазами.
+ *
+ * Исключены символы, которые легко перепутать (0/O, 1/I/L): человек будет
+ * сравнивать их на экране телефона и на экране компьютера, и «почти
+ * совпало» здесь недопустимо — на этом сравнении держится защита от того,
+ * чтобы впустить чужой браузер.
+ */
+function generateVerificationCode(): string {
+  const alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  const bytes = crypto.randomBytes(4);
+  return Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join('');
 }
 
 /**
@@ -66,11 +82,13 @@ export interface LoginCode {
  */
 export async function createLoginCode(meta: RequestMeta): Promise<LoginCode> {
   const code = randomToken(24);
+  const verificationCode = generateVerificationCode();
   const expiresAt = new Date(Date.now() + TTL.loginCodeSeconds * 1000);
 
   await prisma.loginToken.create({
     data: {
       tokenHash: sha256Hex(code),
+      verificationCode,
       status: LoginTokenStatus.PENDING,
       ip: meta.ip,
       userAgent: meta.userAgent?.slice(0, 300) ?? null,
@@ -83,6 +101,7 @@ export async function createLoginCode(meta: RequestMeta): Promise<LoginCode> {
 
   return {
     code,
+    verificationCode,
     deepLink: `https://t.me/${env.TELEGRAM_BOT_USERNAME}?start=${code}`,
     botUsername: env.TELEGRAM_BOT_USERNAME,
     expiresAt,
@@ -101,14 +120,59 @@ export async function getLoginCodeStatus(code: string): Promise<LoginTokenStatus
   return token.status;
 }
 
+export interface PendingLogin {
+  verificationCode: string;
+  deviceLabel: string | null;
+  ip: string | null;
+  userAgent: string | null;
+  expiresAt: Date;
+}
+
 /**
- * Подтверждение кода ботом: бот достоверно знает telegram_id отправителя,
- * потому что сообщение пришло от серверов Telegram.
+ * Сведения о запросе входа — то, что бот показывает человеку перед подтверждением.
+ *
+ * Раньше `/start <код>` одобрял вход сразу. Это опасно: код знает тот, кто его
+ * запросил, а подтверждает тот, кто нажал кнопку в Telegram. Прислав жертве
+ * ссылку на свой код, посторонний получал сессию под её именем.
+ * Теперь человек видит, какое устройство просится внутрь, и сверяет код.
  */
-export async function approveLoginCode(
+export async function describeLoginRequest(
+  code: string,
+): Promise<{ ok: true; pending: PendingLogin } | { ok: false; reason: string }> {
+  const token = await prisma.loginToken.findUnique({ where: { tokenHash: sha256Hex(code) } });
+
+  if (!token) return { ok: false, reason: 'NOT_FOUND' };
+  if (token.status !== LoginTokenStatus.PENDING) return { ok: false, reason: 'ALREADY_USED' };
+  if (token.expiresAt.getTime() < Date.now()) {
+    await prisma.loginToken.update({
+      where: { id: token.id },
+      data: { status: LoginTokenStatus.EXPIRED },
+    });
+    return { ok: false, reason: 'EXPIRED' };
+  }
+
+  return {
+    ok: true,
+    pending: {
+      verificationCode: token.verificationCode,
+      deviceLabel: token.deviceLabel,
+      ip: token.ip,
+      userAgent: token.userAgent,
+      expiresAt: token.expiresAt,
+    },
+  };
+}
+
+/**
+ * Подтверждение или отклонение входа человеком в Telegram.
+ * Бот достоверно знает telegram_id отправителя, потому что сообщение
+ * пришло от серверов Telegram.
+ */
+export async function confirmLoginCode(
   code: string,
   telegramUser: TelegramUserData,
   chatId: bigint,
+  approve: boolean,
 ): Promise<{ approved: boolean; reason?: string; userId?: string }> {
   const tokenHash = sha256Hex(code);
   const token = await prisma.loginToken.findUnique({ where: { tokenHash } });
@@ -125,6 +189,21 @@ export async function approveLoginCode(
 
   const user = await upsertTelegramUser(telegramUser, chatId);
 
+  if (!approve) {
+    // Отклонённый вход гасим сразу: кодом больше воспользоваться нельзя.
+    await prisma.loginToken.update({
+      where: { tokenHash },
+      data: { status: LoginTokenStatus.EXPIRED },
+    });
+    await recordSecurityEvent(
+      user.id,
+      SecurityEventType.LOGIN_FAILED,
+      { ip: token.ip, userAgent: token.userAgent },
+      { via: 'bot', reason: 'REJECTED_BY_USER' },
+    );
+    return { approved: false, reason: 'REJECTED' };
+  }
+
   await prisma.loginToken.update({
     where: { tokenHash },
     data: { status: LoginTokenStatus.APPROVED, userId: user.id, approvedAt: new Date() },
@@ -134,7 +213,7 @@ export async function approveLoginCode(
     user.id,
     SecurityEventType.LOGIN_CODE_APPROVED,
     { ip: token.ip, userAgent: token.userAgent },
-    { via: 'bot' },
+    { via: 'bot', deviceLabel: token.deviceLabel },
   );
 
   return { approved: true, userId: user.id };
@@ -371,6 +450,30 @@ export async function rotateSession(
   await recordSecurityEvent(session.userId, SecurityEventType.TOKEN_REFRESHED, meta);
 
   return issued;
+}
+
+/**
+ * Перевыпуск только access-токена для уже существующей сессии.
+ *
+ * Нужен там, где изменились данные внутри токена (например, профиль стал
+ * заполненным), но заводить новую сессию незачем: иначе один вход
+ * оставляет в списке устройств две записи и человек справедливо
+ * подозревает неладное.
+ */
+export async function reissueAccessToken(userId: string, sessionId: string): Promise<string> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, globalRole: true, tokenVersion: true, profileCompleted: true },
+  });
+  if (!user) throw new NotFoundError('Пользователь не найден');
+
+  return signAccessToken({
+    sub: user.id,
+    sid: sessionId,
+    role: user.globalRole,
+    ver: user.tokenVersion,
+    pc: user.profileCompleted,
+  });
 }
 
 export async function revokeFamily(family: string, reason: string): Promise<void> {

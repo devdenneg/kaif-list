@@ -14,7 +14,12 @@ import { ForbiddenError, NotFoundError } from '../../lib/errors.js';
 import { prisma } from '../../lib/prisma.js';
 import { mapTaskCard, taskCardSelect } from '../../lib/mappers.js';
 import { loadTaskContext, type RequestUser } from '../../lib/rbac.js';
-import { approveLoginCode, revokeAllSessions, upsertTelegramUser } from '../auth/service.js';
+import {
+  confirmLoginCode,
+  describeLoginRequest,
+  revokeAllSessions,
+  upsertTelegramUser,
+} from '../auth/service.js';
 import type { TelegramUserData } from '../../lib/telegram-auth.js';
 import { createComment } from '../comments/service.js';
 import { moveTask } from '../tasks/move.js';
@@ -47,32 +52,57 @@ export async function registerInternalRoutes(app: FastifyInstance): Promise<void
     chatId: z.union([z.string(), z.number()]),
   });
 
-  /** Пользователь нажал /start (возможно, с кодом входа из веба). */
+  const toTelegramData = (body: {
+    telegramId: string | number;
+    firstName?: string | null;
+    lastName?: string | null;
+    username?: string | null;
+    photoUrl?: string | null;
+    languageCode?: string | null;
+  }): TelegramUserData => ({
+    telegramId: BigInt(body.telegramId),
+    firstName: body.firstName ?? null,
+    lastName: body.lastName ?? null,
+    username: body.username ?? null,
+    photoUrl: body.photoUrl ?? null,
+    languageCode: body.languageCode ?? null,
+    authDate: new Date(),
+    hash: '',
+  });
+
+  /**
+   * Пользователь нажал /start.
+   *
+   * Если пришёл код входа — вход НЕ подтверждается сразу: возвращаем боту
+   * описание устройства, которое просится внутрь. Решение принимает человек
+   * отдельной кнопкой, иначе достаточно прислать ему ссылку на чужой код,
+   * чтобы получить сессию под его именем.
+   */
   app.post('/telegram/link', async (request, reply) => {
-    const body = telegramUserSchema.extend({ code: z.string().max(128).optional() }).parse(request.body);
+    const body = telegramUserSchema
+      .extend({ code: z.string().max(128).optional() })
+      .parse(request.body);
 
-    const data: TelegramUserData = {
-      telegramId: BigInt(body.telegramId),
-      firstName: body.firstName ?? null,
-      lastName: body.lastName ?? null,
-      username: body.username ?? null,
-      photoUrl: body.photoUrl ?? null,
-      languageCode: body.languageCode ?? null,
-      authDate: new Date(),
-      hash: '',
-    };
+    const data = toTelegramData(body);
     const chatId = BigInt(body.chatId);
+    const user = await upsertTelegramUser(data, chatId);
 
-    let loginApproved = false;
+    let pendingLogin = null;
     let loginError: string | null = null;
 
     if (body.code) {
-      const result = await approveLoginCode(body.code, data, chatId);
-      loginApproved = result.approved;
-      loginError = result.reason ?? null;
+      const result = await describeLoginRequest(body.code);
+      if (result.ok) {
+        pendingLogin = {
+          verificationCode: result.pending.verificationCode,
+          deviceLabel: result.pending.deviceLabel,
+          ip: result.pending.ip,
+          expiresAt: result.pending.expiresAt.toISOString(),
+        };
+      } else {
+        loginError = result.reason;
+      }
     }
-
-    const user = await upsertTelegramUser(data, chatId);
 
     return reply.send({
       user: {
@@ -81,9 +111,25 @@ export async function registerInternalRoutes(app: FastifyInstance): Promise<void
         profileCompleted: user.profileCompleted,
         globalRole: user.globalRole,
       },
-      loginApproved,
+      pendingLogin,
       loginError,
     });
+  });
+
+  /** Человек нажал «Подтвердить» или «Это не я» под запросом входа. */
+  app.post('/telegram/login-confirm', async (request, reply) => {
+    const body = telegramUserSchema
+      .extend({ code: z.string().max(128), approve: z.boolean() })
+      .parse(request.body);
+
+    const result = await confirmLoginCode(
+      body.code,
+      toTelegramData(body),
+      BigInt(body.chatId),
+      body.approve,
+    );
+
+    return reply.send({ approved: result.approved, reason: result.reason ?? null });
   });
 
   /** Пользователь заблокировал бота — прекращаем попытки писать ему. */

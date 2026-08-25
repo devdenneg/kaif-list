@@ -262,6 +262,10 @@ model LoginToken {
   id        String           @id @default(cuid())
   /// SHA-256 от кода. Сам код живёт только у клиента.
   tokenHash String           @unique
+  /// Короткий код, который показывается и в браузере, и в боте.
+  /// Пользователь сверяет их глазами перед подтверждением входа —
+  /// иначе чужой браузер можно впустить, прислав ссылку на свой код.
+  verificationCode String    @default("")
   status    LoginTokenStatus @default(PENDING)
   userId    String?
   ip        String?

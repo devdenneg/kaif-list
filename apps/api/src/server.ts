@@ -21,7 +21,15 @@ export async function buildServer(): Promise<FastifyInstance> {
   const app = Fastify({
     // Приводим к базовому типу, иначе дженерики инстанса «протекают» во все модули.
     loggerInstance: logger as FastifyBaseLogger,
-    trustProxy: env.TRUST_PROXY,
+    /**
+     * Доверяем ровно одному прокси — своему Caddy.
+     *
+     * С `trustProxy: true` Fastify берёт крайний левый элемент X-Forwarded-For,
+     * а его подставляет сам клиент: в журнал безопасности попадали бы
+     * выдуманные адреса, и разбор инцидента опирался бы на подделку.
+     * Функция возвращает true только для непосредственного соседа.
+     */
+    trustProxy: env.TRUST_PROXY ? (_address: string, hop: number) => hop === 0 : false,
     bodyLimit: 2 * 1024 * 1024,
     genReqId: () => randomUUID(),
     ajv: { customOptions: { removeAdditional: 'all', coerceTypes: false } },
