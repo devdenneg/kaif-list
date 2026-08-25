@@ -1,0 +1,275 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─────────────────────────── Дизайн-токены ─────────────────────────────── */
+
+@layer base {
+  :root {
+    --background: 220 25% 97%;
+    --foreground: 222 47% 11%;
+    --surface: 0 0% 100%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 243 75% 59%;
+    --primary-hover: 243 75% 52%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+
+    --accent: 243 75% 96%;
+    --accent-foreground: 243 75% 40%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 71% 40%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 32 95% 48%;
+    --warning-foreground: 0 0% 100%;
+
+    --border: 220 13% 89%;
+    --input: 220 13% 89%;
+    --ring: 243 75% 59%;
+    --shadow: 222 47% 20%;
+
+    --radius: 0.65rem;
+  }
+
+  .dark {
+    --background: 222 30% 8%;
+    --foreground: 210 20% 96%;
+    --surface: 222 26% 12%;
+
+    --card: 222 26% 12%;
+    --card-foreground: 210 20% 96%;
+
+    --popover: 222 26% 13%;
+    --popover-foreground: 210 20% 96%;
+
+    --primary: 243 75% 66%;
+    --primary-hover: 243 75% 72%;
+    --primary-foreground: 222 47% 8%;
+
+    --secondary: 222 20% 18%;
+    --secondary-foreground: 210 20% 96%;
+
+    --muted: 222 20% 17%;
+    --muted-foreground: 217 12% 62%;
+
+    --accent: 243 40% 22%;
+    --accent-foreground: 243 75% 82%;
+
+    --destructive: 0 72% 58%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 65% 45%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 32 90% 55%;
+    --warning-foreground: 222 47% 8%;
+
+    --border: 222 18% 22%;
+    --input: 222 18% 24%;
+    --ring: 243 75% 66%;
+    --shadow: 0 0% 0%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: 'cv11', 'ss01';
+    /* Учитываем «чёлку» и жесты на мобильных. */
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
+  }
+
+  /* На мобильных браузер зумит поля с размером шрифта меньше 16px. */
+  @media (max-width: 640px) {
+    input,
+    textarea,
+    select {
+      font-size: 16px;
+    }
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  /* Уважаем системную настройку «уменьшить движение». */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* ───────────────────────────── Компоненты ──────────────────────────────── */
+
+@layer components {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--border));
+    border-radius: 999px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted-foreground) / 0.5);
+  }
+
+  /* Горизонтальная прокрутка колонок с «прилипанием» на мобильных. */
+  .snap-columns {
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .snap-column {
+    scroll-snap-align: start;
+  }
+
+  .skeleton {
+    @apply relative overflow-hidden rounded-md bg-muted;
+  }
+
+  .skeleton::after {
+    @apply absolute inset-0 -translate-x-full;
+    content: '';
+    background-image: linear-gradient(
+      90deg,
+      transparent,
+      hsl(var(--foreground) / 0.06),
+      transparent
+    );
+    animation: shimmer 1.6s infinite;
+  }
+}
+
+/* ─────────────────────── Оформление rich-text ──────────────────────────── */
+
+@layer components {
+  .prose-kaif {
+    @apply text-sm leading-relaxed text-foreground;
+  }
+
+  .prose-kaif p {
+    @apply my-2;
+  }
+
+  .prose-kaif p:first-child {
+    @apply mt-0;
+  }
+
+  .prose-kaif p:last-child {
+    @apply mb-0;
+  }
+
+  .prose-kaif h1 {
+    @apply mb-2 mt-4 text-xl font-semibold;
+  }
+
+  .prose-kaif h2 {
+    @apply mb-2 mt-4 text-lg font-semibold;
+  }
+
+  .prose-kaif h3 {
+    @apply mb-1 mt-3 text-base font-semibold;
+  }
+
+  .prose-kaif ul {
+    @apply my-2 list-disc space-y-1 pl-5;
+  }
+
+  .prose-kaif ol {
+    @apply my-2 list-decimal space-y-1 pl-5;
+  }
+
+  .prose-kaif blockquote {
+    @apply my-2 border-l-2 border-primary/40 pl-3 italic text-muted-foreground;
+  }
+
+  .prose-kaif code {
+    @apply rounded bg-muted px-1.5 py-0.5 font-mono text-[0.85em];
+  }
+
+  .prose-kaif pre {
+    @apply my-2 overflow-x-auto rounded-lg bg-muted p-3;
+  }
+
+  .prose-kaif pre code {
+    @apply bg-transparent p-0;
+  }
+
+  .prose-kaif a {
+    @apply text-primary underline underline-offset-2 hover:text-primary-hover;
+  }
+
+  .prose-kaif img {
+    @apply my-2 max-h-96 rounded-lg border border-border object-contain;
+  }
+
+  .prose-kaif hr {
+    @apply my-4 border-border;
+  }
+
+  .prose-kaif ul[data-type='taskList'] {
+    @apply list-none space-y-1 pl-0;
+  }
+
+  .prose-kaif ul[data-type='taskList'] li {
+    @apply flex items-start gap-2;
+  }
+
+  .prose-kaif ul[data-type='taskList'] li > label {
+    @apply mt-0.5 flex-shrink-0;
+  }
+
+  .prose-kaif .mention {
+    @apply rounded bg-accent px-1 py-0.5 font-medium text-accent-foreground;
+  }
+
+  /* Плейсхолдер редактора */
+  .tiptap p.is-editor-empty:first-child::before {
+    @apply pointer-events-none float-left h-0 text-muted-foreground;
+    content: attr(data-placeholder);
+  }
+
+  .tiptap:focus {
+    @apply outline-none;
+  }
+}

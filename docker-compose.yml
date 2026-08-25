@@ -1,0 +1,42 @@
+# Локальная разработка: поднимаем только инфраструктуру.
+# Приложение при этом запускается на хосте через `npm run dev`.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: kaif-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: kaif
+      POSTGRES_PASSWORD: kaif
+      POSTGRES_DB: kaif_board
+      # Ускоряет тесты, не влияет на разработку.
+      POSTGRES_INITDB_ARGS: '--data-checksums'
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres-dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U kaif -d kaif_board']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: kaif-redis-dev
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy noeviction
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis-dev:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres-dev:
+  redis-dev:

@@ -1,0 +1,25 @@
+# Автозапуск стека без systemd-костылей: Docker Compose уже умеет restart,
+# но юнит нужен, чтобы стек поднимался после перезагрузки сервера.
+#
+# Установка:
+#   sudo cp deploy/kaif-board.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now kaif-board
+
+[Unit]
+Description=Kaif Board (docker compose)
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=kaif
+WorkingDirectory=/opt/kaif-board
+ExecStart=/usr/bin/docker compose -f docker-compose.prod.yml up -d
+ExecStop=/usr/bin/docker compose -f docker-compose.prod.yml down
+ExecReload=/usr/bin/docker compose -f docker-compose.prod.yml up -d --build
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target

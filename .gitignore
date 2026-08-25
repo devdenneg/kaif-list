@@ -1,0 +1,17 @@
+node_modules/
+dist/
+build/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+coverage/
+storage/
+.tmp-test-storage/
+backups/
+.vite/
+.turbo/
+apps/api/prisma/dev.db*
+playwright-report/
+test-results/

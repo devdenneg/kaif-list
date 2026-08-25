@@ -1,0 +1,670 @@
+// Kaif Board — схема данных.
+// Все enum'ы дублируют packages/shared/src/enums.ts один-в-один.
+
+generator client {
+  provider        = "prisma-client-js"
+  binaryTargets   = ["native"]
+  previewFeatures = []
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────── Перечисления ───────────────────────────────
+
+enum GlobalRole {
+  SUPERADMIN
+  USER
+}
+
+enum BoardRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum ColumnKey {
+  TODO
+  ON_HOLD
+  IN_PROGRESS
+  QA
+  READY_TO_RELEASE
+  DONE
+}
+
+enum TaskType {
+  TASK
+  BUG
+  STORY
+  EPIC
+  CHORE
+}
+
+enum TaskPriority {
+  LOWEST
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+  BLOCKER
+}
+
+enum ParticipantRole {
+  REPORTER
+  ASSIGNEE
+  TESTER
+  WATCHER
+  CONTRIBUTOR
+}
+
+enum TaskLinkType {
+  BLOCKS
+  BLOCKED_BY
+  RELATES
+  DUPLICATES
+  DUPLICATED_BY
+}
+
+enum CommentKind {
+  USER
+  SYSTEM
+}
+
+enum LoginTokenStatus {
+  PENDING
+  APPROVED
+  CONSUMED
+  EXPIRED
+}
+
+enum AuthProvider {
+  TELEGRAM_BOT_CODE
+  TELEGRAM_WIDGET
+  TELEGRAM_MINI_APP
+}
+
+enum AttachmentStatus {
+  PENDING
+  ATTACHED
+}
+
+enum ActivityType {
+  BOARD_CREATED
+  BOARD_UPDATED
+  BOARD_ARCHIVED
+  BOARD_RESTORED
+  BOARD_OWNERSHIP_TRANSFERRED
+  MEMBER_ADDED
+  MEMBER_REMOVED
+  MEMBER_ROLE_CHANGED
+  TASK_CREATED
+  TASK_UPDATED
+  TASK_MOVED
+  TASK_ASSIGNED
+  TASK_UNASSIGNED
+  TASK_TESTER_CHANGED
+  TASK_DUE_DATE_CHANGED
+  TASK_PRIORITY_CHANGED
+  TASK_LABEL_ADDED
+  TASK_LABEL_REMOVED
+  TASK_ARCHIVED
+  TASK_RESTORED
+  TASK_DELETED
+  TASK_MOVED_TO_BACKLOG
+  TASK_MOVED_TO_BOARD
+  TASK_LINK_ADDED
+  TASK_LINK_REMOVED
+  COMMENT_CREATED
+  COMMENT_UPDATED
+  COMMENT_DELETED
+  ATTACHMENT_ADDED
+  ATTACHMENT_REMOVED
+  CHECKLIST_UPDATED
+  PARTICIPANT_ADDED
+  PARTICIPANT_REMOVED
+}
+
+enum NotificationType {
+  TASK_ASSIGNED_TO_YOU
+  TASK_UNASSIGNED_FROM_YOU
+  TASK_TESTER_ASSIGNED
+  TASK_STATUS_CHANGED
+  TASK_RETURNED
+  TASK_PUT_ON_HOLD
+  TASK_DUE_DATE_CHANGED
+  TASK_DUE_SOON
+  TASK_OVERDUE
+  TASK_UPDATED
+  TASK_ARCHIVED
+  COMMENT_ADDED
+  MENTIONED
+  ATTACHMENT_ADDED
+  BOARD_INVITED
+  BOARD_ROLE_CHANGED
+  BOARD_REMOVED
+  DAILY_DIGEST
+  SECURITY_ALERT
+}
+
+enum SecurityEventType {
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+  LOGIN_CODE_ISSUED
+  LOGIN_CODE_APPROVED
+  TOKEN_REFRESHED
+  TOKEN_REUSE_DETECTED
+  LOGOUT
+  LOGOUT_ALL
+  SESSION_REVOKED
+  PROFILE_COMPLETED
+  GLOBAL_ROLE_CHANGED
+  USER_DEACTIVATED
+  USER_REACTIVATED
+  RATE_LIMITED
+  FORBIDDEN_ACCESS
+}
+
+// ─────────────────────────────── Пользователи ───────────────────────────────
+
+model User {
+  id         String  @id @default(cuid())
+  telegramId BigInt  @unique
+  tgUsername String?
+  tgFirstName String?
+  tgLastName  String?
+
+  displayName String
+  avatarUrl   String?
+  /// Аватар загружен вручную — не перетирать данными из Telegram.
+  avatarCustom Boolean @default(false)
+
+  globalRole       GlobalRole @default(USER)
+  /// Обязательный онбординг: имя + аватар после привязки Telegram.
+  profileCompleted Boolean    @default(false)
+  isActive         Boolean    @default(true)
+
+  timezone String @default("Europe/Moscow")
+  locale   String @default("ru")
+
+  /// chat_id личного чата с ботом. Пока null — уведомления в Telegram невозможны.
+  botChatId  BigInt?
+  botBlocked Boolean @default(false)
+  botStartedAt DateTime?
+
+  notificationPrefs Json @default("{}")
+
+  /// Инкремент мгновенно инвалидирует все выданные access-токены.
+  tokenVersion Int @default(0)
+
+  lastSeenAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  sessions         Session[]
+  loginTokens      LoginToken[]
+  securityEvents   SecurityEvent[]
+  ownedBoards      Board[]              @relation("BoardOwner")
+  memberships      BoardMember[]        @relation("MemberUser")
+  membershipsAdded BoardMember[]        @relation("MemberAddedBy")
+  favorites        BoardFavorite[]
+  reportedTasks    Task[]               @relation("TaskReporter")
+  assignedTasks    Task[]               @relation("TaskAssignee")
+  testingTasks     Task[]               @relation("TaskTester")
+  participations   TaskParticipant[]
+  comments         Comment[]
+  attachments      Attachment[]
+  activities       Activity[]
+  notifications    Notification[]       @relation("NotificationRecipient")
+  actedNotifications Notification[]     @relation("NotificationActor")
+  checklistItems   ChecklistItem[]
+  savedViews       SavedView[]
+  commentReactions CommentReaction[]
+
+  @@index([isActive])
+  @@index([globalRole])
+  @@index([botChatId])
+}
+
+model Session {
+  id               String    @id @default(cuid())
+  userId           String
+  /// SHA-256 от refresh-токена. Сам токен не хранится никогда.
+  refreshTokenHash String    @unique
+  /// Семья токенов — нужна для обнаружения повторного использования.
+  family           String
+  userAgent        String?
+  ip               String?
+  deviceLabel      String?
+  provider         AuthProvider @default(TELEGRAM_BOT_CODE)
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  revokedReason    String?
+  replacedById     String?
+  lastUsedAt       DateTime?
+  createdAt        DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([family])
+  @@index([expiresAt])
+}
+
+model LoginToken {
+  id        String           @id @default(cuid())
+  /// SHA-256 от кода. Сам код живёт только у клиента.
+  tokenHash String           @unique
+  status    LoginTokenStatus @default(PENDING)
+  userId    String?
+  ip        String?
+  userAgent String?
+  deviceLabel String?
+  expiresAt DateTime
+  approvedAt DateTime?
+  consumedAt DateTime?
+  createdAt DateTime         @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([status, expiresAt])
+  @@index([userId])
+}
+
+model SecurityEvent {
+  id        String            @id @default(cuid())
+  userId    String?
+  type      SecurityEventType
+  ip        String?
+  userAgent String?
+  payload   Json              @default("{}")
+  createdAt DateTime          @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([type, createdAt])
+}
+
+// ─────────────────────────────────── Доски ──────────────────────────────────
+
+model Board {
+  id          String  @id @default(cuid())
+  /// Короткий ключ доски: OPS, DEV. Из него растут ключи задач OPS-128.
+  key         String  @unique
+  name        String
+  description String?
+  color       String  @default("#6366f1")
+  icon        String?
+
+  ownerId     String
+  isArchived  Boolean   @default(false)
+  archivedAt  DateTime?
+  /// Счётчик номеров задач. Инкрементируется атомарно в транзакции.
+  taskCounter Int       @default(0)
+  settings    Json      @default("{}")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner     User            @relation("BoardOwner", fields: [ownerId], references: [id])
+  members   BoardMember[]
+  columns   BoardColumn[]
+  labels    Label[]
+  tasks     Task[]
+  activities Activity[]
+  favorites BoardFavorite[]
+  notifications Notification[]
+  attachments Attachment[]
+  savedViews SavedView[]
+
+  @@index([ownerId])
+  @@index([isArchived])
+}
+
+model BoardMember {
+  id        String    @id @default(cuid())
+  boardId   String
+  userId    String
+  role      BoardRole @default(MEMBER)
+  addedById String?
+  createdAt DateTime  @default(now())
+
+  board   Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user    User  @relation("MemberUser", fields: [userId], references: [id], onDelete: Cascade)
+  addedBy User? @relation("MemberAddedBy", fields: [addedById], references: [id], onDelete: SetNull)
+
+  @@unique([boardId, userId])
+  @@index([userId])
+  @@index([boardId, role])
+}
+
+model BoardFavorite {
+  userId    String
+  boardId   String
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  @@id([userId, boardId])
+}
+
+model BoardColumn {
+  id       String    @id @default(cuid())
+  boardId  String
+  key      ColumnKey
+  name     String
+  order    Int
+  wipLimit Int?
+
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  @@unique([boardId, key])
+  @@index([boardId, order])
+}
+
+model Label {
+  id          String  @id @default(cuid())
+  boardId     String
+  name        String
+  color       String
+  description String?
+  createdAt   DateTime @default(now())
+
+  board Board       @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  tasks TaskLabel[]
+
+  @@unique([boardId, name])
+  @@index([boardId])
+}
+
+// ─────────────────────────────────── Задачи ─────────────────────────────────
+
+model Task {
+  id      String @id @default(cuid())
+  boardId String
+  /// Порядковый номер внутри доски.
+  number  Int
+  /// Денормализованный ключ вида OPS-128 — используется в поиске, боте и ссылках.
+  key     String @unique
+
+  title           String
+  descriptionJson Json?
+  /// Плоский текст описания: поиск, превью, уведомления.
+  descriptionText String @default("")
+
+  type      TaskType     @default(TASK)
+  priority  TaskPriority @default(MEDIUM)
+  columnKey ColumnKey    @default(TODO)
+  /// Дробный индекс порядка внутри колонки.
+  rank      String
+  /// Задача лежит в бэклоге (банке задач), а не на доске.
+  isBacklog Boolean      @default(false)
+
+  reporterId String
+  assigneeId String?
+  testerId   String?
+
+  storyPoints     Int?
+  estimateMinutes Int?
+  spentMinutes    Int?
+
+  startDate           DateTime?
+  dueDate             DateTime?
+  /// Сколько раз переносили дедлайн — полезная метрика дисциплины.
+  dueDateChangedCount Int       @default(0)
+  completedAt         DateTime?
+
+  archivedAt     DateTime?
+  lastActivityAt DateTime  @default(now())
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  /// Денормализованные счётчики: доска с сотнями задач не должна тянуть
+  /// агрегаты по комментариям и чек-листам. Обновляются в той же транзакции,
+  /// что и сами сущности, плюс ночная сверка в фоне.
+  commentCount    Int @default(0)
+  attachmentCount Int @default(0)
+  checklistTotal  Int @default(0)
+  checklistDone   Int @default(0)
+  blockedByCount  Int @default(0)
+
+  /// Нормализованный текст для поиска (title + описание + ключ), в нижнем регистре.
+  searchText String @default("")
+
+  board        Board             @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  reporter     User              @relation("TaskReporter", fields: [reporterId], references: [id])
+  assignee     User?             @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  tester       User?             @relation("TaskTester", fields: [testerId], references: [id], onDelete: SetNull)
+  labels       TaskLabel[]
+  participants TaskParticipant[]
+  comments     Comment[]
+  attachments  Attachment[]
+  checklists   Checklist[]
+  activities   Activity[]
+  notifications Notification[]
+  linksFrom    TaskLink[]        @relation("LinkFrom")
+  linksTo      TaskLink[]        @relation("LinkTo")
+
+  @@unique([boardId, number])
+  @@index([boardId, isBacklog, archivedAt, columnKey, rank])
+  @@index([assigneeId, dueDate])
+  @@index([assigneeId, columnKey])
+  @@index([testerId, columnKey])
+  @@index([reporterId])
+  @@index([boardId, updatedAt])
+  @@index([dueDate])
+  @@index([completedAt])
+}
+
+model TaskLabel {
+  taskId  String
+  labelId String
+
+  task  Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  label Label @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, labelId])
+  @@index([labelId])
+}
+
+model TaskParticipant {
+  id        String          @id @default(cuid())
+  taskId    String
+  userId    String
+  role      ParticipantRole
+  /// Пользователь вручную отписался от задачи — не возвращать его автоматически.
+  muted     Boolean         @default(false)
+  createdAt DateTime        @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, userId, role])
+  @@index([userId])
+  @@index([taskId])
+}
+
+model TaskLink {
+  id        String       @id @default(cuid())
+  fromTaskId String
+  toTaskId   String
+  type       TaskLinkType
+  createdAt  DateTime     @default(now())
+
+  fromTask Task @relation("LinkFrom", fields: [fromTaskId], references: [id], onDelete: Cascade)
+  toTask   Task @relation("LinkTo", fields: [toTaskId], references: [id], onDelete: Cascade)
+
+  @@unique([fromTaskId, toTaskId, type])
+  @@index([toTaskId])
+}
+
+model Checklist {
+  id        String   @id @default(cuid())
+  taskId    String
+  title     String
+  rank      String
+  createdAt DateTime @default(now())
+
+  task  Task            @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  items ChecklistItem[]
+
+  @@index([taskId, rank])
+}
+
+model ChecklistItem {
+  id          String    @id @default(cuid())
+  checklistId String
+  text        String
+  done        Boolean   @default(false)
+  rank        String
+  assigneeId  String?
+  dueDate     DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  checklist Checklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  assignee  User?     @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
+
+  @@index([checklistId, rank])
+}
+
+model Comment {
+  id       String      @id @default(cuid())
+  taskId   String
+  authorId String?
+  kind     CommentKind @default(USER)
+
+  bodyJson Json?
+  bodyText String @default("")
+
+  parentId   String?
+  /// Для системных записей: что именно изменилось (from/to/код причины).
+  systemMeta Json?
+
+  editedAt  DateTime?
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  task        Task              @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author      User?             @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  parent      Comment?          @relation("CommentThread", fields: [parentId], references: [id], onDelete: Cascade)
+  replies     Comment[]         @relation("CommentThread")
+  attachments Attachment[]
+  reactions   CommentReaction[]
+
+  @@index([taskId, createdAt])
+  @@index([authorId])
+  @@index([parentId])
+}
+
+model Attachment {
+  id         String           @id @default(cuid())
+  boardId    String?
+  taskId     String?
+  commentId  String?
+  uploaderId String
+  status     AttachmentStatus @default(PENDING)
+
+  filename   String
+  /// Имя файла на диске — генерируется сервером, наружу не попадает.
+  storedName String  @unique
+  mime       String
+  size       Int
+  checksum   String
+  width      Int?
+  height     Int?
+  thumbName  String?
+
+  createdAt DateTime  @default(now())
+  /// Не привязанные к задаче загрузки удаляются фоновой job'ой.
+  expiresAt DateTime?
+
+  board    Board?   @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  task     Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  comment  Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  uploader User     @relation(fields: [uploaderId], references: [id])
+
+  @@index([taskId])
+  @@index([commentId])
+  @@index([uploaderId])
+  @@index([status, expiresAt])
+  @@index([checksum])
+}
+
+model Activity {
+  id      String       @id @default(cuid())
+  boardId String
+  taskId  String?
+  actorId String?
+  type    ActivityType
+  payload Json         @default("{}")
+  createdAt DateTime   @default(now())
+
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  task  Task? @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([boardId, createdAt])
+  @@index([taskId, createdAt])
+  @@index([actorId, createdAt])
+}
+
+model Notification {
+  id      String           @id @default(cuid())
+  userId  String
+  type    NotificationType
+  boardId String?
+  taskId  String?
+  actorId String?
+  payload Json             @default("{}")
+
+  readAt            DateTime?
+  telegramSentAt    DateTime?
+  telegramMessageId Int?
+  createdAt         DateTime  @default(now())
+
+  user  User   @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  actor User?  @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  board Board? @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  task  Task?  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+  @@index([userId, createdAt])
+  @@index([taskId])
+}
+
+/// Реакции на комментарии: короткое «понял» вместо отдельного сообщения.
+model CommentReaction {
+  id        String   @id @default(cuid())
+  commentId String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId, emoji])
+  @@index([commentId])
+}
+
+/// Сохранённые фильтры доски («Мои баги», «Горит на этой неделе»).
+model SavedView {
+  id      String  @id @default(cuid())
+  userId  String
+  boardId String?
+  name    String
+  filters Json    @default("{}")
+  isShared Boolean @default(false)
+  createdAt DateTime @default(now())
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  board Board? @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([boardId])
+}

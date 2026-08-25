@@ -1,0 +1,60 @@
+# Caddy отдаёт статику фронтенда, проксирует API и сам получает TLS-сертификат.
+# Фронт и API живут на одном домене — это позволяет использовать
+# cookie с SameSite=Strict и избавляет от лишних preflight-запросов.
+
+{
+	email {$ACME_EMAIL}
+	# admin off
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	# Заголовки безопасности для HTML-приложения.
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), interest-cohort=()"
+		-Server
+	}
+
+	# Вебхук Telegram: путь содержит секрет, наружу его знает только Telegram.
+	handle /telegram/* {
+		reverse_proxy bot:{$BOT_PORT:4100}
+	}
+
+	# Реалтайм.
+	handle /socket.io/* {
+		reverse_proxy api:{$PORT:4000}
+	}
+
+	# API.
+	handle /api/* {
+		reverse_proxy api:{$PORT:4000} {
+			header_up X-Real-IP {remote_host}
+		}
+	}
+
+	handle /healthz {
+		reverse_proxy api:{$PORT:4000}
+	}
+
+	# Статика фронтенда.
+	handle {
+		root * /srv/www
+
+		# Ассеты с хешем в имени можно кешировать вечно.
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+
+		# index.html и сервис-воркер — никогда: иначе пользователи
+		# застрянут на старой версии приложения.
+		@nocache path / /index.html /sw.js /manifest.webmanifest
+		header @nocache Cache-Control "no-cache, must-revalidate"
+
+		try_files {path} /index.html
+		file_server
+	}
+}
