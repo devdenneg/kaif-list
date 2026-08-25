@@ -1,7 +1,14 @@
 import * as React from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Layers, Plus, UserPlus, Users } from 'lucide-react';
-import { BOARD_ROLE_LABELS, can, type BoardDto, type MemberWorkloadDto } from '@kaif/shared';
+import {
+  BOARD_ROLE_LABELS,
+  can,
+  type BoardDto,
+  type BoardRole,
+  type MemberWorkloadDto,
+  type PublicUser,
+} from '@kaif/shared';
 import { useBoard, useBoardWorkload } from '@/api/boards';
 import { useAuthStore } from '@/stores/auth';
 import { Button } from '@/components/ui/button';
@@ -24,7 +31,22 @@ export function PeoplePage(): React.ReactElement {
   const { boardKey } = useParams<{ boardKey: string }>();
   const user = useAuthStore((state) => state.user);
   const { data: board, isLoading } = useBoard(boardKey);
-  const { data: workload, isLoading: workloadLoading } = useBoardWorkload(board?.id);
+  // Право считаем до запроса: наблюдателю разбор работы коллег не положен.
+  const canSeeStats =
+    user && board
+      ? can(
+          {
+            globalRole: user.globalRole,
+            boardRole: board.myRole,
+            boardArchived: board.isArchived,
+          },
+          'board.analytics.view',
+        )
+      : false;
+  const { data: workload, isLoading: workloadLoading } = useBoardWorkload(
+    board?.id,
+    canSeeStats,
+  );
   // Нагрузка меняется от чужих действий — экран должен обновляться сам.
   useBoardRealtime(board?.id);
 
@@ -41,6 +63,14 @@ export function PeoplePage(): React.ReactElement {
   const canManage = accessContext ? can(accessContext, 'board.member.invite') : false;
 
   const maxActive = Math.max(1, ...(workload ?? []).map((item) => item.active));
+
+  // Состав доски виден всем, цифры — только тем, кто работает на доске.
+  const statsByUser = new Map((workload ?? []).map((item) => [item.user.id, item]));
+  const cards = board.members.map((member) => ({
+    user: member.user,
+    role: member.role,
+    stats: statsByUser.get(member.userId) ?? null,
+  }));
 
   return (
     <div className="mx-auto w-full max-w-6xl p-4 sm:p-6">
@@ -71,7 +101,7 @@ export function PeoplePage(): React.ReactElement {
         </div>
       </header>
 
-      {workloadLoading ? (
+      {canSeeStats && workloadLoading ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, index) => (
             <Skeleton key={index} className="h-36 rounded-xl" />
@@ -79,15 +109,17 @@ export function PeoplePage(): React.ReactElement {
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {(workload ?? []).map((item) => (
+          {cards.map((card) => (
             <PersonCard
-              key={item.user.id}
+              key={card.user.id}
               board={board}
-              item={item}
+              user={card.user}
+              role={card.role}
+              stats={card.stats}
               maxActive={maxActive}
               canManage={canManage}
-              onOpen={() => setSelectedUserId(item.user.id)}
-              onCreateTask={() => setCreateTaskFor(item.user.id)}
+              onOpen={() => setSelectedUserId(card.user.id)}
+              onCreateTask={() => setCreateTaskFor(card.user.id)}
             />
           ))}
         </div>
@@ -118,54 +150,60 @@ export function PeoplePage(): React.ReactElement {
 
 function PersonCard({
   board,
-  item,
+  user,
+  role,
+  stats,
   maxActive,
   canManage,
   onOpen,
   onCreateTask,
 }: {
   board: BoardDto;
-  item: MemberWorkloadDto;
+  user: PublicUser;
+  role: BoardRole;
+  stats: MemberWorkloadDto | null;
   maxActive: number;
   canManage: boolean;
   onOpen: () => void;
   onCreateTask: () => void;
 }): React.ReactElement {
-  const load = (item.active / maxActive) * 100;
+  const load = stats ? (stats.active / maxActive) * 100 : 0;
 
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 shadow-card transition-shadow hover:shadow-card-hover">
       <button type="button" onClick={onOpen} className="flex items-center gap-3 text-left">
-        <UserAvatar user={item.user} size="lg" />
+        <UserAvatar user={user} size="lg" />
         <div className="min-w-0">
-          <p className="truncate font-medium">{item.user.displayName}</p>
+          <p className="truncate font-medium">{user.displayName}</p>
           <p className="truncate text-xs text-muted-foreground">
-            {BOARD_ROLE_LABELS[item.role]}
-            {item.user.tgUsername ? ` · @${item.user.tgUsername}` : ''}
+            {BOARD_ROLE_LABELS[role]}
+            {user.tgUsername ? ` · @${user.tgUsername}` : ''}
           </p>
         </div>
       </button>
 
-      <div className="space-y-1">
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>Загрузка</span>
-          <span>{item.active} активных</span>
+      {stats && (
+        <div className="space-y-1">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>Загрузка</span>
+            <span>{stats.active} активных</span>
+          </div>
+          <Progress
+            value={load}
+            indicatorClassName={cn(
+              load > 80 ? 'bg-destructive' : load > 50 ? 'bg-warning' : 'bg-success',
+            )}
+          />
         </div>
-        <Progress
-          value={load}
-          indicatorClassName={cn(
-            load > 80 ? 'bg-destructive' : load > 50 ? 'bg-warning' : 'bg-success',
-          )}
-        />
-      </div>
+      )}
 
       {/* ── Рабочие группы человека ── */}
       <div className="flex flex-wrap items-center gap-1.5">
-        <MemberGroupChips board={board} userId={item.user.id} />
+        <MemberGroupChips board={board} userId={user.id} />
         {canManage && (
           <GroupPickerMenu
             board={board}
-            userId={item.user.id}
+            userId={user.id}
             canManage={canManage}
             align="start"
             trigger={
@@ -181,13 +219,17 @@ function PersonCard({
         )}
       </div>
 
-      <div className="flex flex-wrap gap-1.5">
-        {item.inProgress > 0 && <Badge variant="primary">в работе: {item.inProgress}</Badge>}
-        {item.qa > 0 && <Badge variant="outline">на тесте: {item.qa}</Badge>}
-        {item.dueToday > 0 && <Badge variant="warning">сегодня: {item.dueToday}</Badge>}
-        {item.overdue > 0 && <Badge variant="danger">просрочено: {item.overdue}</Badge>}
-        {item.done30d > 0 && <Badge variant="success">закрыто за месяц: {item.done30d}</Badge>}
-      </div>
+      {stats && (
+        <div className="flex flex-wrap gap-1.5">
+          {stats.inProgress > 0 && <Badge variant="primary">в работе: {stats.inProgress}</Badge>}
+          {stats.qa > 0 && <Badge variant="outline">на тесте: {stats.qa}</Badge>}
+          {stats.dueToday > 0 && <Badge variant="warning">сегодня: {stats.dueToday}</Badge>}
+          {stats.overdue > 0 && <Badge variant="danger">просрочено: {stats.overdue}</Badge>}
+          {stats.done30d > 0 && (
+            <Badge variant="success">закрыто за месяц: {stats.done30d}</Badge>
+          )}
+        </div>
+      )}
 
       <Button variant="outline" size="sm" className="mt-auto" onClick={onCreateTask}>
         <Plus />

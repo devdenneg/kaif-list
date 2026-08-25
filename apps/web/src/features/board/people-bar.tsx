@@ -1,8 +1,9 @@
 import * as React from 'react';
 import { Layers, UserPlus, UserRound, UserX, X } from 'lucide-react';
-import { BOARD_ROLE_LABELS, type BoardDto, type PresenceUser } from '@kaif/shared';
+import { BOARD_ROLE_LABELS, can, type BoardDto, type PresenceUser } from '@kaif/shared';
 import { useBoardWorkload } from '@/api/boards';
 import { EMPTY_FILTERS, useUiStore } from '@/stores/ui';
+import { useAuthStore } from '@/stores/auth';
 import { UserAvatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Tooltip } from '@/components/ui/tooltip';
@@ -32,7 +33,18 @@ export function PeopleBar({
   onCreateTaskFor: (userId: string) => void;
   compact?: boolean;
 }): React.ReactElement {
-  const { data: workload } = useBoardWorkload(board.id);
+  const currentUser = useAuthStore((state) => state.user);
+  const canSeeStats = currentUser
+    ? can(
+        {
+          globalRole: currentUser.globalRole,
+          boardRole: board.myRole,
+          boardArchived: board.isArchived,
+        },
+        'board.analytics.view',
+      )
+    : false;
+  const { data: workload } = useBoardWorkload(board.id, canSeeStats);
   const filters = useUiStore((state) => state.filters[board.id]) ?? EMPTY_FILTERS;
   const setFilters = useUiStore((state) => state.setFilters);
 

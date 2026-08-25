@@ -9,7 +9,7 @@ import {
   Plus,
   Shield,
 } from 'lucide-react';
-import { BOARD_ROLE_LABELS, BoardRole, type BoardDto } from '@kaif/shared';
+import { BOARD_ROLE_LABELS, BoardRole, can, type BoardDto } from '@kaif/shared';
 import { useBoardWorkload, useChangeMemberRole, useRemoveMember } from '@/api/boards';
 import { useTaskList } from '@/api/tasks';
 import { EMPTY_FILTERS } from '@/stores/ui';
@@ -48,8 +48,19 @@ export function MemberPanel({
   onCreateTaskFor: (userId: string) => void;
   canManage: boolean;
 }): React.ReactElement | null {
-  const currentUserId = useAuthStore((state) => state.user?.id);
-  const { data: workload } = useBoardWorkload(board.id);
+  const currentUser = useAuthStore((state) => state.user);
+  const currentUserId = currentUser?.id;
+  const canSeeStats = currentUser
+    ? can(
+        {
+          globalRole: currentUser.globalRole,
+          boardRole: board.myRole,
+          boardArchived: board.isArchived,
+        },
+        'board.analytics.view',
+      )
+    : false;
+  const { data: workload } = useBoardWorkload(board.id, canSeeStats);
   const changeRole = useChangeMemberRole(board.id);
   const removeMember = useRemoveMember(board.id);
   const [confirmRemove, setConfirmRemove] = React.useState(false);
@@ -91,6 +102,7 @@ export function MemberPanel({
           </SheetHeader>
 
           <SheetBody className="space-y-5">
+            {canSeeStats && (
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               <StatTile label="В работе" value={stats?.inProgress ?? 0} />
               <StatTile label="Активных" value={stats?.active ?? 0} />
@@ -107,6 +119,7 @@ export function MemberPanel({
                 icon={<CheckCircle2 />}
               />
             </div>
+            )}
 
             <div className="flex flex-wrap gap-2">
               <Button variant="primary" size="sm" onClick={() => onCreateTaskFor(member.userId)}>

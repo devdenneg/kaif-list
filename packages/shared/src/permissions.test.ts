@@ -41,6 +41,12 @@ describe('матрица прав', () => {
     expect(can(ctx(BoardRole.MEMBER), 'task.delete')).toBe(false);
   });
 
+  it('наблюдатель не видит разбор работы команды', () => {
+    expect(can(ctx(BoardRole.VIEWER), 'board.analytics.view')).toBe(false);
+    expect(can(ctx(BoardRole.MEMBER), 'board.analytics.view')).toBe(true);
+    expect(can(ctx(BoardRole.ADMIN), 'board.analytics.view')).toBe(true);
+  });
+
   it('свою задачу автор удаляет сам, чужую — нет', () => {
     expect(can(ctx(BoardRole.MEMBER, { isTaskAuthor: true }), 'task.delete')).toBe(true);
     expect(can(ctx(BoardRole.MEMBER, { isTaskAssignee: true }), 'task.delete')).toBe(false);

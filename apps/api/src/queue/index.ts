@@ -62,14 +62,29 @@ export type TelegramJob =
  */
 export const TELEGRAM_BATCH_DELAY_MS = 12_000;
 
+/**
+ * Окно склейки в идентификаторе джобы.
+ *
+ * BullMQ отказывается принимать джобу с идентификатором, который уже лежит
+ * в очереди — в том числе среди выполненных и упавших. Выполненные живут час,
+ * упавшие сутки, так что постоянный `tg:<user>:<task>` глушил все последующие
+ * уведомления по той же задаче: в вебе они появлялись, в Telegram — нет.
+ * Номер окна делает идентификатор уникальным для каждого интервала склейки,
+ * а лишняя джоба безвредна — воркер просто не найдёт неотправленного.
+ */
+function batchWindow(): number {
+  return Math.floor(Date.now() / TELEGRAM_BATCH_DELAY_MS);
+}
+
 export async function enqueueTaskNotification(userId: string, taskId: string): Promise<void> {
   try {
     await telegramQueue.add(
       'task-notifications',
       { kind: 'task-notifications', userId, taskId } satisfies TelegramJob,
       {
-        jobId: `tg:${userId}:${taskId}`,
+        jobId: `tg:${userId}:${taskId}:${batchWindow()}`,
         delay: TELEGRAM_BATCH_DELAY_MS,
+        removeOnComplete: true,
       },
     );
   } catch (error) {
@@ -85,7 +100,7 @@ export async function enqueueSingleNotification(
     await telegramQueue.add(
       'single-notification',
       { kind: 'single-notification', userId, notificationId } satisfies TelegramJob,
-      { jobId: `tg:one:${notificationId}` },
+      { jobId: `tg:one:${notificationId}:${batchWindow()}`, removeOnComplete: true },
     );
   } catch (error) {
     logger.error({ err: error, notificationId }, 'Не удалось поставить уведомление в очередь');
@@ -111,6 +126,11 @@ export async function registerRepeatableJobs(): Promise<void> {
     'daily-digest',
     {},
     { repeat: { pattern: '*/15 * * * *' }, jobId: 'daily-digest' },
+  );
+  await schedulerQueue.add(
+    'quiet-hours-flush',
+    {},
+    { repeat: { pattern: '*/15 * * * *' }, jobId: 'quiet-hours-flush' },
   );
   await maintenanceQueue.add(
     'cleanup',

@@ -116,6 +116,7 @@ export function BoardPage(): React.ReactElement {
   const canCreate = accessContext ? can(accessContext, 'task.create') : false;
   const canDrag = accessContext ? can(accessContext, 'task.move') : false;
   const canManageBoard = accessContext ? can(accessContext, 'board.settings.manage') : false;
+  const canSeeAnalytics = accessContext ? can(accessContext, 'board.analytics.view') : false;
 
   useHotkeys(
     {
@@ -271,12 +272,14 @@ export function BoardPage(): React.ReactElement {
                     Люди
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to={`/boards/${board.key}/dashboard`}>
-                    <BarChart3 />
-                    Аналитика
-                  </Link>
-                </DropdownMenuItem>
+                {canSeeAnalytics && (
+                  <DropdownMenuItem asChild>
+                    <Link to={`/boards/${board.key}/dashboard`}>
+                      <BarChart3 />
+                      Аналитика
+                    </Link>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuLabel>
                   <span className="flex items-center gap-1.5">

@@ -9,7 +9,12 @@ import { logger } from '../../lib/logger.js';
 import { prisma } from '../../lib/prisma.js';
 import { createRedisConnection } from '../../lib/redis.js';
 import { dispatchNotification } from '../../services/notify.js';
-import { QUEUE_NAMES } from '../index.js';
+import {
+  QUEUE_NAMES,
+  enqueueSingleNotification,
+  enqueueTaskNotification,
+} from '../index.js';
+import { shouldDeliverToTelegram } from '@kaif/shared';
 
 /**
  * Плановые уведомления: напоминания о дедлайнах и утренний дайджест.
@@ -25,12 +30,80 @@ export function createSchedulerWorker(): Worker {
     async (job: Job) => {
       if (job.name === 'due-reminders') return runDueReminders();
       if (job.name === 'daily-digest') return runDailyDigest();
+      if (job.name === 'quiet-hours-flush') return flushQuietHours();
       return undefined;
     },
     { connection: createRedisConnection('worker-scheduler'), concurrency: 1 },
   ).on('failed', (job, error) => {
     logger.error({ jobName: job?.name, err: error?.message }, 'Плановая задача не выполнена');
   });
+}
+
+/**
+ * Досылка того, что задержали тихие часы.
+ *
+ * Настройки обещают человеку: «уведомления копятся и приходят потом».
+ * Раньше «потом» не наступало никогда — уведомление оставалось в базе
+ * с пустым telegramSentAt, и его никто больше не трогал. Теперь каждые
+ * 15 минут проверяем, у кого тихие часы закончились, и досылаем.
+ *
+ * Сюда же попадает всё, что не ушло по другим причинам: очередь была
+ * недоступна, Redis перезапускали, воркер падал.
+ */
+const QUIET_FLUSH_MAX_AGE_MS = 24 * 3_600_000;
+
+async function flushQuietHours(): Promise<void> {
+  const now = new Date();
+
+  const pending = await prisma.notification.findMany({
+    where: {
+      telegramSentAt: null,
+      createdAt: { gte: new Date(now.getTime() - QUIET_FLUSH_MAX_AGE_MS) },
+      user: { isActive: true, botBlocked: false, botChatId: { not: null } },
+    },
+    orderBy: { createdAt: 'asc' },
+    // Потолок на случай, если что-то массово не отправилось: за один прогон
+    // разгребаем ограниченную порцию, остальное уедет через 15 минут.
+    take: 500,
+    select: {
+      id: true,
+      type: true,
+      userId: true,
+      taskId: true,
+      user: { select: { timezone: true, notificationPrefs: true } },
+    },
+  });
+  if (pending.length === 0) return;
+
+  // Одна джоба на пару «человек + задача»: воркер всё равно соберёт
+  // накопившееся по задаче в одно сообщение.
+  const seen = new Set<string>();
+  let enqueued = 0;
+
+  for (const notification of pending) {
+    const prefs = mergeNotificationPreferences(notification.user.notificationPrefs);
+    // Тихие часы ещё идут — или человек отключил этот тип совсем.
+    if (!shouldDeliverToTelegram(notification.type, prefs, notification.user.timezone, now)) {
+      continue;
+    }
+
+    const key = notification.taskId
+      ? `${notification.userId}:${notification.taskId}`
+      : `one:${notification.id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    if (notification.taskId) {
+      await enqueueTaskNotification(notification.userId, notification.taskId);
+    } else {
+      await enqueueSingleNotification(notification.userId, notification.id);
+    }
+    enqueued += 1;
+  }
+
+  if (enqueued > 0) {
+    logger.info({ enqueued, pending: pending.length }, 'Досланы отложенные уведомления');
+  }
 }
 
 /** Напоминания за 24 часа, за 2 часа и в момент просрочки. */

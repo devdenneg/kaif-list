@@ -19,6 +19,7 @@ export type Action =
   | 'board.member.changeRole'
   | 'board.label.manage'
   | 'board.column.manage'
+  | 'board.analytics.view'
   // Задачи
   | 'task.view'
   | 'task.create'
@@ -128,6 +129,11 @@ export function can(ctx: AccessContext, action: Action): boolean {
 
   switch (action) {
     // --- Доска ---
+    case 'board.analytics.view':
+      // Наблюдатель смотрит доску, но не разбор работы коллег по именам:
+      // это внутренняя кухня команды, а не витрина для заказчика.
+      return isMember;
+
     case 'board.view':
     case 'board.member.view':
     case 'task.view':

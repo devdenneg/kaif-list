@@ -25,7 +25,7 @@ import { z } from 'zod';
 import { createBoardInvite, listBoardInvites, revokeBoardInvite } from './invites.js';
 import { requireUser } from '../../plugins/auth.js';
 import { heavyRateLimit } from '../../plugins/security.js';
-import { loadBoardContext } from '../../lib/rbac.js';
+import { assertCan, loadBoardContext } from '../../lib/rbac.js';
 import { columnKeySchema } from '@kaif/shared';
 import {
   addMember,
@@ -148,6 +148,7 @@ export async function registerBoardRoutes(app: FastifyInstance): Promise<void> {
     const user = requireUser(request);
     const { boardId } = boardParams.parse(request.params);
     const context = await loadBoardContext(user, boardId);
+    assertCan(user, context, 'board.analytics.view');
     return reply.send({ items: await memberWorkload(context) });
   });
 
@@ -398,6 +399,7 @@ export async function registerBoardRoutes(app: FastifyInstance): Promise<void> {
       request.query ?? {},
     );
     const context = await loadBoardContext(user, boardId);
+    assertCan(user, context, 'board.analytics.view');
     return reply.send({ analytics: await boardAnalytics(context, days) });
   });
 

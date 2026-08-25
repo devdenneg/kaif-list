@@ -104,14 +104,19 @@ export function useToggleFavorite(boardId: string) {
 
 // ──────────────────────────────── Участники ─────────────────────────────────
 
-export function useBoardWorkload(boardId: string | undefined) {
+/**
+ * Загрузка участников. `allowed` — право `board.analytics.view`: наблюдателю
+ * разбор работы коллег не показываем, поэтому и не запрашиваем (сервер всё
+ * равно ответит отказом).
+ */
+export function useBoardWorkload(boardId: string | undefined, allowed = true) {
   return useQuery({
     queryKey: queryKeys.boardWorkload(boardId ?? ''),
     queryFn: () =>
       api
         .get<{ items: MemberWorkloadDto[] }>(`/api/boards/${boardId}/workload`)
         .then((response) => response.items),
-    enabled: Boolean(boardId),
+    enabled: Boolean(boardId) && allowed,
     staleTime: 60_000,
   });
 }

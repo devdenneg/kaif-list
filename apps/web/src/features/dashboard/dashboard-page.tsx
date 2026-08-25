@@ -16,8 +16,9 @@ import {
   YAxis,
 } from 'recharts';
 import { ArrowLeft, BarChart3, Clock, TrendingUp, Users } from 'lucide-react';
-import { COLUMN_LABELS, PRIORITY_LABELS, type TaskPriority } from '@kaif/shared';
+import { COLUMN_LABELS, PRIORITY_LABELS, can, type TaskPriority } from '@kaif/shared';
 import { useBoard, useBoardAnalytics } from '@/api/boards';
+import { useAuthStore } from '@/stores/auth';
 import { Button } from '@/components/ui/button';
 import { EmptyState, Skeleton } from '@/components/ui/misc';
 import { UserAvatar } from '@/components/ui/avatar';
@@ -47,11 +48,43 @@ const PRIORITY_COLORS: Record<TaskPriority, string> = {
 export function DashboardPage(): React.ReactElement {
   const { boardKey } = useParams<{ boardKey: string }>();
   const [days, setDays] = React.useState(30);
+  const user = useAuthStore((state) => state.user);
   const { data: board, isLoading } = useBoard(boardKey);
-  const { data: analytics, isLoading: analyticsLoading } = useBoardAnalytics(board?.id, days);
+  const canSee =
+    user && board
+      ? can(
+          {
+            globalRole: user.globalRole,
+            boardRole: board.myRole,
+            boardArchived: board.isArchived,
+          },
+          'board.analytics.view',
+        )
+      : false;
+  const { data: analytics, isLoading: analyticsLoading } = useBoardAnalytics(
+    canSee ? board?.id : undefined,
+    days,
+  );
 
   if (isLoading) return <FullScreenLoader inline />;
   if (!board) return <EmptyState title="Доска не найдена" />;
+
+  if (!canSee) {
+    return (
+      <div className="mx-auto w-full max-w-6xl p-6">
+        <EmptyState
+          icon={<BarChart3 />}
+          title="Аналитика недоступна"
+          description="Разбор работы команды видят участники доски и её администраторы."
+          action={
+            <Button variant="primary" asChild>
+              <Link to={`/boards/${board.key}`}>К доске</Link>
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto w-full max-w-6xl p-4 sm:p-6">
