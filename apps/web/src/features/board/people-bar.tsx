@@ -8,6 +8,7 @@ import { UserAvatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Tooltip } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { shortNames } from '@/lib/short-names';
 import { MemberPanel } from './member-panel';
 import { InviteDialog } from './invite-dialog';
 import { GroupPickerMenu } from './group-picker';
@@ -53,6 +54,9 @@ export function PeopleBar({
   const [profileUserId, setProfileUserId] = React.useState<string | null>(null);
   const [inviteOpen, setInviteOpen] = React.useState(false);
 
+  // Подписи считаем по всему списку сразу: понять, что имя не уникально,
+  // глядя на одного человека, невозможно.
+  const labels = shortNames(board.members.map((member) => member.user));
   const onlineIds = new Set(presence.map((user) => user.userId));
   const workloadByUser = new Map((workload ?? []).map((item) => [item.user.id, item]));
 
@@ -77,7 +81,7 @@ export function PeopleBar({
     : undefined;
   const hasSelection = selected.length > 0 || filters.unassigned;
   const selectionLabel = soleSelected
-    ? firstName(soleSelected.user.displayName)
+    ? (labels.get(soleSelected.userId) ?? soleSelected.user.displayName)
     : selected.length > 0
       ? `Выбрано: ${selected.length}`
       : 'Без исполнителя';
@@ -149,8 +153,8 @@ export function PeopleBar({
                   )}
                 </span>
                 {!compact && (
-                  <span className="max-w-[7rem] truncate text-xs font-medium">
-                    {firstName(member.user.displayName)}
+                  <span className="max-w-[8rem] truncate text-xs font-medium">
+                    {labels.get(member.userId) ?? member.user.displayName}
                   </span>
                 )}
               </button>
@@ -290,8 +294,3 @@ export function PeopleBar({
   );
 }
 
-/** В полосе людей важна плотность: фамилия обычно не нужна, чтобы узнать коллегу. */
-function firstName(displayName: string): string {
-  const [first] = displayName.trim().split(/\s+/);
-  return first ?? displayName;
-}
