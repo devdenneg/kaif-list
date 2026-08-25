@@ -51,11 +51,10 @@ export function TaskPage(): React.ReactElement {
   }
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-3.5rem)] w-full max-w-6xl flex-col">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-6xl flex-col">
       <div className="px-4 pt-3">
         <Button variant="ghost" size="sm" onClick={() => navigate(`/boards/${task.board.key}`)}>
-          <ArrowLeft />
-          К доске «{task.board.name}»
+          <ArrowLeft />К доске «{task.board.name}»
         </Button>
       </div>
       <div className="flex min-h-0 flex-1 flex-col">

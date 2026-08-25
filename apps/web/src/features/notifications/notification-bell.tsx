@@ -68,14 +68,17 @@ export function NotificationBell(): React.ReactElement {
         </Button>
       </PopoverTrigger>
 
-      <PopoverContent align="end" className="w-[min(24rem,calc(100vw-2rem))] p-0">
-        <div className="flex items-center gap-2 border-b border-border px-3 py-2">
-          <h3 className="text-sm font-semibold">Уведомления</h3>
+      <PopoverContent
+        align="end"
+        className="flex max-h-[min(var(--radix-popover-content-available-height),calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] w-[min(24rem,calc(100vw-env(safe-area-inset-left)-env(safe-area-inset-right)-1.5rem))] flex-col overflow-hidden p-0"
+      >
+        <div className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-2">
+          <h3 className="min-w-0 flex-1 truncate text-sm font-semibold">Уведомления</h3>
           {unread > 0 && (
             <Button
               variant="ghost"
               size="sm"
-              className="ml-auto"
+              className="shrink-0"
               onClick={() => markRead.mutate({})}
               loading={markRead.isPending}
             >
@@ -85,7 +88,7 @@ export function NotificationBell(): React.ReactElement {
           )}
         </div>
 
-        <div className="scrollbar-thin max-h-96 overflow-y-auto">
+        <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {isLoading ? (
             <div className="space-y-2 p-3">
               {Array.from({ length: 4 }).map((_, index) => (
@@ -132,7 +135,7 @@ export function NotificationBell(): React.ReactElement {
           )}
         </div>
 
-        <div className="border-t border-border p-2">
+        <div className="shrink-0 border-t border-border p-2">
           <Button
             variant="ghost"
             size="sm"

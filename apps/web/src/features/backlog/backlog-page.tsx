@@ -134,7 +134,7 @@ export function BacklogPage(): React.ReactElement {
 
       {/* ── Панель массовых действий ── */}
       {selected.length > 0 && canManage && (
-        <div className="sticky top-16 z-20 mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-primary/40 bg-accent/60 px-3 py-2 shadow-card backdrop-blur">
+        <div className="sticky top-0 z-20 mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-primary/40 bg-accent/60 px-3 py-2 shadow-card backdrop-blur">
           <span className="text-sm font-medium">Выбрано: {selected.length}</span>
 
           <Select onValueChange={(value) => runBulk('assign', { assigneeId: value })}>
@@ -168,7 +168,10 @@ export function BacklogPage(): React.ReactElement {
           </Select>
 
           <div className="flex items-center gap-1">
-            <Select value={targetColumn} onValueChange={(value) => setTargetColumn(value as ColumnKey)}>
+            <Select
+              value={targetColumn}
+              onValueChange={(value) => setTargetColumn(value as ColumnKey)}
+            >
               <SelectTrigger className="h-8 w-40">
                 <SelectValue />
               </SelectTrigger>
@@ -222,25 +225,25 @@ export function BacklogPage(): React.ReactElement {
         // в бэклоге канбана нет, поэтому передаём пустой набор.
         <TaskActionsProvider board={board} filters={EMPTY_FILTERS}>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {(tasks ?? []).map((task: TaskCardDto) => (
-            <div key={task.id} className="relative">
-              {canManage && (
-                <label className="absolute -left-1 -top-1 z-10 cursor-pointer rounded bg-card p-1 shadow-card">
-                  <Checkbox
-                    checked={selected.includes(task.id)}
-                    onCheckedChange={() => toggle(task.id)}
-                    aria-label={`Выбрать ${task.key}`}
-                  />
-                </label>
-              )}
-              <TaskCard
-                task={task}
-                onOpen={() => setOpenTaskKey(task.key)}
-                className={cn(selected.includes(task.id) && 'ring-2 ring-primary')}
-                {...(user?.timezone ? { timeZone: user.timezone } : {})}
-              />
-            </div>
-          ))}
+            {(tasks ?? []).map((task: TaskCardDto) => (
+              <div key={task.id} className="relative">
+                {canManage && (
+                  <label className="absolute -left-1 -top-1 z-10 cursor-pointer rounded bg-card p-1 shadow-card">
+                    <Checkbox
+                      checked={selected.includes(task.id)}
+                      onCheckedChange={() => toggle(task.id)}
+                      aria-label={`Выбрать ${task.key}`}
+                    />
+                  </label>
+                )}
+                <TaskCard
+                  task={task}
+                  onOpen={() => setOpenTaskKey(task.key)}
+                  className={cn(selected.includes(task.id) && 'ring-2 ring-primary')}
+                  {...(user?.timezone ? { timeZone: user.timezone } : {})}
+                />
+              </div>
+            ))}
           </div>
         </TaskActionsProvider>
       )}
@@ -253,11 +256,7 @@ export function BacklogPage(): React.ReactElement {
       />
 
       {openTaskKey && (
-        <TaskDialog
-          taskKey={openTaskKey}
-          boardId={board.id}
-          onClose={() => setOpenTaskKey(null)}
-        />
+        <TaskDialog taskKey={openTaskKey} boardId={board.id} onClose={() => setOpenTaskKey(null)} />
       )}
     </div>
   );

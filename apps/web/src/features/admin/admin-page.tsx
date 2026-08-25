@@ -30,7 +30,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { UserAvatar } from '@/components/ui/avatar';
-import { EmptyState, Skeleton, Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/misc';
+import {
+  EmptyState,
+  Skeleton,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/misc';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { TaskCard } from '@/features/board/task-card';
 
@@ -48,30 +55,30 @@ export function AdminPage(): React.ReactElement {
           <Shield className="size-5 text-muted-foreground" />
           Администрирование
         </h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
           Полный обзор системы: люди, доски, задачи и события безопасности
         </p>
       </header>
 
       <Tabs defaultValue="overview">
-        <TabsList className="mb-5 w-full justify-start overflow-x-auto">
-          <TabsTrigger value="overview">
+        <TabsList className="scrollbar-thin mb-5 h-auto w-full max-w-full justify-start overflow-x-auto p-1">
+          <TabsTrigger value="overview" className="shrink-0 [&_svg]:!size-5">
             <Activity />
             Обзор
           </TabsTrigger>
-          <TabsTrigger value="users">
+          <TabsTrigger value="users" className="shrink-0 [&_svg]:!size-5">
             <Users />
             Пользователи
           </TabsTrigger>
-          <TabsTrigger value="boards">
+          <TabsTrigger value="boards" className="shrink-0 [&_svg]:!size-5">
             <LayoutGrid />
             Доски
           </TabsTrigger>
-          <TabsTrigger value="backlog">
+          <TabsTrigger value="backlog" className="shrink-0 [&_svg]:!size-5">
             <Inbox />
             Банк задач
           </TabsTrigger>
-          <TabsTrigger value="security">
+          <TabsTrigger value="security" className="shrink-0 [&_svg]:!size-5">
             <ShieldCheck />
             Безопасность
           </TabsTrigger>
@@ -181,15 +188,17 @@ function UsersTab(): React.ReactElement {
             <li
               key={user.id}
               className={cn(
-                'flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-3',
+                'flex flex-wrap items-start gap-3 rounded-lg border border-border bg-card p-3',
                 !user.isActive && 'opacity-60',
               )}
             >
               <UserAvatar user={user} size="md" />
 
               <div className="min-w-0 flex-1">
-                <p className="flex items-center gap-2 truncate text-sm font-medium">
-                  {user.displayName}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <p className="min-w-0 max-w-full truncate text-sm font-medium">
+                    {user.displayName}
+                  </p>
                   {user.globalRole === GlobalRole.SUPERADMIN && (
                     <Badge variant="primary">
                       <Shield />
@@ -198,26 +207,32 @@ function UsersTab(): React.ReactElement {
                   )}
                   {!user.isActive && <Badge variant="danger">Отключён</Badge>}
                   {!user.profileCompleted && <Badge variant="warning">Профиль не заполнен</Badge>}
-                </p>
-                <p className="truncate text-xs text-muted-foreground">
+                </div>
+                <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground sm:truncate">
                   {user.tgUsername ? `@${user.tgUsername} · ` : ''}
                   досок: {user.boards} · задач: {user.assignedTasks}
                   {user.lastSeenAt ? ` · был(а) ${formatRelative(user.lastSeenAt)}` : ''}
                 </p>
               </div>
 
-              <div className="flex items-center gap-1.5">
+              <div className="flex w-full flex-col items-stretch gap-1.5 xs:flex-row xs:flex-wrap xs:items-center sm:w-auto sm:justify-end">
                 {user.botLinked ? (
-                  <Badge variant={user.botBlocked ? 'danger' : 'success'}>
+                  <Badge
+                    variant={user.botBlocked ? 'danger' : 'success'}
+                    className="w-fit self-start xs:self-auto"
+                  >
                     {user.botBlocked ? 'бот заблокирован' : 'бот подключён'}
                   </Badge>
                 ) : (
-                  <Badge variant="outline">без бота</Badge>
+                  <Badge variant="outline" className="w-fit self-start xs:self-auto">
+                    без бота
+                  </Badge>
                 )}
 
                 <Button
                   variant="ghost"
                   size="sm"
+                  className="w-full xs:w-auto"
                   onClick={() =>
                     setRole.mutate(
                       {
@@ -228,7 +243,8 @@ function UsersTab(): React.ReactElement {
                             : GlobalRole.SUPERADMIN,
                       },
                       {
-                        onSuccess: () => toast.success('Роль изменена, сессии пользователя сброшены'),
+                        onSuccess: () =>
+                          toast.success('Роль изменена, сессии пользователя сброшены'),
                         onError: (error) => toast.error('Не удалось изменить роль', error),
                       },
                     )
@@ -241,6 +257,7 @@ function UsersTab(): React.ReactElement {
                 <Button
                   variant={user.isActive ? 'ghost' : 'outline'}
                   size="sm"
+                  className="w-full xs:w-auto"
                   onClick={() => setTarget(user)}
                 >
                   {user.isActive ? <UserX /> : <UserCheck />}
@@ -255,7 +272,9 @@ function UsersTab(): React.ReactElement {
       <ConfirmDialog
         open={Boolean(target)}
         onOpenChange={(open) => !open && setTarget(null)}
-        title={target?.isActive ? `Отключить ${target.displayName}?` : `Включить ${target?.displayName}?`}
+        title={
+          target?.isActive ? `Отключить ${target.displayName}?` : `Включить ${target?.displayName}?`
+        }
         description={
           target?.isActive
             ? 'Все сессии будут завершены, вход станет невозможен. Задачи и история сохранятся.'
@@ -307,11 +326,11 @@ function BoardsTab(): React.ReactElement {
           >
             <span className="size-3 shrink-0 rounded" style={{ backgroundColor: board.color }} />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">
-                {board.name}
-                {board.isArchived && <Badge variant="outline" className="ml-2">архив</Badge>}
-              </p>
-              <p className="truncate text-xs text-muted-foreground">
+              <div className="flex min-w-0 items-center gap-2">
+                <p className="min-w-0 flex-1 truncate text-sm font-medium">{board.name}</p>
+                {board.isArchived && <Badge variant="outline">архив</Badge>}
+              </div>
+              <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground sm:truncate">
                 {board.key} · владелец: {board.owner.displayName} · участников: {board.members} ·
                 задач: {board.tasks}
               </p>
@@ -403,7 +422,7 @@ function SecurityTab(): React.ReactElement {
         <li
           key={event.id}
           className={cn(
-            'flex items-center gap-3 rounded-lg border px-3 py-2 text-sm',
+            'flex flex-wrap items-center gap-2.5 rounded-lg border px-3 py-2.5 text-sm',
             CRITICAL_EVENTS.has(event.type)
               ? 'border-destructive/40 bg-destructive/5'
               : 'border-border bg-card',
@@ -415,12 +434,14 @@ function SecurityTab(): React.ReactElement {
           <UserAvatar user={event.user} size="xs" />
           <span className="min-w-0 flex-1 truncate">
             <span className="font-medium">{SECURITY_LABELS[event.type] ?? event.type}</span>
-            {event.user && <span className="text-muted-foreground"> · {event.user.displayName}</span>}
+            {event.user && (
+              <span className="text-muted-foreground"> · {event.user.displayName}</span>
+            )}
           </span>
-          <span className="shrink-0 font-mono text-xs text-muted-foreground">{event.ip ?? '—'}</span>
-          <span className="shrink-0 text-xs text-muted-foreground">
-            {formatRelative(event.createdAt)}
-          </span>
+          <div className="flex w-full items-center justify-between gap-3 text-xs text-muted-foreground sm:ml-auto sm:w-auto sm:justify-start">
+            <span className="min-w-0 truncate font-mono">{event.ip ?? '—'}</span>
+            <span className="shrink-0">{formatRelative(event.createdAt)}</span>
+          </div>
         </li>
       ))}
       {(events ?? []).length === 0 && <EmptyState title="Событий нет" />}

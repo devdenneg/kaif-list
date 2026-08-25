@@ -6,7 +6,7 @@ export function FullScreenLoader({ inline = false }: { inline?: boolean }): Reac
     <div
       className={cn(
         'flex items-center justify-center',
-        inline ? 'min-h-[50vh] w-full' : 'min-h-screen w-full bg-background',
+        inline ? 'min-h-[50dvh] w-full' : 'min-h-dvh w-full bg-background',
       )}
     >
       <div className="flex flex-col items-center gap-3">

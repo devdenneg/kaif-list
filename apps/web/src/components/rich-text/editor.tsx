@@ -30,6 +30,7 @@ import {
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { Tooltip } from '@/components/ui/tooltip';
+import { useFormFieldA11y } from '@/components/ui/input';
 import { toast } from '@/lib/toast';
 import { createMentionSuggestion } from './mention-suggestion';
 
@@ -69,6 +70,7 @@ export function RichTextEditor({
   onSubmit,
   autoFocus = false,
 }: RichTextEditorProps): React.ReactElement {
+  const formField = useFormFieldA11y();
   const usersRef = React.useRef(users);
   usersRef.current = users;
 
@@ -130,6 +132,10 @@ export function RichTextEditor({
     autofocus: autoFocus,
     editorProps: {
       attributes: {
+        ...(formField?.controlId ? { id: formField.controlId } : {}),
+        ...(formField?.labelId ? { 'aria-labelledby': formField.labelId } : {}),
+        ...(formField?.descriptionId ? { 'aria-describedby': formField.descriptionId } : {}),
+        ...(formField?.required ? { 'aria-required': 'true' } : {}),
         class: cn('prose-kaif tiptap focus:outline-none', 'px-3 py-2'),
         style: `min-height:${minHeight}`,
       },
@@ -354,7 +360,7 @@ function ToolbarButton({
         aria-label={label}
         aria-pressed={active}
         className={cn(
-          'inline-flex size-7 shrink-0 items-center justify-center rounded-md transition-colors [&_svg]:size-4',
+          'inline-flex size-7 shrink-0 items-center justify-center rounded-md transition-colors [&_svg]:size-4 [@media(pointer:coarse)]:size-10',
           active
             ? 'bg-accent text-accent-foreground'
             : 'text-muted-foreground hover:bg-secondary hover:text-foreground',

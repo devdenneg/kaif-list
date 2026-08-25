@@ -2,7 +2,7 @@ import * as React from 'react';
 import { Check, Search, UserX } from 'lucide-react';
 import type { BoardMemberDto, PublicUser } from '@kaif/shared';
 import { UserAvatar } from '@/components/ui/avatar';
-import { Input } from '@/components/ui/input';
+import { Input, useFormFieldA11y } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 
@@ -28,6 +28,7 @@ export function UserPicker({
 }): React.ReactElement {
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState('');
+  const formField = useFormFieldA11y();
 
   const filtered = members.filter((member) =>
     member.user.displayName.toLowerCase().includes(search.trim().toLowerCase()),
@@ -43,8 +44,12 @@ export function UserPicker({
         <button
           type="button"
           disabled={disabled}
+          id={formField?.controlId}
+          aria-labelledby={formField?.labelId}
+          aria-describedby={formField?.descriptionId}
+          aria-required={formField?.required || undefined}
           className={cn(
-            'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors',
+            'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors [@media(pointer:coarse)]:min-h-11',
             disabled ? 'cursor-default opacity-70' : 'hover:bg-secondary',
             triggerClassName,
           )}
@@ -63,7 +68,9 @@ export function UserPicker({
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Поиск"
             icon={<Search />}
-            className="h-8"
+            inheritFormFieldA11y={false}
+            aria-label="Поиск участника"
+            className="h-8 [@media(pointer:coarse)]:h-11"
             autoFocus
           />
         </div>
@@ -76,7 +83,7 @@ export function UserPicker({
                 onChange(null);
                 setOpen(false);
               }}
-              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-secondary"
+              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-secondary [@media(pointer:coarse)]:min-h-11"
             >
               <span className="flex size-6 items-center justify-center rounded-full bg-secondary">
                 <UserX className="size-3.5" />
@@ -94,7 +101,7 @@ export function UserPicker({
                 onChange(member.userId);
                 setOpen(false);
               }}
-              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-secondary"
+              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-secondary [@media(pointer:coarse)]:min-h-11"
             >
               <UserAvatar user={member.user} size="sm" />
               <span className="min-w-0 flex-1 truncate">{member.user.displayName}</span>

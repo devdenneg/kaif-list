@@ -23,6 +23,8 @@ export function SortableTaskCard({
     disabled,
   });
 
+  // TouchSensor сам блокирует прокрутку после долгого нажатия. До активации
+  // оставляем нативные свайпы — иначе карточки превращают доску в «мёртвую» зону.
   return (
     <div
       ref={setNodeRef}
@@ -32,9 +34,14 @@ export function SortableTaskCard({
       }}
       {...attributes}
       {...listeners}
-      className="touch-none"
+      className="touch-manipulation"
     >
-      <TaskCard task={task} onOpen={onOpen} isDragging={isDragging} {...(timeZone ? { timeZone } : {})} />
+      <TaskCard
+        task={task}
+        onOpen={onOpen}
+        isDragging={isDragging}
+        {...(timeZone ? { timeZone } : {})}
+      />
     </div>
   );
 }

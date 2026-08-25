@@ -4,6 +4,7 @@ import {
   Archive,
   ArchiveRestore,
   Check,
+  ChevronDown,
   Copy,
   CopyPlus,
   MoreHorizontal,
@@ -25,6 +26,7 @@ import {
   useDeleteTask,
   useDuplicateTask,
   useMoveTask,
+  useTaskMovePending,
   useUpdateTask,
 } from '@/api/tasks';
 import { useAuthStore } from '@/stores/auth';
@@ -78,6 +80,7 @@ export function TaskDetail({
   const archiveTask = useArchiveTask(task.id, task.boardId);
   const deleteTask = useDeleteTask(task.id, task.boardId);
   const moveTask = useMoveTask(task.boardId, EMPTY_FILTERS);
+  const taskMovePending = useTaskMovePending(task.boardId);
   const duplicateTask = useDuplicateTask(task.id, task.boardId);
   const navigate = useNavigate();
 
@@ -88,11 +91,14 @@ export function TaskDetail({
   const [confirmDelete, setConfirmDelete] = React.useState(false);
   const [reasonRequest, setReasonRequest] = React.useState<ReasonRequest | null>(null);
   const [pendingColumn, setPendingColumn] = React.useState<ColumnKey | null>(null);
+  const [mobileDetailsOpen, setMobileDetailsOpen] = React.useState(false);
 
   React.useEffect(() => {
     setTitle(task.title);
     setDescription(task.description);
   }, [task.id, task.title, task.description]);
+
+  React.useEffect(() => setMobileDetailsOpen(false), [task.id]);
 
   const members = board?.members.map((member) => member.user) ?? [];
 
@@ -121,28 +127,27 @@ export function TaskDetail({
 
   /** Смена статуса из карточки — с тем же правилом обязательной причины. */
   const changeColumn = (column: ColumnKey, reason?: string): void => {
-    moveTask.mutate(
-      { taskId: task.id, toColumn: column, ...(reason ? { reason } : {}) },
-      {
-        onSuccess: () => {
-          setReasonRequest(null);
-          setPendingColumn(null);
-        },
-        onError: (error) => {
-          if (error instanceof ApiError && error.needsReason && error.reasonRequired) {
-            setPendingColumn(column);
-            setReasonRequest({
-              code: error.reasonRequired.code,
-              message: error.reasonRequired.message,
-              fromColumn: task.columnKey,
-              toColumn: column,
-            });
-            return;
-          }
-          toast.error('Не удалось изменить статус', error);
-        },
-      },
-    );
+    if (taskMovePending) return;
+
+    void moveTask
+      .mutateAsync({ taskId: task.id, toColumn: column, ...(reason ? { reason } : {}) })
+      .then(() => {
+        setReasonRequest(null);
+        setPendingColumn(null);
+      })
+      .catch((error: unknown) => {
+        if (error instanceof ApiError && error.needsReason && error.reasonRequired) {
+          setPendingColumn(column);
+          setReasonRequest({
+            code: error.reasonRequired.code,
+            message: error.reasonRequired.message,
+            fromColumn: task.columnKey,
+            toColumn: column,
+          });
+          return;
+        }
+        toast.error('Не удалось изменить статус', error);
+      });
   };
 
   return (
@@ -195,7 +200,8 @@ export function TaskDetail({
             <h1
               className={cn(
                 'text-lg font-semibold leading-tight',
-                task.permissions.canUpdate && 'cursor-text rounded px-1 -mx-1 hover:bg-secondary/60',
+                task.permissions.canUpdate &&
+                  'cursor-text rounded px-1 -mx-1 hover:bg-secondary/60',
               )}
               onClick={() => task.permissions.canUpdate && setEditingTitle(true)}
             >
@@ -235,9 +241,7 @@ export function TaskDetail({
             <DropdownMenuContent align="end">
               <DropdownMenuItem
                 onSelect={() => {
-                  void navigator.clipboard.writeText(
-                    `${window.location.origin}/tasks/${task.key}`,
-                  );
+                  void navigator.clipboard.writeText(`${window.location.origin}/tasks/${task.key}`);
                   toast.success('Ссылка скопирована');
                 }}
               >
@@ -409,47 +413,72 @@ export function TaskDetail({
 
         {/* ── Свойства ── */}
         <aside className="order-first w-full shrink-0 space-y-4 lg:order-none lg:w-72">
-          <div className="rounded-lg border border-border bg-surface p-3">
-            <TaskProperties
-              task={task}
-              board={board}
-              onMoveColumn={(column) => changeColumn(column as ColumnKey)}
+          <button
+            type="button"
+            className="flex min-h-11 w-full items-center gap-2 rounded-lg border border-border bg-surface px-3 text-left lg:hidden"
+            onClick={() => setMobileDetailsOpen((open) => !open)}
+            aria-expanded={mobileDetailsOpen}
+            aria-controls="task-mobile-properties"
+          >
+            <span className="min-w-0 flex-1">
+              <span className="block text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Свойства задачи
+              </span>
+              <span className="block truncate text-sm">
+                {COLUMN_LABELS[task.columnKey]} · {task.assignee?.displayName ?? 'не назначена'}
+              </span>
+            </span>
+            <ChevronDown
+              className={cn('transition-transform', mobileDetailsOpen && 'rotate-180')}
+              aria-hidden
             />
-          </div>
+          </button>
 
-          <div className="rounded-lg border border-border bg-surface p-3">
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Участники
-            </p>
-
-            {/* Показываем роли явно: по одним аватарам непонятно,
-                кто автор, кто тестирует, а кто просто зашёл в обсуждение. */}
-            <ul className="space-y-1.5">
-              {task.participants.map((participant) => (
-                <li key={participant.user.id} className="flex items-center gap-2 text-sm">
-                  <UserAvatar user={participant.user} size="sm" />
-                  <span className="min-w-0 flex-1 truncate">{participant.user.displayName}</span>
-                  <span className="shrink-0 text-[11px] text-muted-foreground">
-                    {participant.roles
-                      .map((role) => PARTICIPANT_ROLE_LABELS[role])
-                      .join(', ')}
-                  </span>
-                </li>
-              ))}
-            </ul>
-
-            <div className="mt-3 space-y-1 border-t border-border pt-2 text-xs text-muted-foreground">
-              <p>Создана {formatRelative(task.createdAt)}</p>
-              <p>Обновлена {formatRelative(task.updatedAt)}</p>
-              {task.completedAt && <p>Завершена {formatRelative(task.completedAt)}</p>}
+          <div
+            id="task-mobile-properties"
+            className={cn('space-y-4', !mobileDetailsOpen && 'hidden lg:block')}
+          >
+            <div className="rounded-lg border border-border bg-surface p-3">
+              <TaskProperties
+                task={task}
+                board={board}
+                onMoveColumn={(column) => changeColumn(column as ColumnKey)}
+                movePending={taskMovePending}
+              />
             </div>
-          </div>
 
-          {currentUser?.globalRole === 'SUPERADMIN' && (
-            <p className="px-1 text-[11px] text-muted-foreground">
-              Вы видите эту задачу как администратор.
-            </p>
-          )}
+            <div className="rounded-lg border border-border bg-surface p-3">
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Участники
+              </p>
+
+              {/* Показываем роли явно: по одним аватарам непонятно,
+                  кто автор, кто тестирует, а кто просто зашёл в обсуждение. */}
+              <ul className="space-y-1.5">
+                {task.participants.map((participant) => (
+                  <li key={participant.user.id} className="flex items-center gap-2 text-sm">
+                    <UserAvatar user={participant.user} size="sm" />
+                    <span className="min-w-0 flex-1 truncate">{participant.user.displayName}</span>
+                    <span className="shrink-0 text-[11px] text-muted-foreground">
+                      {participant.roles.map((role) => PARTICIPANT_ROLE_LABELS[role]).join(', ')}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="mt-3 space-y-1 border-t border-border pt-2 text-xs text-muted-foreground">
+                <p>Создана {formatRelative(task.createdAt)}</p>
+                <p>Обновлена {formatRelative(task.updatedAt)}</p>
+                {task.completedAt && <p>Завершена {formatRelative(task.completedAt)}</p>}
+              </div>
+            </div>
+
+            {currentUser?.globalRole === 'SUPERADMIN' && (
+              <p className="px-1 text-[11px] text-muted-foreground">
+                Вы видите эту задачу как администратор.
+              </p>
+            )}
+          </div>
         </aside>
       </div>
 
@@ -482,7 +511,7 @@ export function TaskDetail({
           }
         }}
         request={reasonRequest}
-        loading={moveTask.isPending}
+        loading={taskMovePending}
         onSubmit={(reason) => {
           if (pendingColumn) changeColumn(pendingColumn, reason);
         }}

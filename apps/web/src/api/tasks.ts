@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   BulkTaskActionPayload,
   ColumnKey,
@@ -23,6 +23,12 @@ import {
 import type { BoardFilters } from '@/stores/ui';
 
 export type BoardColumns = Record<ColumnKey, TaskCardDto[]>;
+
+// Цепочка нужна только на время жизни объектов оптимистического обновления. WeakMap/WeakSet не
+// удерживают старые кеши в памяти и позволяют корректно откатить две ошибки
+// подряд, не возвращая уже отклонённое более раннее перемещение.
+const optimisticMovePrevious = new WeakMap<BoardColumns, BoardColumns>();
+const failedOptimisticMoves = new WeakSet<BoardColumns>();
 
 function filtersToQuery(filters: BoardFilters): Record<string, unknown> {
   return {
@@ -119,65 +125,148 @@ export interface MoveTaskVariables extends MoveTaskInput {
 }
 
 /**
+ * Чистая перестановка карточки для мгновенного обновления интерфейса.
+ *
+ * Функция возвращает прежнюю ссылку, если задача отсутствует: так кеши других
+ * наборов фильтров не получают карточку, которой в них раньше не было.
+ */
+export function applyOptimisticTaskMove(
+  columns: BoardColumns,
+  variables: MoveTaskVariables,
+): BoardColumns {
+  let moving: TaskCardDto | undefined;
+  let sourceColumn: ColumnKey | undefined;
+
+  for (const column of COLUMN_ORDER) {
+    const task = columns[column]?.find((item) => item.id === variables.taskId);
+    if (task) {
+      moving = task;
+      sourceColumn = column;
+      break;
+    }
+  }
+
+  if (!moving || !sourceColumn) return columns;
+
+  const next: BoardColumns = { ...columns };
+  next[sourceColumn] = (columns[sourceColumn] ?? []).filter((task) => task.id !== variables.taskId);
+
+  const target =
+    sourceColumn === variables.toColumn
+      ? [...next[variables.toColumn]]
+      : [...(columns[variables.toColumn] ?? [])];
+  const updated: TaskCardDto = { ...moving, columnKey: variables.toColumn };
+  const beforeIndex = variables.beforeTaskId
+    ? target.findIndex((task) => task.id === variables.beforeTaskId)
+    : -1;
+  const afterIndex = variables.afterTaskId
+    ? target.findIndex((task) => task.id === variables.afterTaskId)
+    : -1;
+
+  if (beforeIndex >= 0) target.splice(beforeIndex, 0, updated);
+  else if (afterIndex >= 0) target.splice(afterIndex + 1, 0, updated);
+  else target.push(updated);
+
+  next[variables.toColumn] = target;
+  return next;
+}
+
+/** Есть ли на доске ещё не подтверждённое сервером перемещение. */
+export function useTaskMovePending(boardId: string): boolean {
+  return useIsMutating({ mutationKey: queryKeys.taskMove(boardId) }) > 0;
+}
+
+/**
  * Перенос карточки с оптимистичным обновлением: доска реагирует мгновенно,
  * а при ошибке (например, сервер потребовал причину) состояние откатывается.
  */
 export function useMoveTask(boardId: string, filters: BoardFilters) {
   const queryClient = useQueryClient();
-  const queryKey = queryKeys.boardTasks(boardId, filtersToQuery(filters));
+  const visibleQueryKey = queryKeys.boardTasks(boardId, filtersToQuery(filters));
+  const tasksRootKey = queryKeys.boardTasksRoot(boardId);
+  const mutationKey = queryKeys.taskMove(boardId);
 
   return useMutation({
+    mutationKey,
+    // Ранги зависят от соседей, поэтому сервер обрабатывает перемещения доски
+    // по порядку. В интерфейсе они всё равно применяются сразу через onMutate.
+    scope: { id: `task-move:${boardId}` },
     mutationFn: ({ taskId, ...input }: MoveTaskVariables) =>
       api
         .post<{ task: TaskDetailDto }>(`/api/tasks/${taskId}/move`, input)
         .then((response) => response.task),
 
     onMutate: async (variables) => {
-      await queryClient.cancelQueries({ queryKey });
-      const previous = queryClient.getQueryData<BoardColumns>(queryKey);
-      if (!previous) return { previous };
+      await queryClient.cancelQueries({ queryKey: tasksRootKey });
 
-      const next: BoardColumns = { ...previous };
-      let moving: TaskCardDto | undefined;
+      const snapshots = queryClient
+        .getQueriesData<BoardColumns>({ queryKey: tasksRootKey })
+        .flatMap(([queryKey, previous]) => {
+          if (!previous) return [];
+          const optimistic = applyOptimisticTaskMove(previous, variables);
+          if (optimistic === previous) return [];
+          const storedOptimistic = queryClient.setQueryData<BoardColumns>(queryKey, optimistic);
+          const stored = storedOptimistic ?? optimistic;
+          optimisticMovePrevious.set(stored, previous);
+          return [{ queryKey, previous, optimistic: stored }];
+        });
 
-      for (const column of COLUMN_ORDER) {
-        const list = next[column] ?? [];
-        const index = list.findIndex((task) => task.id === variables.taskId);
-        if (index >= 0) {
-          moving = list[index];
-          next[column] = [...list.slice(0, index), ...list.slice(index + 1)];
-          break;
+      // При редком холодном кеше всё равно обновляем текущий ключ после того,
+      // как данные в нём появятся; обычно он уже входит в snapshots.
+      if (snapshots.length === 0) {
+        const previous = queryClient.getQueryData<BoardColumns>(visibleQueryKey);
+        if (previous) {
+          const optimistic = applyOptimisticTaskMove(previous, variables);
+          if (optimistic !== previous) {
+            const storedOptimistic = queryClient.setQueryData<BoardColumns>(
+              visibleQueryKey,
+              optimistic,
+            );
+            snapshots.push({
+              queryKey: visibleQueryKey,
+              previous,
+              optimistic: storedOptimistic ?? optimistic,
+            });
+            optimisticMovePrevious.set(storedOptimistic ?? optimistic, previous);
+          }
         }
       }
 
-      if (moving) {
-        const target = [...(next[variables.toColumn] ?? [])];
-        const updated: TaskCardDto = { ...moving, columnKey: variables.toColumn };
-        const beforeIndex = variables.beforeTaskId
-          ? target.findIndex((task) => task.id === variables.beforeTaskId)
-          : -1;
-        const afterIndex = variables.afterTaskId
-          ? target.findIndex((task) => task.id === variables.afterTaskId)
-          : -1;
-
-        if (beforeIndex >= 0) target.splice(beforeIndex, 0, updated);
-        else if (afterIndex >= 0) target.splice(afterIndex + 1, 0, updated);
-        else target.push(updated);
-
-        next[variables.toColumn] = target;
-        queryClient.setQueryData(queryKey, next);
-      }
-
-      return { previous };
+      return { snapshots };
     },
 
     onError: (_error, _variables, context) => {
-      if (context?.previous) queryClient.setQueryData(queryKey, context.previous);
+      for (const snapshot of context?.snapshots ?? []) {
+        failedOptimisticMoves.add(snapshot.optimistic);
+        let rollback = snapshot.previous;
+
+        // Если предыдущий слой тоже уже завершился ошибкой, откатываемся
+        // дальше по цепочке, пока не дойдём до подтверждённого состояния.
+        while (failedOptimisticMoves.has(rollback)) {
+          const earlier = optimisticMovePrevious.get(rollback);
+          if (!earlier || earlier === rollback) break;
+          rollback = earlier;
+        }
+
+        // Не стираем более свежее перемещение, событие реального времени
+        // или повторную загрузку данных.
+        queryClient.setQueryData<BoardColumns>(snapshot.queryKey, (current) =>
+          current === snapshot.optimistic ? rollback : current,
+        );
+      }
     },
 
-    onSettled: (task) => {
-      invalidateTaskScopes(boardId);
-      if (task) setEntityData('task', task);
+    onSuccess: (task, variables) => {
+      setEntityData('task', task);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.taskActivity(task.id) });
+      if (variables.reason) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.taskComments(task.id) });
+      }
+    },
+
+    onSettled: () => {
+      // Не даём ответу раннего запроса перетереть следующее мгновенное перемещение.
+      if (queryClient.isMutating({ mutationKey }) <= 1) invalidateTaskScopes(boardId);
     },
   });
 }
@@ -269,7 +358,6 @@ export function useWatchTask(taskId: string) {
 // ──────────────────────────────── Чек-листы ─────────────────────────────────
 
 export function useChecklistMutations(taskId: string, boardId?: string) {
-
   const invalidate = (): void => {
     invalidateEntity('task', taskId);
     if (boardId) invalidateTaskScopes(boardId);
@@ -355,7 +443,9 @@ export function useBulkTaskAction(boardId: string) {
   });
 }
 
-export function useMyTasks(scope: 'active' | 'today' | 'overdue' | 'reported' | 'testing' | 'done') {
+export function useMyTasks(
+  scope: 'active' | 'today' | 'overdue' | 'reported' | 'testing' | 'done',
+) {
   return useQuery({
     queryKey: queryKeys.myTasks(scope),
     queryFn: () =>

@@ -101,11 +101,11 @@ export function DashboardPage(): React.ReactElement {
               <BarChart3 className="size-5 text-muted-foreground" />
               Аналитика
             </h1>
-            <p className="text-sm text-muted-foreground">{board.name}</p>
+            <p className="truncate text-sm text-muted-foreground">{board.name}</p>
           </div>
 
           <Select value={String(days)} onValueChange={(value) => setDays(Number(value))}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-full xs:w-40">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -175,7 +175,11 @@ export function DashboardPage(): React.ReactElement {
                     tick={{ fontSize: 11 }}
                     stroke="hsl(var(--muted-foreground))"
                   />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                  <YAxis
+                    allowDecimals={false}
+                    tick={{ fontSize: 11 }}
+                    stroke="hsl(var(--muted-foreground))"
+                  />
                   <ChartTooltip
                     contentStyle={{
                       background: 'hsl(var(--popover))',
@@ -246,8 +250,16 @@ export function DashboardPage(): React.ReactElement {
                   }))}
                 >
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="name" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fontSize: 10 }}
+                    stroke="hsl(var(--muted-foreground))"
+                  />
+                  <YAxis
+                    allowDecimals={false}
+                    tick={{ fontSize: 11 }}
+                    stroke="hsl(var(--muted-foreground))"
+                  />
                   <ChartTooltip
                     cursor={{ fill: 'hsl(var(--secondary))' }}
                     contentStyle={{
@@ -263,16 +275,13 @@ export function DashboardPage(): React.ReactElement {
             </Panel>
 
             {/* ── Где застревают ── */}
-            <Panel
-              title="Где задачи стоят дольше всего"
-              hint="Среднее время без движения, дней"
-            >
+            <Panel title="Где задачи стоят дольше всего" hint="Среднее время без движения, дней">
               <div className="space-y-2">
                 {analytics.bottlenecks.map((item) => {
                   const max = Math.max(1, ...analytics.bottlenecks.map((b) => b.averageDaysStuck));
                   return (
-                    <div key={item.column} className="flex items-center gap-2 text-sm">
-                      <span className="w-36 shrink-0 truncate text-muted-foreground">
+                    <div key={item.column} className="flex min-w-0 items-center gap-2 text-sm">
+                      <span className="w-28 shrink-0 truncate text-muted-foreground sm:w-36">
                         {COLUMN_LABELS[item.column]}
                       </span>
                       <div className="h-2 flex-1 overflow-hidden rounded-full bg-secondary">
@@ -281,7 +290,7 @@ export function DashboardPage(): React.ReactElement {
                           style={{ width: `${(item.averageDaysStuck / max) * 100}%` }}
                         />
                       </div>
-                      <span className="w-12 shrink-0 text-right text-xs text-muted-foreground">
+                      <span className="w-10 shrink-0 text-right text-xs text-muted-foreground sm:w-12">
                         {item.averageDaysStuck}
                       </span>
                     </div>
@@ -302,21 +311,24 @@ export function DashboardPage(): React.ReactElement {
                 {analytics.byAssignee.map((item) => {
                   const max = Math.max(...analytics.byAssignee.map((entry) => entry.count));
                   return (
-                    <div key={item.user.id} className="flex items-center gap-2">
-                      <UserAvatar user={item.user} size="sm" />
-                      <span className="w-40 shrink-0 truncate text-sm">{item.user.displayName}</span>
-                      <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-secondary">
-                        <div
-                          className="h-full rounded-full bg-primary"
-                          style={{ width: `${(item.count / max) * 100}%` }}
-                        />
-                      </div>
-                      <span className="w-16 shrink-0 text-right text-xs text-muted-foreground">
+                    <div
+                      key={item.user.id}
+                      className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1.5"
+                    >
+                      <UserAvatar user={item.user} size="sm" className="row-span-2" />
+                      <span className="min-w-0 truncate text-sm">{item.user.displayName}</span>
+                      <span className="shrink-0 text-right text-xs text-muted-foreground">
                         {item.count}
                         {item.overdue > 0 && (
                           <span className="ml-1 text-destructive">({item.overdue})</span>
                         )}
                       </span>
+                      <div className="col-span-2 col-start-2 h-2.5 min-w-0 overflow-hidden rounded-full bg-secondary">
+                        <div
+                          className="h-full rounded-full bg-primary"
+                          style={{ width: `${(item.count / max) * 100}%` }}
+                        />
+                      </div>
                     </div>
                   );
                 })}
@@ -339,7 +351,7 @@ function Panel({
   children: React.ReactNode;
 }): React.ReactElement {
   return (
-    <section className="rounded-xl border border-border bg-card p-4 shadow-card">
+    <section className="min-w-0 overflow-hidden rounded-xl border border-border bg-card p-3 shadow-card sm:p-4">
       <h2 className="text-sm font-semibold">{title}</h2>
       {hint && <p className="mb-2 text-xs text-muted-foreground">{hint}</p>}
       <div className="mt-2">{children}</div>

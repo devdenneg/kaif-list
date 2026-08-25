@@ -75,7 +75,7 @@ export function TaskAttachments({
           <Button
             variant="ghost"
             size="sm"
-            className="ml-auto"
+            className="ml-auto [@media(pointer:coarse)]:min-h-11"
             onClick={() => inputRef.current?.click()}
             loading={uploading}
           >
@@ -108,7 +108,7 @@ export function TaskAttachments({
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            className="font-medium text-primary hover:underline"
+            className="rounded-md font-medium text-primary hover:underline [@media(pointer:coarse)]:inline-flex [@media(pointer:coarse)]:min-h-10 [@media(pointer:coarse)]:items-center [@media(pointer:coarse)]:px-1"
           >
             выберите на устройстве
           </button>
@@ -119,7 +119,10 @@ export function TaskAttachments({
       {images.length > 0 && (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {images.map((attachment, index) => (
-            <figure key={attachment.id} className="group relative overflow-hidden rounded-lg border border-border">
+            <figure
+              key={attachment.id}
+              className="group relative overflow-hidden rounded-lg border border-border"
+            >
               <button
                 type="button"
                 onClick={() => setLightboxIndex(index)}
@@ -139,7 +142,7 @@ export function TaskAttachments({
                   <button
                     type="button"
                     onClick={() => void remove(attachment)}
-                    className="opacity-0 transition-opacity group-hover:opacity-100"
+                    className="shrink-0 rounded-md opacity-0 transition-opacity group-hover:opacity-100 [@media(pointer:coarse)]:flex [@media(pointer:coarse)]:size-10 [@media(pointer:coarse)]:items-center [@media(pointer:coarse)]:justify-center [@media(pointer:coarse)]:opacity-100"
                     aria-label="Удалить"
                   >
                     <Trash2 className="size-3" />
@@ -175,12 +178,14 @@ export function TaskAttachments({
               <span className="shrink-0 text-xs text-muted-foreground">
                 {formatBytes(attachment.size)}
               </span>
-              <Tooltip content={`${attachment.uploader.displayName} · ${formatRelative(attachment.createdAt)}`}>
+              <Tooltip
+                content={`${attachment.uploader.displayName} · ${formatRelative(attachment.createdAt)}`}
+              >
                 <a
                   href={attachment.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="shrink-0 rounded p-1 text-muted-foreground hover:bg-secondary"
+                  className="shrink-0 rounded p-1 text-muted-foreground hover:bg-secondary [@media(pointer:coarse)]:flex [@media(pointer:coarse)]:size-10 [@media(pointer:coarse)]:items-center [@media(pointer:coarse)]:justify-center [@media(pointer:coarse)]:p-0"
                   aria-label="Скачать"
                 >
                   <Download className="size-3.5" />
@@ -190,7 +195,7 @@ export function TaskAttachments({
                 <button
                   type="button"
                   onClick={() => void remove(attachment)}
-                  className="shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-secondary group-hover:opacity-100"
+                  className="shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-secondary group-hover:opacity-100 [@media(pointer:coarse)]:flex [@media(pointer:coarse)]:size-10 [@media(pointer:coarse)]:items-center [@media(pointer:coarse)]:justify-center [@media(pointer:coarse)]:p-0 [@media(pointer:coarse)]:opacity-100"
                   aria-label="Удалить"
                 >
                   <Trash2 className="size-3.5" />

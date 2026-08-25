@@ -153,8 +153,7 @@ export function TaskComments({
               taskId={task.id}
               members={members}
               canDelete={
-                comment.author?.id === currentUser?.id ||
-                task.permissions.canModerateComments
+                comment.author?.id === currentUser?.id || task.permissions.canModerateComments
               }
               onReply={() => setReplyTo(comment)}
             />
@@ -183,12 +182,14 @@ export function TaskComments({
             <div className="flex items-center gap-2 rounded-md bg-secondary px-2 py-1.5 text-xs">
               <Reply className="size-3.5 text-muted-foreground" />
               <span className="min-w-0 flex-1 truncate">
-                Ответ {replyTo.author?.displayName ?? 'на комментарий'}: {replyTo.bodyText.slice(0, 60)}
+                Ответ {replyTo.author?.displayName ?? 'на комментарий'}:{' '}
+                {replyTo.bodyText.slice(0, 60)}
               </span>
               <button
                 type="button"
                 onClick={() => setReplyTo(null)}
-                className="text-muted-foreground hover:text-foreground"
+                className="shrink-0 rounded-md text-muted-foreground hover:text-foreground [@media(pointer:coarse)]:flex [@media(pointer:coarse)]:size-10 [@media(pointer:coarse)]:items-center [@media(pointer:coarse)]:justify-center"
+                aria-label="Отменить ответ"
               >
                 ×
               </button>
@@ -220,6 +221,7 @@ export function TaskComments({
                 <Button
                   size="sm"
                   variant="primary"
+                  className="[@media(pointer:coarse)]:min-h-11"
                   onClick={() => void submit()}
                   disabled={isEmpty}
                   loading={createComment.isPending}
@@ -287,10 +289,16 @@ function CommentItem({
             <span className="shrink-0 text-xs text-muted-foreground">(изменён)</span>
           )}
 
-          <div className="ml-auto opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+          {/* На сенсорном экране меню нельзя прятать за несуществующий hover. */}
+          <div className="ml-auto opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon-sm" aria-label="Действия с комментарием">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="[@media(pointer:coarse)]:size-10"
+                  aria-label="Действия с комментарием"
+                >
                   <MoreHorizontal />
                 </Button>
               </DropdownMenuTrigger>
@@ -329,6 +337,7 @@ function CommentItem({
               <Button
                 size="sm"
                 variant="primary"
+                className="[@media(pointer:coarse)]:min-h-11"
                 loading={updateComment.isPending}
                 onClick={() => {
                   if (!draft) return;
@@ -346,6 +355,7 @@ function CommentItem({
               <Button
                 size="sm"
                 variant="ghost"
+                className="[@media(pointer:coarse)]:min-h-11"
                 onClick={() => {
                   setDraft(comment.body);
                   setEditing(false);
@@ -381,7 +391,7 @@ function CommentItem({
                       href={attachment.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="rounded border border-border px-2 py-1 text-xs hover:bg-secondary"
+                      className="rounded border border-border px-2 py-1 text-xs hover:bg-secondary [@media(pointer:coarse)]:inline-flex [@media(pointer:coarse)]:min-h-10 [@media(pointer:coarse)]:items-center"
                     >
                       {attachment.filename}
                     </a>
@@ -445,9 +455,7 @@ function SystemComment({ comment }: { comment: CommentDto }): React.ReactElement
     <div
       className={cn(
         'rounded-lg border px-3 py-2',
-        isReturn || isHold
-          ? 'border-warning/40 bg-warning/10'
-          : 'border-border bg-secondary/40',
+        isReturn || isHold ? 'border-warning/40 bg-warning/10' : 'border-border bg-secondary/40',
       )}
     >
       <div className="flex items-center gap-2 text-xs">
@@ -477,7 +485,6 @@ function SystemComment({ comment }: { comment: CommentDto }): React.ReactElement
     </div>
   );
 }
-
 
 /**
  * Реакции под комментарием.
@@ -511,7 +518,7 @@ function CommentReactions({
               })
             }
             className={cn(
-              'inline-flex h-6 items-center gap-1 rounded-full border px-2 text-xs transition-colors',
+              'inline-flex h-6 items-center gap-1 rounded-full border px-2 text-xs transition-colors [@media(pointer:coarse)]:h-10',
               reaction.mine
                 ? 'border-primary bg-accent text-accent-foreground'
                 : 'border-border bg-surface text-muted-foreground hover:bg-secondary',
@@ -529,7 +536,7 @@ function CommentReactions({
             type="button"
             aria-label="Добавить реакцию"
             className={cn(
-              'inline-flex h-6 items-center rounded-full border border-border bg-surface px-2 text-muted-foreground transition-all hover:bg-secondary hover:text-foreground',
+              'inline-flex h-6 items-center rounded-full border border-border bg-surface px-2 text-muted-foreground transition-all hover:bg-secondary hover:text-foreground [@media(pointer:coarse)]:size-10 [@media(pointer:coarse)]:justify-center [@media(pointer:coarse)]:px-0',
               comment.reactions.length === 0 &&
                 'opacity-0 focus-visible:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100',
             )}
@@ -539,7 +546,7 @@ function CommentReactions({
         </PopoverTrigger>
 
         <PopoverContent className="w-auto p-1.5" align="start">
-          <div className="flex gap-0.5">
+          <div className="flex gap-0.5 [@media(pointer:coarse)]:grid [@media(pointer:coarse)]:grid-cols-4">
             {REACTION_EMOJI.map((emoji) => (
               <button
                 key={emoji}
@@ -548,7 +555,7 @@ function CommentReactions({
                   toggle.mutate({ commentId: comment.id, emoji });
                   setPickerOpen(false);
                 }}
-                className="rounded-md p-1.5 text-lg transition-transform hover:scale-125 hover:bg-secondary"
+                className="rounded-md p-1.5 text-lg transition-transform hover:scale-125 hover:bg-secondary [@media(pointer:coarse)]:size-10 [@media(pointer:coarse)]:p-0"
                 aria-label={`Реакция ${emoji}`}
               >
                 {emoji}

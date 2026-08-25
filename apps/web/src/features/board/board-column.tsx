@@ -50,7 +50,7 @@ export function BoardColumn({
   timeZone,
   mobile,
 }: BoardColumnProps): React.ReactElement {
-  const { setNodeRef, isOver } = useDroppable({
+  const { setNodeRef, isOver, active } = useDroppable({
     id: `column:${columnKey}`,
     data: { type: 'column', columnKey },
   });
@@ -58,10 +58,11 @@ export function BoardColumn({
   const [quickAddOpen, setQuickAddOpen] = React.useState(false);
   const overLimit = wipLimit !== null && tasks.length > wipLimit;
   const atLimit = wipLimit !== null && tasks.length === wipLimit;
+  const isDragging = active !== null;
 
   if (collapsed) {
     return (
-      <div className="flex w-11 shrink-0 flex-col items-center gap-2 rounded-xl border border-border bg-surface py-3">
+      <div className="flex w-11 shrink-0 self-start flex-col items-center gap-2 rounded-xl border border-border bg-surface py-3">
         <button
           type="button"
           onClick={onToggleCollapse}
@@ -85,15 +86,20 @@ export function BoardColumn({
     <section
       id={`column-${columnKey}`}
       className={cn(
-        'snap-column flex shrink-0 flex-col rounded-xl border bg-surface transition-colors',
+        'snap-column flex max-h-full shrink-0 self-start flex-col overflow-hidden rounded-xl border bg-surface transition-colors',
         mobile ? 'w-[86vw] max-w-sm' : 'w-72 xl:w-80',
         isOver ? 'border-primary/60 bg-accent/30' : 'border-border',
       )}
       aria-label={`Колонка ${name}`}
     >
       <header className="flex items-center gap-2 border-b border-border px-3 py-2.5">
-        <span className={cn('size-2 shrink-0 rounded-full', COLUMN_ACCENT[columnKey])} aria-hidden />
-        <h2 className="min-w-0 truncate text-sm font-semibold">{name || COLUMN_LABELS[columnKey]}</h2>
+        <span
+          className={cn('size-2 shrink-0 rounded-full', COLUMN_ACCENT[columnKey])}
+          aria-hidden
+        />
+        <h2 className="min-w-0 truncate text-sm font-semibold">
+          {name || COLUMN_LABELS[columnKey]}
+        </h2>
 
         <span
           className={cn(
@@ -121,6 +127,7 @@ export function BoardColumn({
               <Button
                 variant="ghost"
                 size="icon-sm"
+                className={mobile ? 'size-10' : undefined}
                 onClick={() => setQuickAddOpen(true)}
                 aria-label="Добавить задачу"
               >
@@ -144,8 +151,9 @@ export function BoardColumn({
       <div
         ref={setNodeRef}
         className={cn(
-          'scrollbar-thin flex min-h-[120px] flex-1 flex-col gap-2 overflow-y-auto p-2',
-          mobile ? 'max-h-[calc(100vh-16rem)]' : 'max-h-[calc(100vh-13rem)]',
+          'scrollbar-thin flex min-h-0 flex-1 touch-manipulation flex-col gap-2 overflow-y-auto overscroll-y-contain p-2 pb-4 scroll-pb-4 transition-[min-height]',
+          tasks.length === 0 && 'min-h-36',
+          tasks.length === 0 && isDragging && 'min-h-64',
         )}
       >
         {quickAddOpen && (
@@ -173,8 +181,26 @@ export function BoardColumn({
         </SortableContext>
 
         {tasks.length === 0 && !quickAddOpen && (
-          <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
-            Перетащите задачу сюда
+          <div
+            className={cn(
+              'flex flex-1 flex-col items-center justify-center rounded-lg border border-dashed p-4 text-center text-xs transition-colors',
+              isOver
+                ? 'border-primary/60 bg-primary/5 text-foreground'
+                : 'border-border text-muted-foreground',
+            )}
+          >
+            <span>{isOver ? 'Отпустите задачу здесь' : 'В колонке пока нет задач'}</span>
+            {canCreate && !isDragging && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="mt-2"
+                onClick={() => setQuickAddOpen(true)}
+              >
+                <Plus />
+                Добавить задачу
+              </Button>
+            )}
           </div>
         )}
       </div>

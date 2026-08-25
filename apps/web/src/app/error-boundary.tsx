@@ -26,7 +26,7 @@ export class AppErrorBoundary extends React.Component<{ children: React.ReactNod
     if (!this.state.error) return this.props.children;
 
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background p-6">
+      <div className="flex min-h-dvh items-center justify-center bg-background p-6">
         <div className="w-full max-w-md space-y-4 rounded-xl border border-border bg-card p-6 text-center shadow-card">
           <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
             <AlertOctagon className="size-6" />

@@ -3,7 +3,7 @@ import { Check, Plus, Tag } from 'lucide-react';
 import { LABEL_COLORS, type LabelDto } from '@kaif/shared';
 import { useCreateLabel } from '@/api/boards';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Input, useFormFieldA11y } from '@/components/ui/input';
 import { LabelChip } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast } from '@/lib/toast';
@@ -27,6 +27,7 @@ export function LabelPicker({
 }): React.ReactElement {
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState('');
+  const formField = useFormFieldA11y();
   const createLabel = useCreateLabel(boardId);
 
   const filtered = labels.filter((label) =>
@@ -65,8 +66,12 @@ export function LabelPicker({
         <button
           type="button"
           disabled={disabled}
+          id={formField?.controlId}
+          aria-labelledby={formField?.labelId}
+          aria-describedby={formField?.descriptionId}
+          aria-required={formField?.required || undefined}
           className={cn(
-            'flex min-h-8 w-full flex-wrap items-center gap-1 rounded-md px-2 py-1.5 text-left text-sm transition-colors',
+            'flex min-h-8 w-full flex-wrap items-center gap-1 rounded-md px-2 py-1.5 text-left text-sm transition-colors [@media(pointer:coarse)]:min-h-11',
             disabled ? 'cursor-default opacity-70' : 'hover:bg-secondary',
           )}
         >
@@ -89,7 +94,9 @@ export function LabelPicker({
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Найти или создать"
-            className="h-8"
+            inheritFormFieldA11y={false}
+            aria-label="Поиск меток"
+            className="h-8 [@media(pointer:coarse)]:h-11"
             autoFocus
             onKeyDown={(event) => {
               if (event.key === 'Enter' && canCreate && !exactExists && search.trim()) {
@@ -106,7 +113,7 @@ export function LabelPicker({
               key={label.id}
               type="button"
               onClick={() => toggle(label.id)}
-              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-secondary"
+              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-secondary [@media(pointer:coarse)]:min-h-11"
             >
               <LabelChip name={label.name} color={label.color} />
               {selectedIds.includes(label.id) && (
@@ -125,7 +132,7 @@ export function LabelPicker({
             <Button
               variant="ghost"
               size="sm"
-              className="w-full justify-start"
+              className="w-full justify-start [@media(pointer:coarse)]:min-h-11"
               onClick={() => void create()}
               loading={createLabel.isPending}
             >

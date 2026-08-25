@@ -35,9 +35,9 @@ export const DropdownMenuItem = React.forwardRef<
   <DropdownMenuPrimitive.Item
     ref={ref}
     className={cn(
-      'relative flex cursor-pointer select-none items-center gap-2 rounded-md px-2 py-2 text-sm outline-none transition-colors',
+      'relative flex min-h-10 cursor-pointer select-none items-center gap-2.5 rounded-lg px-3 py-2 text-sm outline-none transition-colors',
       'focus:bg-secondary data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
-      '[&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-muted-foreground',
+      '[&_svg]:size-[18px] [&_svg]:shrink-0 [&_svg]:text-muted-foreground',
       destructive && 'text-destructive focus:bg-destructive/10 [&_svg]:text-destructive',
       className,
     )}
@@ -53,13 +53,13 @@ export const DropdownMenuCheckboxItem = React.forwardRef<
   <DropdownMenuPrimitive.CheckboxItem
     ref={ref}
     className={cn(
-      'relative flex cursor-pointer select-none items-center gap-2 rounded-md py-2 pl-8 pr-2 text-sm outline-none transition-colors',
+      'relative flex min-h-10 cursor-pointer select-none items-center gap-2.5 rounded-lg py-2 pl-9 pr-3 text-sm outline-none transition-colors',
       'focus:bg-secondary data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
       className,
     )}
     {...props}
   >
-    <span className="absolute left-2 flex size-4 items-center justify-center">
+    <span className="absolute left-3 flex size-4 items-center justify-center">
       <DropdownMenuPrimitive.ItemIndicator>
         <Check className="size-4 text-primary" />
       </DropdownMenuPrimitive.ItemIndicator>
@@ -76,12 +76,12 @@ export const DropdownMenuRadioItem = React.forwardRef<
   <DropdownMenuPrimitive.RadioItem
     ref={ref}
     className={cn(
-      'relative flex cursor-pointer select-none items-center gap-2 rounded-md py-2 pl-8 pr-2 text-sm outline-none focus:bg-secondary',
+      'relative flex min-h-10 cursor-pointer select-none items-center gap-2.5 rounded-lg py-2 pl-9 pr-3 text-sm outline-none focus:bg-secondary [&_svg]:size-[18px]',
       className,
     )}
     {...props}
   >
-    <span className="absolute left-2 flex size-4 items-center justify-center">
+    <span className="absolute left-3 flex size-4 items-center justify-center">
       <DropdownMenuPrimitive.ItemIndicator>
         <Check className="size-4 text-primary" />
       </DropdownMenuPrimitive.ItemIndicator>
@@ -97,7 +97,10 @@ export const DropdownMenuLabel = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DropdownMenuPrimitive.Label
     ref={ref}
-    className={cn('px-2 py-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground', className)}
+    className={cn(
+      'px-2 py-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground',
+      className,
+    )}
     {...props}
   />
 ));

@@ -42,19 +42,19 @@ export function BoardGroupsTab({ board }: { board: BoardDto }): React.ReactEleme
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Соберите людей по направлениям — и фильтруйте доску по группе одним нажатием.
-        Человек может состоять сразу в нескольких группах.
+      <p className="text-sm leading-relaxed text-muted-foreground">
+        Соберите людей по направлениям — и фильтруйте доску по группе одним нажатием. Человек может
+        состоять сразу в нескольких группах.
       </p>
-      <p className="rounded-lg bg-secondary/60 px-3 py-2 text-xs text-muted-foreground">
-        Прикрепить человека к группе можно и не заходя сюда: на доске выберите его в полосе
-        людей и нажмите значок групп, либо откройте карточку человека на странице «Люди».
-        А в пригласительной ссылке можно сразу указать группу — новичок попадёт в неё сам.
+      <p className="rounded-lg bg-secondary/60 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+        Прикрепить человека к группе можно и не заходя сюда: на доске выберите его в полосе людей и
+        нажмите значок групп, либо откройте карточку человека на странице «Люди». А в
+        пригласительной ссылке можно сразу указать группу — новичок попадёт в неё сам.
       </p>
 
       <div className="rounded-lg border border-border p-3">
         <div className="flex flex-wrap items-end gap-2">
-          <div className="min-w-[12rem] flex-1">
+          <div className="min-w-0 flex-1 basis-full xs:basis-auto">
             <label className="mb-1 block text-xs font-medium text-muted-foreground">
               Название группы
             </label>
@@ -71,7 +71,12 @@ export function BoardGroupsTab({ board }: { board: BoardDto }): React.ReactEleme
               maxLength={32}
             />
           </div>
-          <Button variant="primary" loading={createGroup.isPending} onClick={create}>
+          <Button
+            variant="primary"
+            className="w-full xs:w-auto"
+            loading={createGroup.isPending}
+            onClick={create}
+          >
             <Plus />
             Создать
           </Button>
@@ -83,13 +88,19 @@ export function BoardGroupsTab({ board }: { board: BoardDto }): React.ReactEleme
               key={item}
               type="button"
               onClick={() => setColor(item)}
-              className={cn(
-                'size-6 rounded-full transition-transform',
-                color === item && 'ring-2 ring-ring ring-offset-2 ring-offset-background',
-              )}
-              style={{ backgroundColor: item }}
+              className="flex size-10 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/25 focus-visible:ring-offset-0"
               aria-label={`Цвет ${item}`}
-            />
+              aria-pressed={color === item}
+            >
+              <span
+                className={cn(
+                  'size-6 rounded-full transition-transform',
+                  color === item && 'ring-2 ring-ring ring-offset-2 ring-offset-background',
+                )}
+                style={{ backgroundColor: item }}
+                aria-hidden
+              />
+            </button>
           ))}
         </div>
       </div>
@@ -183,7 +194,7 @@ function GroupRow({
 
   return (
     <div className="rounded-lg border border-border">
-      <div className="flex items-center gap-2 p-2.5">
+      <div className="flex flex-wrap items-center gap-2 p-2.5">
         <span
           className="size-3 shrink-0 rounded-full"
           style={{ backgroundColor: group.color }}
@@ -203,7 +214,7 @@ function GroupRow({
               }
             }}
             maxLength={32}
-            className="h-7 max-w-[14rem]"
+            className="h-10 min-w-0 flex-1 sm:h-8 sm:max-w-[14rem]"
             autoFocus
           />
         ) : (
@@ -230,37 +241,40 @@ function GroupRow({
           )}
         </div>
 
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={() => {
-            setDraftName(group.name);
-            setEditing(true);
-          }}
-          aria-label={`Переименовать группу ${group.name}`}
-        >
-          <Pencil />
-        </Button>
-        <Button
-          variant={expanded ? 'secondary' : 'outline'}
-          size="sm"
-          className="h-7 shrink-0 px-2 text-xs"
-          onClick={() => setExpanded((value) => !value)}
-          aria-expanded={expanded}
-        >
-          <Users />
-          Состав
-          <ChevronDown className={cn('transition-transform', expanded && 'rotate-180')} />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={onDelete}
-          className="text-muted-foreground hover:text-destructive"
-          aria-label={`Удалить группу ${group.name}`}
-        >
-          <Trash2 />
-        </Button>
+        <div className="flex w-full items-center justify-end gap-1 border-t border-border/70 pt-2 sm:w-auto sm:border-0 sm:pt-0">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="size-10 sm:size-9 [&_svg]:!size-4"
+            onClick={() => {
+              setDraftName(group.name);
+              setEditing(true);
+            }}
+            aria-label={`Переименовать группу ${group.name}`}
+          >
+            <Pencil />
+          </Button>
+          <Button
+            variant={expanded ? 'secondary' : 'outline'}
+            size="sm"
+            className="h-10 shrink-0 px-3 text-xs sm:h-9 [&_svg]:!size-4"
+            onClick={() => setExpanded((value) => !value)}
+            aria-expanded={expanded}
+          >
+            <Users />
+            Состав
+            <ChevronDown className={cn('transition-transform', expanded && 'rotate-180')} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={onDelete}
+            className="size-10 text-muted-foreground hover:text-destructive sm:size-9 [&_svg]:!size-4"
+            aria-label={`Удалить группу ${group.name}`}
+          >
+            <Trash2 />
+          </Button>
+        </div>
       </div>
 
       {expanded && (
@@ -276,16 +290,22 @@ function GroupRow({
                     { onError: (error) => toast.error('Не удалось изменить цвет', error) },
                   )
                 }
-                className={cn(
-                  'size-5 rounded-full transition-transform',
-                  group.color === item && 'ring-2 ring-ring ring-offset-2 ring-offset-background',
-                )}
-                style={{ backgroundColor: item }}
+                className="flex size-10 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/25 focus-visible:ring-offset-0"
                 aria-label={`Цвет ${item}`}
-              />
+                aria-pressed={group.color === item}
+              >
+                <span
+                  className={cn(
+                    'size-5 rounded-full transition-transform',
+                    group.color === item && 'ring-2 ring-ring ring-offset-2 ring-offset-background',
+                  )}
+                  style={{ backgroundColor: item }}
+                  aria-hidden
+                />
+              </button>
             ))}
 
-            <span className="ml-auto text-[11px] text-muted-foreground">
+            <span className="w-full text-right text-[11px] text-muted-foreground xs:ml-auto xs:w-auto">
               выбрано: {group.members.length} из {board.members.length}
             </span>
           </div>
@@ -297,7 +317,7 @@ function GroupRow({
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Найти человека"
               icon={<Search />}
-              className="mb-1 h-8"
+              className="mb-1"
             />
           )}
 
@@ -308,7 +328,7 @@ function GroupRow({
               visibleMembers.map((member) => (
                 <label
                   key={member.userId}
-                  className="flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-sm hover:bg-secondary"
+                  className="flex min-h-10 cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-secondary"
                 >
                   <Checkbox
                     checked={memberIds.has(member.userId)}

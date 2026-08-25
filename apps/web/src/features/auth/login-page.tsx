@@ -1,6 +1,13 @@
 import * as React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { CheckCircle2, KanbanSquare, RefreshCw, Send, ShieldAlert, ShieldCheck } from 'lucide-react';
+import {
+  CheckCircle2,
+  KanbanSquare,
+  RefreshCw,
+  Send,
+  ShieldAlert,
+  ShieldCheck,
+} from 'lucide-react';
 import type { AuthResult, LoginCodeDto, LoginCodeStatusDto } from '@kaif/shared';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth';
@@ -39,7 +46,9 @@ export function LoginPage(): React.ReactElement {
       });
       setLoginCode(code);
       setStage('waiting');
-      setSecondsLeft(Math.max(0, Math.round((new Date(code.expiresAt).getTime() - Date.now()) / 1000)));
+      setSecondsLeft(
+        Math.max(0, Math.round((new Date(code.expiresAt).getTime() - Date.now()) / 1000)),
+      );
       window.open(code.deepLink, '_blank', 'noopener');
     } catch (error) {
       toast.error('Не удалось начать вход', error);
@@ -103,7 +112,7 @@ export function LoginPage(): React.ReactElement {
   }, [stage, loginCode, navigate, redirectTo, setSession]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-accent/30 p-4">
+    <div className="flex min-h-dvh items-center justify-center bg-gradient-to-br from-background via-background to-accent/30 p-4">
       <div className="w-full max-w-md">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
           <span className="flex size-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-card">
@@ -123,8 +132,8 @@ export function LoginPage(): React.ReactElement {
               <div className="space-y-2 text-center">
                 <h2 className="text-lg font-semibold">Вход через Telegram</h2>
                 <p className="text-sm text-muted-foreground">
-                  Нажмите кнопку — откроется наш бот. Подтвердите вход одним сообщением,
-                  и вкладка сама пустит вас на доску.
+                  Нажмите кнопку — откроется наш бот. Подтвердите вход одним сообщением, и вкладка
+                  сама пустит вас на доску.
                 </p>
               </div>
 
@@ -228,7 +237,12 @@ export function LoginPage(): React.ReactElement {
                   Ничего страшного — запросите новый, это займёт секунду.
                 </p>
               </div>
-              <Button variant="primary" className="w-full" onClick={() => void requestCode()} loading={loading}>
+              <Button
+                variant="primary"
+                className="w-full"
+                onClick={() => void requestCode()}
+                loading={loading}
+              >
                 <RefreshCw />
                 Получить новый код
               </Button>

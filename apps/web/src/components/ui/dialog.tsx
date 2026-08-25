@@ -31,8 +31,9 @@ export const DialogOverlay = React.forwardRef<
 ));
 DialogOverlay.displayName = 'DialogOverlay';
 
-export interface DialogContentProps
-  extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> {
+export interface DialogContentProps extends React.ComponentPropsWithoutRef<
+  typeof DialogPrimitive.Content
+> {
   size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
   hideClose?: boolean;
   /** Не превращать в bottom-sheet на мобильных (например, для полноэкранных форм). */
@@ -62,10 +63,13 @@ export const DialogContent = React.forwardRef<
         className={cn(
           'fixed z-50 flex flex-col bg-card text-card-foreground shadow-popover',
           asSheet
-            ? 'inset-x-0 bottom-0 max-h-[92vh] rounded-t-2xl border-t border-border pb-[env(safe-area-inset-bottom)] data-[state=open]:animate-slide-in-bottom'
+            ? 'inset-x-0 bottom-0 max-h-[94dvh] rounded-t-2xl border-t border-border pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] data-[state=open]:animate-slide-in-bottom'
             : cn(
-                'left-1/2 top-1/2 max-h-[90vh] w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border data-[state=open]:animate-slide-up',
+                'left-1/2 top-1/2 max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border',
                 sizeClasses[size],
+                forceDialog
+                  ? 'data-[state=open]:animate-fade-in sm:data-[state=open]:animate-dialog-in'
+                  : 'data-[state=open]:animate-dialog-in',
               ),
           className,
         )}
@@ -79,10 +83,13 @@ export const DialogContent = React.forwardRef<
         {children}
         {!hideClose && (
           <DialogPrimitive.Close
-            className="absolute right-3 top-3 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            className={cn(
+              'absolute top-2 flex size-10 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/25',
+              asSheet ? 'right-[max(0.5rem,env(safe-area-inset-right))]' : 'right-2',
+            )}
             aria-label="Закрыть"
           >
-            <X className="size-4" />
+            <X className="size-[18px]" />
           </DialogPrimitive.Close>
         )}
       </DialogPrimitive.Content>
@@ -97,7 +104,10 @@ export function DialogHeader({
 }: React.HTMLAttributes<HTMLDivElement>): React.ReactElement {
   return (
     <div
-      className={cn('flex flex-col gap-1 border-b border-border px-5 py-4 pr-12', className)}
+      className={cn(
+        'flex flex-col gap-1.5 border-b border-border px-4 py-4 pr-12 sm:px-5',
+        className,
+      )}
       {...props}
     />
   );
@@ -131,7 +141,12 @@ export function DialogBody({
   className,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>): React.ReactElement {
-  return <div className={cn('scrollbar-thin flex-1 overflow-y-auto px-5 py-4', className)} {...props} />;
+  return (
+    <div
+      className={cn('scrollbar-thin flex-1 overflow-y-auto px-4 py-4 sm:px-5', className)}
+      {...props}
+    />
+  );
 }
 
 export function DialogFooter({
@@ -141,7 +156,7 @@ export function DialogFooter({
   return (
     <div
       className={cn(
-        'flex flex-col-reverse gap-2 border-t border-border px-5 py-3 sm:flex-row sm:justify-end',
+        'flex flex-col-reverse gap-2 border-t border-border px-4 py-3 sm:flex-row sm:justify-end sm:px-5',
         className,
       )}
       {...props}

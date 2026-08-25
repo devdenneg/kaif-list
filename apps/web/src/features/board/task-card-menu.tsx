@@ -71,11 +71,13 @@ export function TaskCardMenu({
           // Гасим событие до dnd-kit: нажатие на кнопку меню не должно
           // начинать перетаскивание карточки.
           onPointerDown={(event) => event.stopPropagation()}
+          onTouchStart={(event) => event.stopPropagation()}
+          onKeyDown={stop}
           aria-label={`Действия с задачей ${task.key}`}
           className={cn(
-            'rounded p-0.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground',
+            'inline-flex items-center justify-center rounded p-0.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground',
             // На тач-устройствах наведения нет, поэтому кнопка видна всегда.
-            'opacity-0 focus-visible:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100',
+            'opacity-0 focus-visible:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:size-9 [@media(pointer:coarse)]:p-0 [@media(pointer:coarse)]:opacity-100',
             className,
           )}
         >

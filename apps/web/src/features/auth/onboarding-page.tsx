@@ -7,7 +7,13 @@ import { useAuthStore } from '@/stores/auth';
 import { Button } from '@/components/ui/button';
 import { FormField, Input } from '@/components/ui/input';
 import { UserAvatar } from '@/components/ui/avatar';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { toast } from '@/lib/toast';
 import { ApiError } from '@/lib/api';
 
@@ -114,7 +120,7 @@ export function OnboardingPage(): React.ReactElement {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-accent/30 p-4">
+    <div className="flex min-h-dvh items-center justify-center bg-gradient-to-br from-background via-background to-accent/30 p-4">
       <form onSubmit={(event) => void submit(event)} className="w-full max-w-md space-y-6">
         <div className="text-center">
           <h1 className="text-2xl font-semibold tracking-tight">Последний шаг</h1>

@@ -7,17 +7,18 @@ import {
   TaskType,
   type BoardDto,
 } from '@kaif/shared';
-import { EMPTY_FILTERS, hasActiveFilters, useUiStore, type BoardFilters as Filters } from '@/stores/ui';
+import {
+  EMPTY_FILTERS,
+  hasActiveFilters,
+  useUiStore,
+  type BoardFilters as Filters,
+} from '@/stores/ui';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge, LabelChip } from '@/components/ui/badge';
 import { UserAvatar } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/misc';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Select,
   SelectContent,
@@ -79,8 +80,8 @@ export function BoardFilters({ board }: { board: BoardDto }): React.ReactElement
           </Button>
         </PopoverTrigger>
 
-        <PopoverContent className="w-80 p-0" align="start">
-          <div className="scrollbar-thin max-h-[70vh] space-y-4 overflow-y-auto p-3">
+        <PopoverContent className="w-[min(20rem,calc(100vw-1.5rem))] p-0" align="start">
+          <div className="scrollbar-thin max-h-[min(70dvh,36rem)] space-y-4 overflow-y-auto p-3">
             <section>
               <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Исполнитель
@@ -88,9 +89,7 @@ export function BoardFilters({ board }: { board: BoardDto }): React.ReactElement
               <label className="flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-sm hover:bg-secondary">
                 <Checkbox
                   checked={filters.unassigned}
-                  onCheckedChange={(value) =>
-                    setFilters(board.id, { unassigned: value === true })
-                  }
+                  onCheckedChange={(value) => setFilters(board.id, { unassigned: value === true })}
                 />
                 Без исполнителя
               </label>

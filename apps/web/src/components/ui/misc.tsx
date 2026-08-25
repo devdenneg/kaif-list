@@ -76,7 +76,10 @@ export function Progress({
       className={cn('relative h-1.5 w-full overflow-hidden rounded-full bg-secondary', className)}
     >
       <ProgressPrimitive.Indicator
-        className={cn('h-full rounded-full bg-primary transition-all duration-300', indicatorClassName)}
+        className={cn(
+          'h-full rounded-full bg-primary transition-all duration-300',
+          indicatorClassName,
+        )}
         style={{ width: `${clamped}%` }}
       />
     </ProgressPrimitive.Root>
@@ -114,7 +117,7 @@ export const TabsList = React.forwardRef<
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      'inline-flex h-9 items-center justify-start gap-1 rounded-lg bg-secondary p-1 text-muted-foreground',
+      'inline-flex h-11 items-center justify-start gap-1 rounded-xl bg-secondary p-1 text-muted-foreground',
       className,
     )}
     {...props}
@@ -129,8 +132,8 @@ export const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      'inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium transition-all',
-      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+      'inline-flex h-9 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3.5 text-sm font-medium transition-all [&_svg]:size-[18px]',
+      'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/25',
       'disabled:pointer-events-none disabled:opacity-50',
       'data-[state=active]:bg-surface data-[state=active]:text-foreground data-[state=active]:shadow-sm',
       className,

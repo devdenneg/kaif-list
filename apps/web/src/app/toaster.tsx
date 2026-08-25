@@ -17,7 +17,12 @@ export function Toaster(): React.ReactElement {
       }}
       // На мобильных тосты не должны перекрывать нижнюю навигацию.
       offset="16px"
-      mobileOffset="80px"
+      mobileOffset={{
+        top: 'max(1rem, env(safe-area-inset-top))',
+        right: 'max(1rem, env(safe-area-inset-right))',
+        bottom: 'calc(4rem + env(safe-area-inset-bottom) + 1rem)',
+        left: 'max(1rem, env(safe-area-inset-left))',
+      }}
     />
   );
 }

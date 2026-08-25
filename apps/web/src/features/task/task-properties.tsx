@@ -50,10 +50,12 @@ export function TaskProperties({
   task,
   board,
   onMoveColumn,
+  movePending = false,
 }: {
   task: TaskDetailDto;
   board: BoardDto | undefined;
   onMoveColumn: (column: string) => void;
+  movePending?: boolean;
 }): React.ReactElement {
   const updateTask = useUpdateTask(task.id, task.boardId);
   const watchTask = useWatchTask(task.id);
@@ -96,8 +98,12 @@ export function TaskProperties({
   return (
     <div className="space-y-4 text-sm">
       <Field icon={<Gauge />} label="Статус">
-        <Select value={task.columnKey} onValueChange={onMoveColumn} disabled={!task.permissions.canMove}>
-          <SelectTrigger className="h-8">
+        <Select
+          value={task.columnKey}
+          onValueChange={onMoveColumn}
+          disabled={!task.permissions.canMove || movePending}
+        >
+          <SelectTrigger className="h-8 [@media(pointer:coarse)]:h-11">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -135,7 +141,7 @@ export function TaskProperties({
           onValueChange={(value) => update({ priority: value })}
           disabled={!editable}
         >
-          <SelectTrigger className="h-8">
+          <SelectTrigger className="h-8 [@media(pointer:coarse)]:h-11">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -157,7 +163,7 @@ export function TaskProperties({
           onValueChange={(value) => update({ type: value })}
           disabled={!editable}
         >
-          <SelectTrigger className="h-8">
+          <SelectTrigger className="h-8 [@media(pointer:coarse)]:h-11">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -192,7 +198,7 @@ export function TaskProperties({
           value={toDateTimeLocal(task.startDate)}
           onChange={(event) => update({ startDate: fromDateTimeLocal(event.target.value) })}
           disabled={!editable}
-          className="h-8"
+          className="h-8 [@media(pointer:coarse)]:h-11"
         />
       </Field>
 
@@ -203,7 +209,7 @@ export function TaskProperties({
             value={toDateTimeLocal(task.dueDate)}
             onChange={(event) => update({ dueDate: fromDateTimeLocal(event.target.value) })}
             disabled={!editable}
-            className="h-8"
+            className="h-8 [@media(pointer:coarse)]:h-11"
           />
           {task.dueDate && (
             <DueBadge dueDate={task.dueDate} completed={task.completedAt !== null} showLabel />
@@ -223,7 +229,7 @@ export function TaskProperties({
             }
             placeholder="SP"
             disabled={!editable}
-            className="h-8 w-20"
+            className="h-8 w-20 [@media(pointer:coarse)]:h-11"
           />
           <Input
             type="number"
@@ -237,7 +243,7 @@ export function TaskProperties({
             }
             placeholder="мин"
             disabled={!editable}
-            className="h-8 flex-1"
+            className="h-8 flex-1 [@media(pointer:coarse)]:h-11"
           />
         </div>
         {task.estimateMinutes ? (
@@ -260,7 +266,12 @@ export function TaskProperties({
           {task.permissions.canManageLinks && (
             <Popover open={linkOpen} onOpenChange={setLinkOpen}>
               <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon-sm" className="ml-auto" aria-label="Добавить связь">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="ml-auto [@media(pointer:coarse)]:size-10"
+                  aria-label="Добавить связь"
+                >
                   <Plus />
                 </Button>
               </PopoverTrigger>
@@ -287,7 +298,10 @@ export function TaskProperties({
         ) : (
           <ul className="space-y-1">
             {task.links.map((link) => (
-              <li key={link.id} className="group flex items-center gap-1.5 text-xs">
+              <li
+                key={link.id}
+                className="group flex items-center gap-1.5 text-xs [@media(pointer:coarse)]:min-h-10"
+              >
                 <span className="shrink-0 text-muted-foreground">
                   {TASK_LINK_LABELS[link.type]}
                 </span>
@@ -304,7 +318,7 @@ export function TaskProperties({
                   <button
                     type="button"
                     onClick={() => links.deleteLink.mutate(link.id)}
-                    className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+                    className="shrink-0 rounded-md opacity-0 transition-opacity group-hover:opacity-100 [@media(pointer:coarse)]:flex [@media(pointer:coarse)]:size-10 [@media(pointer:coarse)]:items-center [@media(pointer:coarse)]:justify-center [@media(pointer:coarse)]:opacity-100"
                     aria-label="Удалить связь"
                   >
                     <Trash2 className="size-3 text-muted-foreground" />
@@ -321,7 +335,7 @@ export function TaskProperties({
       <Button
         variant={task.watching ? 'secondary' : 'outline'}
         size="sm"
-        className="w-full"
+        className="w-full [@media(pointer:coarse)]:min-h-11"
         onClick={() => watchTask.mutate(!task.watching)}
         loading={watchTask.isPending}
       >
@@ -380,7 +394,7 @@ function AddLinkForm({
   return (
     <div className="space-y-2">
       <Select value={type} onValueChange={(value) => setType(value as TaskLinkType)}>
-        <SelectTrigger className="h-8">
+        <SelectTrigger className="h-8 [@media(pointer:coarse)]:h-11">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -396,7 +410,7 @@ function AddLinkForm({
         value={key}
         onChange={(event) => setKey(event.target.value.toUpperCase())}
         placeholder="Ключ задачи, например OPS-12"
-        className="h-8 font-mono"
+        className="h-8 font-mono [@media(pointer:coarse)]:h-11"
         onKeyDown={(event) => {
           if (event.key === 'Enter' && key.trim()) onSubmit(type, key.trim());
         }}
@@ -405,7 +419,7 @@ function AddLinkForm({
       <Button
         variant="primary"
         size="sm"
-        className="w-full"
+        className="w-full [@media(pointer:coarse)]:min-h-11"
         disabled={!key.trim()}
         loading={loading}
         onClick={() => onSubmit(type, key.trim())}

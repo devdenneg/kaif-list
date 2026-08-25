@@ -91,16 +91,17 @@ export function invalidateTaskScopes(boardId?: string): void {
 export const queryKeys = {
   boards: ['boards'] as const,
   board: (boardId: string) => ['board', boardId] as const,
+  boardTasksRoot: (boardId: string) => ['board', boardId, 'tasks'] as const,
   boardTasks: (boardId: string, filters?: unknown) => ['board', boardId, 'tasks', filters] as const,
   boardTaskList: (boardId: string, filters?: unknown) =>
     ['board', boardId, 'task-list', filters] as const,
   boardWorkload: (boardId: string) => ['board', boardId, 'workload'] as const,
   boardActivity: (boardId: string) => ['board', boardId, 'activity'] as const,
-  boardAnalytics: (boardId: string, days: number) =>
-    ['board', boardId, 'analytics', days] as const,
+  boardAnalytics: (boardId: string, days: number) => ['board', boardId, 'analytics', days] as const,
   task: (taskId: string) => ['task', taskId] as const,
   taskComments: (taskId: string) => ['task', taskId, 'comments'] as const,
   taskActivity: (taskId: string) => ['task', taskId, 'activity'] as const,
+  taskMove: (boardId: string) => ['task-move', boardId] as const,
   notifications: (filters?: unknown) => ['notifications', filters] as const,
   notificationCount: ['notifications', 'count'] as const,
   users: (filters?: unknown) => ['users', filters] as const,

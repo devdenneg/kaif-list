@@ -1,12 +1,12 @@
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CornerDownLeft, KanbanSquare, LayoutGrid, ListTodo, Search } from 'lucide-react';
+import { CornerDownLeft, KanbanSquare, LayoutGrid, ListTodo, Search, X } from 'lucide-react';
 import { COLUMN_LABELS, PRIORITY_LABELS } from '@kaif/shared';
 import { useSearch } from '@/api/search';
 import { useUiStore } from '@/stores/ui';
 import { useDebounce } from '@/lib/hooks/use-debounce';
 import { cn } from '@/lib/utils';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { UserAvatar } from '@/components/ui/avatar';
 import { Spinner } from '@/components/ui/misc';
 
@@ -74,7 +74,11 @@ export function CommandPalette(): React.ReactElement {
         label: board.name,
         hint: board.key,
         icon: (
-          <span className="size-3 rounded-sm" style={{ backgroundColor: board.color }} aria-hidden />
+          <span
+            className="size-3 rounded-sm"
+            style={{ backgroundColor: board.color }}
+            aria-hidden
+          />
         ),
         onSelect: () => navigate(`/boards/${board.key}`),
       });
@@ -109,9 +113,15 @@ export function CommandPalette(): React.ReactElement {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent size="md" hideClose className="overflow-hidden p-0" forceDialog>
-        <div className="flex items-center gap-2 border-b border-border px-4">
-          <Search className="size-4 shrink-0 text-muted-foreground" />
+      <DialogContent
+        size="md"
+        hideClose
+        className="overflow-hidden p-0 max-sm:top-[calc(env(safe-area-inset-top)+0.75rem)] max-sm:max-h-[calc(100dvh-1.5rem)] max-sm:w-[calc(100vw-1.5rem)] max-sm:translate-y-0"
+        forceDialog
+      >
+        <DialogTitle className="sr-only">Поиск задач, досок и людей</DialogTitle>
+        <div className="flex min-h-14 items-center gap-3 border-b border-border px-4 transition-colors focus-within:bg-secondary/20">
+          <Search className="size-5 shrink-0 text-muted-foreground" aria-hidden />
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -127,18 +137,28 @@ export function CommandPalette(): React.ReactElement {
                 select(activeIndex);
               }
             }}
-            placeholder="Задача, доска или человек… (можно ввести ключ OPS-12)"
-            className="h-12 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+            placeholder="Задача, доска, человек или ключ…"
+            className="h-14 min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground focus:outline-none focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 sm:text-sm"
             autoFocus
             // eslint-disable-next-line jsx-a11y/no-autofocus
             aria-label="Поиск"
           />
           {isFetching && <Spinner />}
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery('')}
+              className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/25"
+              aria-label="Очистить поиск"
+            >
+              <X className="size-4" aria-hidden />
+            </button>
+          )}
         </div>
 
-        <div className="scrollbar-thin max-h-80 overflow-y-auto p-1.5">
+        <div className="scrollbar-thin max-h-[calc(100dvh-8.5rem)] overflow-y-auto p-1.5 sm:max-h-80">
           {items.length === 0 ? (
-            <p className="px-3 py-8 text-center text-sm text-muted-foreground">
+            <p className="px-3 py-10 text-center text-sm text-muted-foreground">
               {debounced.length < 2 ? 'Введите минимум 2 символа' : 'Ничего не найдено'}
             </p>
           ) : (
@@ -149,7 +169,7 @@ export function CommandPalette(): React.ReactElement {
                 onMouseEnter={() => setActiveIndex(index)}
                 onClick={() => select(index)}
                 className={cn(
-                  'flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm transition-colors',
+                  'flex min-h-11 w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring/25',
                   index === activeIndex ? 'bg-secondary' : 'hover:bg-secondary/60',
                 )}
               >
@@ -158,17 +178,19 @@ export function CommandPalette(): React.ReactElement {
                 </span>
                 <span className="min-w-0 flex-1 truncate">{item.label}</span>
                 {item.hint && (
-                  <span className="shrink-0 text-xs text-muted-foreground">{item.hint}</span>
+                  <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
+                    {item.hint}
+                  </span>
                 )}
                 {index === activeIndex && (
-                  <CornerDownLeft className="size-3.5 shrink-0 text-muted-foreground" />
+                  <CornerDownLeft className="hidden size-4 shrink-0 text-muted-foreground sm:block" />
                 )}
               </button>
             ))
           )}
         </div>
 
-        <div className="flex items-center gap-3 border-t border-border px-4 py-2 text-[11px] text-muted-foreground">
+        <div className="hidden items-center gap-3 border-t border-border px-4 py-2 text-[11px] text-muted-foreground sm:flex">
           <span>↑↓ — выбор</span>
           <span>↵ — открыть</span>
           <span>Esc — закрыть</span>

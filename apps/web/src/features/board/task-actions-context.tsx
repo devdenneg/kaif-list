@@ -5,6 +5,7 @@ import {
   useArchiveTaskById,
   useDuplicateTaskById,
   useMoveTask,
+  useTaskMovePending,
   useUpdateTaskById,
 } from '@/api/tasks';
 import { useAuthStore } from '@/stores/auth';
@@ -57,6 +58,7 @@ export function TaskActionsProvider({
 }): React.ReactElement {
   const user = useAuthStore((state) => state.user);
   const moveTask = useMoveTask(board.id, filters);
+  const taskMovePending = useTaskMovePending(board.id);
   const updateTask = useUpdateTaskById(board.id);
   const archiveTask = useArchiveTaskById(board.id);
   const duplicateTask = useDuplicateTaskById(board.id);
@@ -70,7 +72,12 @@ export function TaskActionsProvider({
 
   /** Общая обработка отказа: если нужна причина — спрашиваем и повторяем. */
   const handleError = React.useCallback(
-    (error: unknown, retry: (reason: string) => void, fallback: string, request?: Partial<ReasonRequest>) => {
+    (
+      error: unknown,
+      retry: (reason: string) => void,
+      fallback: string,
+      request?: Partial<ReasonRequest>,
+    ) => {
       if (error instanceof ApiError && error.needsReason && error.reasonRequired) {
         pending.current = retry;
         setReasonRequest({
@@ -87,22 +94,22 @@ export function TaskActionsProvider({
 
   const value = React.useMemo<TaskQuickActions>(() => {
     const move = (task: TaskCardDto, column: ColumnKey, reason?: string): void => {
-      moveTask.mutate(
-        { taskId: task.id, toColumn: column, ...(reason ? { reason } : {}) },
-        {
-          onSuccess: () => {
-            setReasonRequest(null);
-            pending.current = null;
-          },
-          onError: (error) =>
-            handleError(
-              error,
-              (value2) => move(task, column, value2),
-              'Не удалось переместить задачу',
-              { fromColumn: task.columnKey, toColumn: column },
-            ),
-        },
-      );
+      if (taskMovePending) return;
+
+      void moveTask
+        .mutateAsync({ taskId: task.id, toColumn: column, ...(reason ? { reason } : {}) })
+        .then(() => {
+          setReasonRequest(null);
+          pending.current = null;
+        })
+        .catch((error: unknown) => {
+          handleError(
+            error,
+            (value2) => move(task, column, value2),
+            'Не удалось переместить задачу',
+            { fromColumn: task.columnKey, toColumn: column },
+          );
+        });
     };
 
     const patch = (
@@ -131,10 +138,7 @@ export function TaskActionsProvider({
       canArchive: accessContext ? can(accessContext, 'task.archive') : false,
       currentUserId: user?.id,
       busy:
-        moveTask.isPending ||
-        updateTask.isPending ||
-        archiveTask.isPending ||
-        duplicateTask.isPending,
+        taskMovePending || updateTask.isPending || archiveTask.isPending || duplicateTask.isPending,
 
       move: (task, column) => move(task, column),
 
@@ -148,8 +152,7 @@ export function TaskActionsProvider({
         if (task.columnKey !== 'IN_PROGRESS') move(task, 'IN_PROGRESS');
       },
 
-      setPriority: (task, priority) =>
-        patch(task, { priority }, 'Не удалось изменить приоритет'),
+      setPriority: (task, priority) => patch(task, { priority }, 'Не удалось изменить приоритет'),
 
       setDueDate: (task, dueDate) => patch(task, { dueDate }, 'Не удалось изменить срок'),
 
@@ -184,6 +187,7 @@ export function TaskActionsProvider({
     accessContext,
     user,
     moveTask,
+    taskMovePending,
     updateTask,
     archiveTask,
     duplicateTask,
@@ -202,7 +206,7 @@ export function TaskActionsProvider({
           }
         }}
         request={reasonRequest}
-        loading={moveTask.isPending || updateTask.isPending}
+        loading={taskMovePending || updateTask.isPending}
         onSubmit={(reason) => pending.current?.(reason)}
       />
     </TaskActionsContext.Provider>

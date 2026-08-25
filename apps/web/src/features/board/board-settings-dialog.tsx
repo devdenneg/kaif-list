@@ -108,31 +108,34 @@ export function BoardSettingsDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent size="lg" className="max-h-[88vh]">
+        <DialogContent
+          size="lg"
+          className="max-h-[calc(100dvh-env(safe-area-inset-top)-0.75rem)] sm:max-h-[calc(100dvh-2rem)]"
+        >
           <DialogHeader>
             <DialogTitle>Настройки доски</DialogTitle>
           </DialogHeader>
 
           <DialogBody>
             <Tabs defaultValue="general">
-              <TabsList className="mb-4 w-full justify-start overflow-x-auto">
-                <TabsTrigger value="general">
+              <TabsList className="scrollbar-thin mb-4 h-auto w-full max-w-full justify-start overflow-x-auto p-1">
+                <TabsTrigger value="general" className="shrink-0 [&_svg]:!size-5">
                   <Palette />
                   Общее
                 </TabsTrigger>
-                <TabsTrigger value="rules">
+                <TabsTrigger value="rules" className="shrink-0 [&_svg]:!size-5">
                   <Settings2 />
                   Правила
                 </TabsTrigger>
-                <TabsTrigger value="labels">
+                <TabsTrigger value="labels" className="shrink-0 [&_svg]:!size-5">
                   <Tag />
                   Метки
                 </TabsTrigger>
-                <TabsTrigger value="groups">
+                <TabsTrigger value="groups" className="shrink-0 [&_svg]:!size-5">
                   <Layers />
                   Группы
                 </TabsTrigger>
-                <TabsTrigger value="danger">
+                <TabsTrigger value="danger" className="shrink-0 [&_svg]:!size-5">
                   <AlertTriangle />
                   Опасная зона
                 </TabsTrigger>
@@ -159,22 +162,36 @@ export function BoardSettingsDialog({
                         key={item}
                         type="button"
                         onClick={() => setColor(item)}
-                        className={cn(
-                          'size-7 rounded-full',
-                          color === item && 'ring-2 ring-ring ring-offset-2 ring-offset-card',
-                        )}
-                        style={{ backgroundColor: item }}
+                        className="flex size-10 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/25 focus-visible:ring-offset-0"
                         aria-label={`Цвет ${item}`}
-                      />
+                        aria-pressed={color === item}
+                      >
+                        <span
+                          className={cn(
+                            'size-7 rounded-full',
+                            color === item && 'ring-2 ring-ring ring-offset-2 ring-offset-card',
+                          )}
+                          style={{ backgroundColor: item }}
+                          aria-hidden
+                        />
+                      </button>
                     ))}
                   </div>
                 </FormField>
 
-                <FormField label="Ключ" hint="Ключ доски менять нельзя — на нём держатся ссылки на задачи">
+                <FormField
+                  label="Ключ"
+                  hint="Ключ доски менять нельзя — на нём держатся ссылки на задачи"
+                >
                   <Input value={board.key} disabled className="font-mono" />
                 </FormField>
 
-                <Button variant="primary" onClick={saveGeneral} loading={updateBoard.isPending}>
+                <Button
+                  variant="primary"
+                  className="w-full xs:w-auto"
+                  onClick={saveGeneral}
+                  loading={updateBoard.isPending}
+                >
                   Сохранить
                 </Button>
               </TabsContent>
@@ -184,8 +201,8 @@ export function BoardSettingsDialog({
                 <section className="space-y-3">
                   <h3 className="text-sm font-semibold">Обязательные объяснения</h3>
                   <p className="text-xs text-muted-foreground">
-                    Причина сохраняется в задаче и уходит участникам в Telegram.
-                    Это главный инструмент против «задача молча стоит третью неделю».
+                    Причина сохраняется в задаче и уходит участникам в Telegram. Это главный
+                    инструмент против «задача молча стоит третью неделю».
                   </p>
 
                   <RuleToggle
@@ -260,15 +277,20 @@ export function BoardSettingsDialog({
                     {COLUMN_ORDER.map((column) => {
                       const current = board.columns.find((item) => item.key === column);
                       return (
-                        <div key={column} className="flex items-center gap-2">
-                          <span className="w-40 shrink-0 text-sm">{COLUMN_LABELS[column]}</span>
+                        <div
+                          key={column}
+                          className="grid grid-cols-[minmax(0,1fr)_7rem] items-center gap-2"
+                        >
+                          <span className="min-w-0 text-sm leading-tight">
+                            {COLUMN_LABELS[column]}
+                          </span>
                           <Input
                             type="number"
                             min={1}
                             max={999}
                             defaultValue={current?.wipLimit ?? ''}
                             placeholder="без лимита"
-                            className="h-8 w-32"
+                            className="w-full"
                             onBlur={(event) => {
                               const value = event.target.value.trim();
                               updateColumn.mutate({
@@ -286,7 +308,7 @@ export function BoardSettingsDialog({
 
               {/* ── Метки ── */}
               <TabsContent value="labels" className="space-y-3">
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2 xs:flex-row">
                   <Input
                     value={newLabel}
                     onChange={(event) => setNewLabel(event.target.value)}
@@ -306,6 +328,7 @@ export function BoardSettingsDialog({
                   />
                   <Button
                     variant="primary"
+                    className="w-full xs:w-auto"
                     disabled={!newLabel.trim()}
                     loading={createLabel.isPending}
                     onClick={() =>
@@ -329,7 +352,7 @@ export function BoardSettingsDialog({
                       key={label.id}
                       className="flex items-center gap-2 rounded-md border border-border px-2 py-1.5"
                     >
-                      <LabelChip name={label.name} color={label.color} />
+                      <LabelChip name={label.name} color={label.color} className="min-w-0" />
                       <div className="ml-auto flex items-center gap-1">
                         <Button
                           variant="ghost"
@@ -360,11 +383,13 @@ export function BoardSettingsDialog({
                     Архив доски
                   </h3>
                   <p className="mb-3 text-xs text-muted-foreground">
-                    Доска станет доступна только на чтение. Данные сохранятся, вернуть можно в любой момент.
+                    Доска станет доступна только на чтение. Данные сохранятся, вернуть можно в любой
+                    момент.
                   </p>
                   <Button
                     variant="outline"
                     size="sm"
+                    className="w-full xs:w-auto"
                     loading={archiveBoard.isPending}
                     onClick={() =>
                       archiveBoard.mutate(!board.isArchived, {
@@ -385,9 +410,9 @@ export function BoardSettingsDialog({
                   <p className="mb-3 text-xs text-muted-foreground">
                     Новый владелец получит полные права, вы станете администратором.
                   </p>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col gap-2 xs:flex-row">
                     <Select value={newOwnerId} onValueChange={setNewOwnerId}>
-                      <SelectTrigger className="h-8">
+                      <SelectTrigger className="w-full">
                         <SelectValue placeholder="Выберите участника" />
                       </SelectTrigger>
                       <SelectContent>
@@ -406,6 +431,7 @@ export function BoardSettingsDialog({
                     <Button
                       variant="outline"
                       size="sm"
+                      className="w-full xs:w-auto"
                       disabled={!newOwnerId}
                       onClick={() => setConfirmTransfer(true)}
                     >
@@ -422,7 +448,12 @@ export function BoardSettingsDialog({
                   <p className="mb-3 text-xs text-muted-foreground">
                     Вместе с доской исчезнут все задачи, комментарии и файлы. Отменить будет нельзя.
                   </p>
-                  <Button variant="danger" size="sm" onClick={() => setConfirmDelete(true)}>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    className="w-full xs:w-auto"
+                    onClick={() => setConfirmDelete(true)}
+                  >
                     Удалить доску навсегда
                   </Button>
                 </div>
@@ -490,11 +521,13 @@ function RuleToggle({
   onChange: (value: boolean) => void;
 }): React.ReactElement {
   return (
-    <label className="flex cursor-pointer items-start gap-3 rounded-md p-2 transition-colors hover:bg-secondary/50">
+    <label className="flex min-h-12 cursor-pointer items-start gap-3 rounded-lg p-3 transition-colors hover:bg-secondary/50">
       <Switch checked={checked} onCheckedChange={onChange} className="mt-0.5" />
       <span className="min-w-0">
         <span className="block text-sm font-medium">{label}</span>
-        {hint && <span className="block text-xs text-muted-foreground">{hint}</span>}
+        {hint && (
+          <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{hint}</span>
+        )}
       </span>
     </label>
   );

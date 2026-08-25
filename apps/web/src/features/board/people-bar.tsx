@@ -23,12 +23,14 @@ import { GroupPickerMenu } from './group-picker';
 export function PeopleBar({
   board,
   presence,
+  canCreate,
   canManage,
   onCreateTaskFor,
   compact = false,
 }: {
   board: BoardDto;
   presence: PresenceUser[];
+  canCreate: boolean;
   canManage: boolean;
   onCreateTaskFor: (userId: string) => void;
   compact?: boolean;
@@ -73,10 +75,21 @@ export function PeopleBar({
   const soleSelected = soleSelectedId
     ? board.members.find((member) => member.userId === soleSelectedId)
     : undefined;
+  const hasSelection = selected.length > 0 || filters.unassigned;
+  const selectionLabel = soleSelected
+    ? firstName(soleSelected.user.displayName)
+    : selected.length > 0
+      ? `Выбрано: ${selected.length}`
+      : 'Без исполнителя';
 
   return (
-    <div className="flex min-w-0 items-center gap-1.5">
-      <div className="scrollbar-thin flex min-w-0 flex-1 items-center gap-1 overflow-x-auto pb-0.5">
+    <div className={cn('min-w-0', compact ? 'space-y-1.5' : 'flex items-center gap-1.5')}>
+      <div
+        className={cn(
+          'scrollbar-thin flex min-w-0 items-center overflow-x-auto',
+          compact ? 'w-full gap-1.5 pb-1' : 'flex-1 gap-1 pb-0.5',
+        )}
+      >
         {board.members.map((member) => {
           const stats = workloadByUser.get(member.userId);
           const active = selected.includes(member.userId);
@@ -105,9 +118,10 @@ export function PeopleBar({
                 type="button"
                 onClick={() => toggleAssignee(member.userId)}
                 aria-pressed={active}
+                aria-label={`${active ? 'Снять фильтр' : 'Показать задачи'}: ${member.user.displayName}`}
                 className={cn(
-                  'relative flex h-8 shrink-0 items-center gap-1.5 rounded-full border pr-2.5 transition-colors',
-                  compact ? 'pl-0.5' : 'pl-0.5',
+                  'relative flex shrink-0 items-center rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/25',
+                  compact ? 'size-10 justify-center p-1' : 'h-8 gap-1.5 pl-0.5 pr-2.5',
                   active
                     ? 'border-primary bg-accent text-accent-foreground'
                     : viaGroup
@@ -116,7 +130,7 @@ export function PeopleBar({
                 )}
               >
                 <span className="relative shrink-0">
-                  <UserAvatar user={member.user} size="sm" />
+                  <UserAvatar user={member.user} size={compact ? 'md' : 'sm'} />
                   {onlineIds.has(member.userId) && (
                     <span
                       className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full bg-success ring-2 ring-surface"
@@ -146,85 +160,113 @@ export function PeopleBar({
             aria-pressed={filters.unassigned}
             aria-label="Без исполнителя"
             className={cn(
-              'flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-2 text-xs font-medium transition-colors',
+              'flex shrink-0 items-center rounded-full border text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/25',
+              compact ? 'size-10 justify-center' : 'h-8 gap-1.5 px-2',
               filters.unassigned
                 ? 'border-primary bg-accent text-accent-foreground'
                 : 'border-dashed border-border text-muted-foreground hover:bg-secondary',
             )}
           >
-            <UserX className="size-3.5" />
+            <UserX className="size-4" />
             {!compact && 'Свободные'}
           </button>
         </Tooltip>
-      </div>
 
-      {/* ── Действия над выбранным человеком ── */}
-      {soleSelected && (
-        <div className="flex shrink-0 items-center gap-0.5 border-l border-border pl-1.5">
-          <Tooltip content={`Профиль и загрузка · ${soleSelected.user.displayName}`}>
+        {canManage && (
+          <Tooltip content="Пригласить в доску по ссылке">
             <Button
               variant="ghost"
               size="icon-sm"
-              onClick={() => setProfileUserId(soleSelected.userId)}
-              aria-label={`Профиль ${soleSelected.user.displayName}`}
-            >
-              <UserRound />
-            </Button>
-          </Tooltip>
-          <Tooltip content={`Создать задачу на ${soleSelected.user.displayName}`}>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={() => onCreateTaskFor(soleSelected.userId)}
-              aria-label="Создать задачу на выбранного человека"
+              className={cn(
+                'shrink-0 rounded-full border border-dashed border-border text-muted-foreground [&_svg]:!size-4',
+                compact ? 'size-10' : 'size-8',
+              )}
+              onClick={() => setInviteOpen(true)}
+              aria-label="Пригласить в доску"
             >
               <UserPlus />
             </Button>
           </Tooltip>
-          {canManage && (
-            <GroupPickerMenu
-              board={board}
-              userId={soleSelected.userId}
-              canManage={canManage}
-              trigger={
+        )}
+      </div>
+
+      {/* ── На телефоне действия не отнимают место у прокрутки людей. ── */}
+      {hasSelection && (
+        <div
+          className={cn(
+            'flex shrink-0 items-center gap-0.5',
+            compact
+              ? 'min-h-11 rounded-lg border border-border bg-secondary/40 p-1'
+              : 'border-l border-border pl-1.5',
+          )}
+        >
+          {compact && (
+            <span className="min-w-0 flex-1 truncate px-2 text-xs font-medium">
+              {selectionLabel}
+            </span>
+          )}
+
+          {soleSelected && (
+            <>
+              <Tooltip content={`Профиль и загрузка · ${soleSelected.user.displayName}`}>
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  aria-label={`Рабочие группы · ${soleSelected.user.displayName}`}
-                  title="Прикрепить к рабочей группе"
+                  className={cn('[&_svg]:!size-4', compact ? 'size-10' : 'size-8')}
+                  onClick={() => setProfileUserId(soleSelected.userId)}
+                  aria-label={`Профиль ${soleSelected.user.displayName}`}
                 >
-                  <Layers />
+                  <UserRound />
                 </Button>
-              }
-            />
+              </Tooltip>
+              {canCreate && (
+                <Tooltip content={`Создать задачу на ${soleSelected.user.displayName}`}>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className={cn('[&_svg]:!size-4', compact ? 'size-10' : 'size-8')}
+                    onClick={() => onCreateTaskFor(soleSelected.userId)}
+                    aria-label="Создать задачу на выбранного человека"
+                  >
+                    <UserPlus />
+                  </Button>
+                </Tooltip>
+              )}
+              {canManage && (
+                <GroupPickerMenu
+                  board={board}
+                  userId={soleSelected.userId}
+                  canManage={canManage}
+                  trigger={
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className={cn('[&_svg]:!size-4', compact ? 'size-10' : 'size-8')}
+                      aria-label={`Рабочие группы · ${soleSelected.user.displayName}`}
+                      title="Прикрепить к рабочей группе"
+                    >
+                      <Layers />
+                    </Button>
+                  }
+                />
+              )}
+            </>
           )}
-        </div>
-      )}
 
-      {(selected.length > 0 || filters.unassigned) && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 shrink-0 px-2 text-xs text-muted-foreground"
-          onClick={() => setFilters(board.id, { assigneeIds: [], unassigned: false })}
-        >
-          <X />
-          {!compact && 'Все'}
-        </Button>
-      )}
-
-      {canManage && (
-        <Tooltip content="Пригласить в доску по ссылке">
           <Button
             variant="ghost"
-            size="icon-sm"
-            className="shrink-0"
-            onClick={() => setInviteOpen(true)}
-            aria-label="Пригласить в доску"
+            size={compact ? 'icon-sm' : 'sm'}
+            className={cn(
+              'shrink-0 text-xs text-muted-foreground [&_svg]:!size-4',
+              compact ? 'size-10' : 'h-8 px-2',
+            )}
+            onClick={() => setFilters(board.id, { assigneeIds: [], unassigned: false })}
+            aria-label={compact ? 'Снять фильтр по людям' : undefined}
           >
-            <UserPlus />
+            <X />
+            {!compact && 'Все'}
           </Button>
-        </Tooltip>
+        </div>
       )}
 
       <MemberPanel

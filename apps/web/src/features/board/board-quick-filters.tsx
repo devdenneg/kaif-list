@@ -1,5 +1,15 @@
 import * as React from 'react';
-import { AlertTriangle, Bookmark, BookmarkPlus, CalendarDays, Check, Trash2, User, UserX, X } from 'lucide-react';
+import {
+  AlertTriangle,
+  Bookmark,
+  BookmarkPlus,
+  CalendarDays,
+  Check,
+  Trash2,
+  User,
+  UserX,
+  X,
+} from 'lucide-react';
 import type { BoardDto, SavedViewFilters } from '@kaif/shared';
 import { useCreateSavedView, useDeleteSavedView, useSavedViews } from '@/api/views';
 import { useAuthStore } from '@/stores/auth';
@@ -87,7 +97,7 @@ export function BoardQuickFilters({ board }: { board: BoardDto }): React.ReactEl
   });
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    <div className="scrollbar-thin -mx-3 flex touch-pan-x flex-nowrap items-center gap-1.5 overflow-x-auto px-3 pb-1 md:mx-0 md:px-0 xl:flex-wrap xl:overflow-visible xl:pb-0">
       <Chip active={mineActive} onClick={toggleMine} icon={<User />}>
         На мне
       </Chip>
@@ -119,7 +129,9 @@ export function BoardQuickFilters({ board }: { board: BoardDto }): React.ReactEl
       </Chip>
 
       {/* ── Группы: тот же быстрый доступ, что и у остальных чипов ── */}
-      {board.groups.length > 0 && <span className="mx-0.5 h-5 w-px bg-border" aria-hidden />}
+      {board.groups.length > 0 && (
+        <span className="mx-0.5 h-6 w-px shrink-0 bg-border" aria-hidden />
+      )}
       {board.groups.map((group) => {
         const active = filters.groupIds.includes(group.id);
         return (
@@ -140,7 +152,7 @@ export function BoardQuickFilters({ board }: { board: BoardDto }): React.ReactEl
                 : 'В группе пока никого'
             }
             className={cn(
-              'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium transition-colors',
+              'inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/25 md:h-8',
               active
                 ? 'text-accent-foreground'
                 : 'border-border bg-surface text-muted-foreground hover:bg-secondary',
@@ -162,7 +174,11 @@ export function BoardQuickFilters({ board }: { board: BoardDto }): React.ReactEl
       {/* ── Сохранённые виды ── */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-10 rounded-full px-3 text-xs md:h-8 [&_svg]:!size-4"
+          >
             <Bookmark />
             Виды
             {views && views.length > 0 && (
@@ -199,10 +215,10 @@ export function BoardQuickFilters({ board }: { board: BoardDto }): React.ReactEl
                       onSuccess: () => toast.success('Фильтр удалён'),
                     });
                   }}
-                  className="shrink-0 text-muted-foreground hover:text-destructive"
+                  className="-mr-2 flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-destructive/20 focus-visible:ring-offset-0"
                   aria-label={`Удалить фильтр ${view.name}`}
                 >
-                  <Trash2 className="size-3.5" />
+                  <Trash2 className="size-4" />
                 </button>
               )}
             </DropdownMenuItem>
@@ -282,7 +298,7 @@ export function BoardQuickFilters({ board }: { board: BoardDto }): React.ReactEl
         <Button
           variant="ghost"
           size="sm"
-          className="h-7 px-2 text-xs text-muted-foreground"
+          className="h-10 rounded-full px-3 text-xs text-muted-foreground md:h-8 [&_svg]:!size-4"
           onClick={() => resetFilters(board.id)}
         >
           <X />
@@ -312,7 +328,7 @@ function Chip({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium transition-colors [&_svg]:size-3.5',
+        'inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/25 md:h-8 [&_svg]:size-4',
         active
           ? tone === 'danger'
             ? 'border-destructive bg-destructive/10 text-destructive'

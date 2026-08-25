@@ -2,16 +2,19 @@ import * as React from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   Bell,
-  ChevronLeft,
   KanbanSquare,
   LayoutGrid,
   ListTodo,
+  PanelLeftClose,
+  PanelLeftOpen,
   Plus,
   Search,
   Settings,
   Shield,
   Star,
+  type LucideIcon,
 } from 'lucide-react';
+import { can } from '@kaif/shared';
 import { useBoards } from '@/api/boards';
 import { useAuthStore } from '@/stores/auth';
 import { useUiStore } from '@/stores/ui';
@@ -34,10 +37,18 @@ import { CreateBoardDialog } from '@/features/boards/create-board-dialog';
  */
 export function AppShell({ children }: { children: React.ReactNode }): React.ReactElement {
   const isMobile = useIsMobile();
+  const location = useLocation();
   const collapsed = useUiStore((state) => state.sidebarCollapsed);
   const setCommandPaletteOpen = useUiStore((state) => state.setCommandPaletteOpen);
   const [createBoardOpen, setCreateBoardOpen] = React.useState(false);
   const [shortcutsOpen, setShortcutsOpen] = React.useState(false);
+  const mainRef = React.useRef<HTMLElement>(null);
+
+  React.useLayoutEffect(() => {
+    // Основная область не размонтируется между маршрутами, поэтому явно
+    // начинаем каждую новую страницу с её начала.
+    if (mainRef.current) mainRef.current.scrollTop = 0;
+  }, [location.pathname]);
 
   useHotkeys({
     'mod+k': () => setCommandPaletteOpen(true),
@@ -46,14 +57,22 @@ export function AppShell({ children }: { children: React.ReactNode }): React.Rea
   });
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex h-dvh overflow-hidden bg-background pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)]">
       {!isMobile && (
         <Sidebar collapsed={collapsed} onCreateBoard={() => setCreateBoardOpen(true)} />
       )}
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <TopBar onCreateBoard={() => setCreateBoardOpen(true)} />
-        <main className={cn('min-w-0 flex-1', isMobile && 'pb-16')}>{children}</main>
+        <main
+          ref={mainRef}
+          className={cn(
+            'min-h-0 min-w-0 flex-1 overflow-y-auto',
+            isMobile && 'pb-[calc(4rem+env(safe-area-inset-bottom))]',
+          )}
+        >
+          {children}
+        </main>
       </div>
 
       {isMobile && <MobileNav onCreateBoard={() => setCreateBoardOpen(true)} />}
@@ -83,34 +102,83 @@ function Sidebar({
 
   return (
     <aside
+      id="app-sidebar"
+      aria-label="Боковая навигация"
       className={cn(
-        'sticky top-0 flex h-screen shrink-0 flex-col border-r border-border bg-surface transition-[width] duration-200',
-        collapsed ? 'w-16' : 'w-60',
+        'z-20 flex h-full flex-none flex-col overflow-hidden border-r border-border bg-surface',
+        'transition-[width,min-width,max-width,flex-basis] duration-200 ease-out motion-reduce:transition-none',
+        collapsed
+          ? 'w-16 min-w-[4rem] max-w-[4rem] basis-[4rem]'
+          : 'w-60 min-w-[15rem] max-w-[15rem] basis-[15rem]',
       )}
     >
-      <div className="flex h-14 items-center gap-2 border-b border-border px-3">
-        <Link to="/boards" className="flex min-w-0 items-center gap-2">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <KanbanSquare className="size-4" />
+      <div className="relative flex h-14 shrink-0 items-center overflow-hidden border-b border-border px-3">
+        {/* Геометрия шапки не меняется вместе с состоянием: элементы только
+            проявляются, поэтому во время анимации ширины ничего не прыгает. */}
+        <Link
+          to="/boards"
+          tabIndex={collapsed ? -1 : undefined}
+          aria-hidden={collapsed || undefined}
+          className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-lg pr-12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <KanbanSquare aria-hidden />
           </span>
-          {!collapsed && <span className="truncate font-semibold">Kaif Board</span>}
+          <span
+            className={cn(
+              'truncate text-sm font-semibold transition-opacity duration-100 motion-reduce:transition-none',
+              collapsed ? 'opacity-0' : 'delay-100 opacity-100',
+            )}
+          >
+            Kaif Board
+          </span>
         </Link>
-        {!collapsed && (
+
+        <Tooltip content="Развернуть панель" side="right" delay={250}>
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            tabIndex={collapsed ? undefined : -1}
+            className={cn(
+              'absolute left-3 top-2 z-10 flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground',
+              'transition-[opacity,background-color] duration-100 hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface motion-reduce:transition-none',
+              collapsed ? 'opacity-100' : 'pointer-events-none opacity-0',
+            )}
+            aria-label="Развернуть боковую панель"
+            aria-controls="app-sidebar"
+            aria-expanded={false}
+            aria-hidden={!collapsed || undefined}
+          >
+            <PanelLeftOpen aria-hidden />
+          </button>
+        </Tooltip>
+
+        <Tooltip content="Свернуть панель" side="right" delay={250}>
           <Button
             variant="ghost"
-            size="icon-sm"
-            className="ml-auto"
+            size="icon"
+            tabIndex={collapsed ? -1 : undefined}
+            className={cn(
+              'absolute right-3 top-2 transition-opacity duration-75 motion-reduce:transition-none',
+              collapsed ? 'pointer-events-none opacity-0' : 'delay-150 opacity-100',
+            )}
             onClick={toggleSidebar}
-            aria-label="Свернуть панель"
+            aria-label="Свернуть боковую панель"
+            aria-controls="app-sidebar"
+            aria-expanded={true}
+            aria-hidden={collapsed || undefined}
           >
-            <ChevronLeft />
+            <PanelLeftClose />
           </Button>
-        )}
+        </Tooltip>
       </div>
 
-      <nav className="scrollbar-thin flex-1 space-y-1 overflow-y-auto p-2">
-        <SidebarLink to="/my" icon={<ListTodo />} label="Мои задачи" collapsed={collapsed} />
-        <SidebarLink to="/boards" icon={<LayoutGrid />} label="Все доски" collapsed={collapsed} end />
+      <nav
+        aria-label="Основная навигация"
+        className="scrollbar-thin flex-1 space-y-1 overflow-x-hidden overflow-y-auto p-2"
+      >
+        <SidebarLink to="/my" icon={ListTodo} label="Мои задачи" collapsed={collapsed} />
+        <SidebarLink to="/boards" icon={LayoutGrid} label="Все доски" collapsed={collapsed} end />
 
         {favorites.length > 0 && (
           <SidebarSection label="Избранное" collapsed={collapsed}>
@@ -129,33 +197,26 @@ function Sidebar({
         )}
 
         <div className="pt-2">
-          <Button
-            variant="ghost"
-            className={cn('w-full justify-start text-muted-foreground', collapsed && 'justify-center px-0')}
-            onClick={onCreateBoard}
-          >
-            <Plus />
-            {!collapsed && 'Новая доска'}
-          </Button>
+          <Tooltip content={collapsed ? 'Новая доска' : null} side="right">
+            <Button
+              variant="ghost"
+              size="md"
+              className="min-h-10 w-full justify-start px-[15px] text-muted-foreground"
+              onClick={onCreateBoard}
+              aria-label={collapsed ? 'Новая доска' : undefined}
+            >
+              <Plus />
+              {!collapsed && 'Новая доска'}
+            </Button>
+          </Tooltip>
         </div>
       </nav>
 
       <div className="space-y-1 border-t border-border p-2">
         {isSuperAdmin && (
-          <SidebarLink to="/admin" icon={<Shield />} label="Администрирование" collapsed={collapsed} />
+          <SidebarLink to="/admin" icon={Shield} label="Администрирование" collapsed={collapsed} />
         )}
-        <SidebarLink to="/settings" icon={<Settings />} label="Настройки" collapsed={collapsed} />
-        {collapsed && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="w-full"
-            onClick={toggleSidebar}
-            aria-label="Развернуть панель"
-          >
-            <ChevronLeft className="rotate-180" />
-          </Button>
-        )}
+        <SidebarLink to="/settings" icon={Settings} label="Настройки" collapsed={collapsed} />
       </div>
     </aside>
   );
@@ -171,7 +232,7 @@ function SidebarSection({
   children: React.ReactNode;
 }): React.ReactElement {
   return (
-    <div className="pt-3">
+    <div className={cn('pt-3', collapsed && 'mt-2 border-t border-border/70 pt-2')}>
       {!collapsed && (
         <p className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
           {label}
@@ -184,13 +245,13 @@ function SidebarSection({
 
 function SidebarLink({
   to,
-  icon,
+  icon: Icon,
   label,
   collapsed,
   end,
 }: {
   to: string;
-  icon: React.ReactNode;
+  icon: LucideIcon;
   label: string;
   collapsed: boolean;
   end?: boolean;
@@ -199,17 +260,18 @@ function SidebarLink({
     <NavLink
       to={to}
       end={end}
+      aria-label={collapsed ? label : undefined}
       className={({ isActive }) =>
         cn(
-          'flex items-center gap-2.5 rounded-md px-2 py-2 text-sm font-medium transition-colors [&_svg]:size-4 [&_svg]:shrink-0',
+          'flex min-h-10 items-center gap-2.5 rounded-md px-[15px] text-sm font-medium transition-colors',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
           isActive
             ? 'bg-accent text-accent-foreground'
             : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
-          collapsed && 'justify-center px-0',
         )
       }
     >
-      {icon}
+      <Icon aria-hidden />
       {!collapsed && <span className="truncate">{label}</span>}
     </NavLink>
   );
@@ -227,27 +289,48 @@ function BoardLink({
   board,
   collapsed,
 }: {
-  board: { id: string; key: string; name: string; color: string; isFavorite: boolean; counts: { overdue: number } };
+  board: {
+    id: string;
+    key: string;
+    name: string;
+    color: string;
+    isFavorite: boolean;
+    counts: { overdue: number };
+  };
   collapsed: boolean;
 }): React.ReactElement {
+  const monogram = Array.from(board.name.trim())[0]?.toUpperCase() ?? board.key.slice(0, 1);
   const link = (
     <NavLink
       to={`/boards/${board.key}`}
+      aria-label={collapsed ? board.name : undefined}
       className={({ isActive }) =>
         cn(
-          'group flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm transition-colors',
+          'group flex min-h-10 items-center gap-2.5 rounded-md px-[19px] text-sm transition-colors',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
           isActive
             ? 'bg-accent font-medium text-accent-foreground'
             : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
-          collapsed && 'justify-center px-0',
+          collapsed && 'px-2.5',
         )
       }
     >
       <span
-        className="size-2.5 shrink-0 rounded-sm"
-        style={{ backgroundColor: board.color }}
+        className={cn(
+          'shrink-0',
+          collapsed
+            ? 'flex size-7 items-center justify-center rounded-md border bg-secondary text-[11px] font-bold leading-none'
+            : 'size-2.5 rounded-sm',
+        )}
+        style={
+          collapsed
+            ? { borderColor: board.color, color: board.color }
+            : { backgroundColor: board.color }
+        }
         aria-hidden
-      />
+      >
+        {collapsed ? monogram : null}
+      </span>
       {!collapsed && (
         <>
           <span className="min-w-0 flex-1 truncate">{board.name}</span>
@@ -278,11 +361,15 @@ function TopBar({ onCreateBoard }: { onCreateBoard: () => void }): React.ReactEl
   const isMobile = useIsMobile();
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-surface/85 px-3 backdrop-blur-md sm:px-4">
+    <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-surface/85 px-3 backdrop-blur-md md:px-4">
       {isMobile && (
-        <Link to="/boards" className="flex items-center gap-2">
-          <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <KanbanSquare className="size-4" />
+        <Link
+          to="/boards"
+          className="flex shrink-0 items-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label="Все доски"
+        >
+          <span className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <KanbanSquare aria-hidden />
           </span>
         </Link>
       )}
@@ -290,10 +377,15 @@ function TopBar({ onCreateBoard }: { onCreateBoard: () => void }): React.ReactEl
       <button
         type="button"
         onClick={() => setCommandPaletteOpen(true)}
-        className="flex h-9 flex-1 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm text-muted-foreground transition-colors hover:bg-secondary sm:max-w-md"
+        className={cn(
+          'flex h-10 min-w-0 flex-1 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm text-muted-foreground',
+          'transition-colors hover:border-ring/60 hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:max-w-md',
+        )}
+        aria-label="Открыть поиск"
       >
-        <Search className="size-4 shrink-0" />
-        <span className="truncate">Поиск задач, досок, людей…</span>
+        <Search aria-hidden />
+        <span className="truncate sm:hidden">Поиск</span>
+        <span className="hidden truncate sm:inline">Поиск задач, досок, людей…</span>
         <kbd className="ml-auto hidden shrink-0 rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] sm:inline">
           ⌘K
         </kbd>
@@ -317,60 +409,116 @@ function TopBar({ onCreateBoard }: { onCreateBoard: () => void }): React.ReactEl
 function MobileNav({ onCreateBoard }: { onCreateBoard: () => void }): React.ReactElement {
   const location = useLocation();
   const navigate = useNavigate();
+  const currentUser = useAuthStore((state) => state.user);
+  const setCommandPaletteOpen = useUiStore((state) => state.setCommandPaletteOpen);
   // На доске главное действие — создать задачу, а не ещё одну доску.
   const onBoardPage = /^\/boards\/[^/]+$/.test(location.pathname);
   const lastBoardId = useUiStore((state) => state.lastBoardId);
   const { data: boards } = useBoards();
   const lastBoard = boards?.find((board) => board.id === lastBoardId) ?? boards?.[0];
+  const currentBoardKey = onBoardPage ? location.pathname.split('/')[2] : undefined;
+  const currentBoard = boards?.find((board) => board.key === currentBoardKey);
+  const canCreateTask = Boolean(
+    currentUser &&
+    currentBoard &&
+    can(
+      {
+        globalRole: currentUser.globalRole,
+        boardRole: currentBoard.myRole,
+        boardArchived: currentBoard.isArchived,
+      },
+      'task.create',
+    ),
+  );
 
-  const items = [
-    { to: '/my', icon: <ListTodo />, label: 'Мои' },
+  const firstItems = [
+    { to: '/my', icon: ListTodo, label: 'Мои' },
     {
       to: lastBoard ? `/boards/${lastBoard.key}` : '/boards',
-      icon: <KanbanSquare />,
+      icon: KanbanSquare,
       label: 'Доска',
+      // Без доступных досок этот пункт ведёт к списку, но не дублирует его active-состояние.
+      suppressActive: !lastBoard,
     },
-    { to: '/boards', icon: <LayoutGrid />, label: 'Доски', end: true },
-    { to: '/notifications', icon: <Bell />, label: 'События' },
+  ];
+  const lastItems = [
+    { to: '/boards', icon: LayoutGrid, label: 'Доски', end: true },
+    { to: '/notifications', icon: Bell, label: 'События' },
   ];
 
+  const renderItem = (item: {
+    to: string;
+    icon: LucideIcon;
+    label: string;
+    end?: boolean;
+    suppressActive?: boolean;
+  }): React.ReactElement => {
+    const Icon = item.icon;
+    return (
+      <NavLink
+        key={item.label}
+        to={item.to}
+        end={item.end}
+        aria-current={item.suppressActive ? false : undefined}
+        className={({ isActive }) =>
+          cn(
+            'flex min-w-0 flex-1 touch-manipulation flex-col items-center justify-center gap-0.5 rounded-md text-[10px] font-medium',
+            'transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+            isActive && !item.suppressActive
+              ? 'text-primary'
+              : 'text-muted-foreground hover:text-foreground',
+          )
+        }
+      >
+        <Icon aria-hidden />
+        <span className="max-w-full truncate px-1">{item.label}</span>
+      </NavLink>
+    );
+  };
+
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 flex h-16 items-stretch border-t border-border bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md">
-      {items.map((item) => {
-        const active = item.end
-          ? location.pathname === item.to
-          : location.pathname.startsWith(item.to.split('?')[0] ?? item.to);
-        return (
-          <button
-            key={item.label}
-            type="button"
-            onClick={() => navigate(item.to)}
-            className={cn(
-              'flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors [&_svg]:size-5',
-              active ? 'text-primary' : 'text-muted-foreground',
-            )}
-          >
-            {item.icon}
-            {item.label}
-          </button>
-        );
-      })}
+    <nav
+      aria-label="Мобильная навигация"
+      className="fixed inset-x-0 bottom-0 z-40 flex h-[calc(4rem+env(safe-area-inset-bottom))] items-stretch border-t border-border bg-surface/95 pb-[env(safe-area-inset-bottom)] pl-[max(0.25rem,env(safe-area-inset-left))] pr-[max(0.25rem,env(safe-area-inset-right))] backdrop-blur-md"
+    >
+      {firstItems.map(renderItem)}
       <button
         type="button"
         onClick={() => {
-          if (onBoardPage) {
+          if (onBoardPage && canCreateTask) {
             // Страница доски сама откроет диалог по этому параметру.
             navigate(`${location.pathname}?new=task`, { replace: true });
             return;
           }
+          if (onBoardPage) {
+            setCommandPaletteOpen(true);
+            return;
+          }
           onCreateBoard();
         }}
-        className="flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium text-primary [&_svg]:size-5"
-        aria-label={onBoardPage ? 'Создать задачу' : 'Создать доску'}
+        className={cn(
+          'flex min-w-0 flex-1 touch-manipulation flex-col items-center justify-center gap-0.5 rounded-md text-[10px] font-semibold text-primary',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+        )}
+        aria-label={
+          onBoardPage ? (canCreateTask ? 'Создать задачу' : 'Открыть поиск') : 'Создать доску'
+        }
       >
-        <Plus />
-        {onBoardPage ? 'Задача' : 'Доска'}
+        <span
+          className={cn(
+            'flex size-7 items-center justify-center rounded-full shadow-sm',
+            !onBoardPage || canCreateTask
+              ? 'bg-primary text-primary-foreground'
+              : 'bg-secondary text-foreground',
+          )}
+        >
+          {onBoardPage && !canCreateTask ? <Search aria-hidden /> : <Plus aria-hidden />}
+        </span>
+        <span className="max-w-full truncate px-1">
+          {onBoardPage ? (canCreateTask ? 'Задача' : 'Поиск') : 'Доска'}
+        </span>
       </button>
+      {lastItems.map(renderItem)}
     </nav>
   );
 }

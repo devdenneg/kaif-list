@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Monitor, Moon, Settings, Shield, Sun, User } from 'lucide-react';
+import { Bell, LogOut, Monitor, Moon, Shield, Sun, User } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth';
 import { useUiStore, type Theme } from '@/stores/ui';
 import { UserAvatar } from '@/components/ui/avatar';
@@ -29,15 +29,20 @@ export function UserMenu(): React.ReactElement | null {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="rounded-full transition-opacity hover:opacity-85 focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline-flex h-10 max-w-[12rem] items-center gap-2 rounded-full border border-border/80 bg-secondary/60 p-1 pr-1 text-sm font-medium text-foreground transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/25 focus-visible:ring-offset-0 data-[state=open]:bg-secondary md:pr-3"
           aria-label="Меню профиля"
         >
           <UserAvatar user={user} size="md" />
+          <span className="hidden min-w-0 max-w-28 truncate md:block">{user.displayName}</span>
         </button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="end" className="w-60">
-        <div className="flex items-center gap-2.5 px-2 py-2">
+      <DropdownMenuContent
+        align="end"
+        sideOffset={8}
+        className="w-72 max-w-[calc(100vw-1.5rem)] [&_svg]:!size-4"
+      >
+        <div className="flex items-center gap-3 px-3 py-3">
           <UserAvatar user={user} size="lg" />
           <div className="min-w-0">
             <p className="truncate text-sm font-medium">{user.displayName}</p>
@@ -48,7 +53,7 @@ export function UserMenu(): React.ReactElement | null {
         </div>
 
         {!user.botLinked && (
-          <div className="mx-1 mb-1 rounded-md bg-warning/10 px-2 py-1.5 text-xs text-warning">
+          <div className="mx-2 mb-2 rounded-lg bg-warning/10 px-3 py-2 text-xs leading-relaxed text-warning">
             Бот не подключён — уведомления в Telegram не придут
           </div>
         )}
@@ -60,7 +65,7 @@ export function UserMenu(): React.ReactElement | null {
           Профиль
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => navigate('/settings?tab=notifications')}>
-          <Settings />
+          <Bell />
           Уведомления
         </DropdownMenuItem>
         {user.globalRole === 'SUPERADMIN' && (

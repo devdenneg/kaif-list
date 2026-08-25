@@ -64,17 +64,21 @@ export function KanbanBoard({
 
   const [local, setLocal] = React.useState<BoardColumns>(columns);
   const [activeTask, setActiveTask] = React.useState<TaskCardDto | null>(null);
+  const draggingRef = React.useRef(false);
 
-  // Пока карточку держат — внешние обновления не применяем, иначе она «прыгает».
+  // Пока карточку держат, внешние обновления не применяем. После отпускания
+  // сохраняем локальный порядок до следующего реального изменения кеша —
+  // раньше смена activeTask сразу возвращала старые данные и создавала скачок.
   React.useEffect(() => {
-    if (!activeTask) setLocal(columns);
-  }, [columns, activeTask]);
+    if (draggingRef.current) return;
+    setLocal(columns);
+  }, [columns]);
 
   const sensors = useSensors(
     // Небольшой сдвиг мышью, иначе обычный клик по карточке считался бы перетаскиванием.
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
-    // На телефоне — долгий тап: иначе доска не прокручивается пальцем.
-    useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 8 } }),
+    // На телефоне — долгий тап: короткий жест остаётся обычной прокруткой доски.
+    useSensor(TouchSensor, { activationConstraint: { delay: 280, tolerance: 10 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
@@ -99,6 +103,7 @@ export function KanbanBoard({
   const handleDragStart = (event: DragStartEvent): void => {
     const task = event.active.data.current?.task as TaskCardDto | undefined;
     if (task) {
+      draggingRef.current = true;
       setActiveTask(task);
       haptic(10);
     }
@@ -136,14 +141,21 @@ export function KanbanBoard({
   const handleDragEnd = (event: DragEndEvent): void => {
     const { active, over } = event;
     const task = activeTask;
+    draggingRef.current = false;
     setActiveTask(null);
-    if (!over || !task) return;
+    if (!over || !task) {
+      setLocal(columns);
+      return;
+    }
 
     const activeId = String(active.id);
     const overId = String(over.id);
 
     const toColumn = resolveColumn(overId, local) ?? findColumnOfTask(activeId, local);
-    if (!toColumn) return;
+    if (!toColumn) {
+      setLocal(columns);
+      return;
+    }
 
     const list = [...(local[toColumn] ?? [])];
     let index = list.findIndex((item) => item.id === activeId);
@@ -167,10 +179,19 @@ export function KanbanBoard({
     const originalColumn = findColumnOfTask(activeId, columns);
     const originalIndex = (columns[toColumn] ?? []).findIndex((item) => item.id === activeId);
     const positionUnchanged = originalColumn === toColumn && originalIndex === index;
-    if (positionUnchanged) return;
+    if (positionUnchanged) {
+      setLocal(columns);
+      return;
+    }
 
     haptic([8, 20, 8]);
-    onMove({ taskId: activeId, toColumn, beforeTaskId: before, afterTaskId: after });
+    const request = {
+      taskId: activeId,
+      toColumn,
+      beforeTaskId: before,
+      afterTaskId: after,
+    };
+    onMove(request);
   };
 
   return (
@@ -182,6 +203,7 @@ export function KanbanBoard({
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
       onDragCancel={() => {
+        draggingRef.current = false;
         setActiveTask(null);
         setLocal(columns);
       }}
@@ -197,8 +219,8 @@ export function KanbanBoard({
       <div
         className={
           mobile
-            ? 'snap-columns flex gap-3 overflow-x-auto px-3 pb-4'
-            : 'scrollbar-thin flex gap-3 overflow-x-auto px-4 pb-4'
+            ? 'snap-columns flex h-full min-h-0 flex-1 items-start gap-3 overflow-x-auto px-3 pb-4'
+            : 'scrollbar-thin flex h-full min-h-0 flex-1 items-start gap-3 overflow-x-auto px-4 pb-4'
         }
       >
         {COLUMN_ORDER.map((columnKey) => {

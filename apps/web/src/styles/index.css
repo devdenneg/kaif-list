@@ -43,7 +43,9 @@
     --ring: 243 75% 59%;
     --shadow: 222 47% 20%;
 
-    --radius: 0.65rem;
+    /* Одна геометрия для карточек и контролов: интерфейс не выглядит
+       собранным из компонентов разных библиотек. */
+    --radius: 0.75rem;
   }
 
   .dark {
@@ -92,13 +94,35 @@
   html {
     -webkit-text-size-adjust: 100%;
     -webkit-tap-highlight-color: transparent;
+    text-rendering: optimizeLegibility;
   }
 
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-background font-sans text-foreground antialiased;
     font-feature-settings: 'cv11', 'ss01';
-    /* Учитываем «чёлку» и жесты на мобильных. */
-    padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
+    font-synthesis: none;
+    line-height: 1.5;
+  }
+
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
+  button,
+  a,
+  [role='button'] {
+    touch-action: manipulation;
+  }
+
+  /* Lucide по умолчанию рисует 24px, из-за чего иконки без локального класса
+     выбивались из общей сетки. Контекстные utility-классы по-прежнему могут
+     задать увеличенный размер для empty-state и иллюстраций. */
+  .lucide {
+    width: 1.125rem;
+    height: 1.125rem;
+    flex-shrink: 0;
   }
 
   /* На мобильных браузер зумит поля с размером шрифта меньше 16px. */
@@ -111,7 +135,7 @@
   }
 
   :focus-visible {
-    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+    @apply outline-none ring-2 ring-ring/70 ring-offset-2 ring-offset-background;
   }
 
   /* Уважаем системную настройку «уменьшить движение». */
@@ -156,6 +180,8 @@
   /* Горизонтальная прокрутка колонок с «прилипанием» на мобильных. */
   .snap-columns {
     scroll-snap-type: x mandatory;
+    scroll-padding-inline: 0.75rem;
+    overscroll-behavior-inline: contain;
     -webkit-overflow-scrolling: touch;
   }
 

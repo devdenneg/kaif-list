@@ -2,6 +2,7 @@ import * as React from 'react';
 import * as SelectPrimitive from '@radix-ui/react-select';
 import { Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useFormFieldA11y } from '@/components/ui/input';
 
 export const Select = SelectPrimitive.Root;
 export const SelectGroup = SelectPrimitive.Group;
@@ -10,23 +11,30 @@ export const SelectValue = SelectPrimitive.Value;
 export const SelectTrigger = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Trigger>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>
->(({ className, children, ...props }, ref) => (
-  <SelectPrimitive.Trigger
-    ref={ref}
-    className={cn(
-      'flex h-9 w-full items-center justify-between gap-2 rounded-md border border-input bg-surface px-3 py-1 text-sm shadow-sm',
-      'placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1',
-      'disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 [&>span]:text-left',
-      className,
-    )}
-    {...props}
-  >
-    {children}
-    <SelectPrimitive.Icon asChild>
-      <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
-    </SelectPrimitive.Icon>
-  </SelectPrimitive.Trigger>
-));
+>(({ className, children, ...props }, ref) => {
+  const formField = useFormFieldA11y();
+  return (
+    <SelectPrimitive.Trigger
+      {...props}
+      ref={ref}
+      id={props.id ?? formField?.controlId}
+      aria-labelledby={props['aria-labelledby'] ?? formField?.labelId}
+      aria-describedby={props['aria-describedby'] ?? formField?.descriptionId}
+      aria-required={(props['aria-required'] ?? formField?.required) || undefined}
+      className={cn(
+        'flex h-10 w-full items-center justify-between gap-2 rounded-lg border border-input bg-surface px-3 py-2 text-sm shadow-sm transition-[border-color,box-shadow,background-color]',
+        'placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-[3px] focus:ring-ring/20',
+        'disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 [&>span]:text-left',
+        className,
+      )}
+    >
+      {children}
+      <SelectPrimitive.Icon asChild>
+        <ChevronDown className="size-[18px] shrink-0 text-muted-foreground" />
+      </SelectPrimitive.Icon>
+    </SelectPrimitive.Trigger>
+  );
+});
 SelectTrigger.displayName = 'SelectTrigger';
 
 export const SelectContent = React.forwardRef<
@@ -48,7 +56,10 @@ export const SelectContent = React.forwardRef<
         <ChevronUp className="size-4" />
       </SelectPrimitive.ScrollUpButton>
       <SelectPrimitive.Viewport
-        className={cn('p-1', position === 'popper' && 'w-full min-w-[var(--radix-select-trigger-width)]')}
+        className={cn(
+          'p-1',
+          position === 'popper' && 'w-full min-w-[var(--radix-select-trigger-width)]',
+        )}
       >
         {children}
       </SelectPrimitive.Viewport>
@@ -67,13 +78,13 @@ export const SelectItem = React.forwardRef<
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
-      'relative flex w-full cursor-pointer select-none items-center gap-2 rounded-md py-2 pl-8 pr-2 text-sm outline-none',
+      'relative flex min-h-10 w-full cursor-pointer select-none items-center gap-2.5 rounded-lg py-2 pl-9 pr-3 text-sm outline-none',
       'focus:bg-secondary data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
       className,
     )}
     {...props}
   >
-    <span className="absolute left-2 flex size-4 items-center justify-center">
+    <span className="absolute left-3 flex size-4 items-center justify-center">
       <SelectPrimitive.ItemIndicator>
         <Check className="size-4 text-primary" />
       </SelectPrimitive.ItemIndicator>

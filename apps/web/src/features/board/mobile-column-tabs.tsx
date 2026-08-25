@@ -12,8 +12,14 @@ import { cn } from '@/lib/utils';
  */
 export function MobileColumnTabs({ columns }: { columns: BoardColumns }): React.ReactElement {
   const [active, setActive] = React.useState<ColumnKey>('TODO');
+  const tabRefs = React.useRef<Partial<Record<ColumnKey, HTMLButtonElement | null>>>({});
 
   React.useEffect(() => {
+    const columnElements = COLUMN_ORDER.map((key) =>
+      document.getElementById(`column-${key}`),
+    ).filter((element): element is HTMLElement => element !== null);
+    const scrollContainer = columnElements[0]?.parentElement ?? null;
+
     const observer = new IntersectionObserver(
       (entries) => {
         const visible = entries
@@ -23,33 +29,52 @@ export function MobileColumnTabs({ columns }: { columns: BoardColumns }): React.
         const key = visible.target.id.replace('column-', '') as ColumnKey;
         if (COLUMN_ORDER.includes(key)) setActive(key);
       },
-      { threshold: [0.4, 0.6, 0.8] },
+      { root: scrollContainer, threshold: [0.4, 0.6, 0.8] },
     );
 
-    for (const key of COLUMN_ORDER) {
-      const element = document.getElementById(`column-${key}`);
-      if (element) observer.observe(element);
-    }
+    for (const element of columnElements) observer.observe(element);
     return () => observer.disconnect();
   }, [columns]);
 
+  React.useEffect(() => {
+    tabRefs.current[active]?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest',
+      inline: 'nearest',
+    });
+  }, [active]);
+
   const scrollTo = (key: ColumnKey): void => {
-    document
-      .getElementById(`column-${key}`)
-      ?.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' });
+    const column = document.getElementById(`column-${key}`);
+    const scrollContainer = column?.parentElement;
+    if (!column || !scrollContainer) return;
+
+    scrollContainer.scrollTo({
+      left: Math.max(0, column.offsetLeft - scrollContainer.offsetLeft - 12),
+      behavior: 'smooth',
+    });
   };
 
   return (
-    <div className="scrollbar-thin flex gap-1 overflow-x-auto px-3 pb-2">
+    <div
+      className="scrollbar-thin flex shrink-0 gap-1 overflow-x-auto px-3 pb-2"
+      role="navigation"
+      aria-label="Быстрый переход к колонке"
+    >
       {COLUMN_ORDER.map((key) => {
         const count = (columns[key] ?? []).length;
         return (
           <button
             key={key}
+            ref={(node) => {
+              tabRefs.current[key] = node;
+            }}
             type="button"
             onClick={() => scrollTo(key)}
+            aria-pressed={active === key}
+            aria-label={`${COLUMN_SHORT_LABELS[key]}: ${count}`}
             className={cn(
-              'flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
+              'flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-medium transition-colors',
               active === key
                 ? 'border-primary bg-primary text-primary-foreground'
                 : 'border-border bg-surface text-muted-foreground',

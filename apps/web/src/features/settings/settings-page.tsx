@@ -26,7 +26,15 @@ import { useUiStore, type Theme } from '@/stores/ui';
 import { Button } from '@/components/ui/button';
 import { FormField, Input } from '@/components/ui/input';
 import { UserAvatar } from '@/components/ui/avatar';
-import { Separator, Skeleton, Switch, Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/misc';
+import {
+  Separator,
+  Skeleton,
+  Switch,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/misc';
 import {
   Select,
   SelectContent,
@@ -57,23 +65,23 @@ export function SettingsPage(): React.ReactElement {
   const tab = searchParams.get('tab') ?? 'profile';
 
   return (
-    <div className="mx-auto w-full max-w-3xl p-4 sm:p-6">
-      <h1 className="mb-4 text-xl font-semibold tracking-tight sm:text-2xl">Настройки</h1>
+    <div className="mx-auto w-full max-w-3xl px-4 py-5 sm:p-6">
+      <h1 className="mb-5 text-xl font-semibold tracking-tight sm:text-2xl">Настройки</h1>
 
       <Tabs
         value={tab}
         onValueChange={(value) => setSearchParams({ tab: value }, { replace: true })}
       >
-        <TabsList className="mb-5 w-full justify-start overflow-x-auto">
-          <TabsTrigger value="profile">
+        <TabsList className="scrollbar-thin mb-6 h-auto w-full justify-start overflow-x-auto p-1 sm:w-fit">
+          <TabsTrigger value="profile" className="shrink-0 [&_svg]:!size-5">
             <UserIcon />
             Профиль
           </TabsTrigger>
-          <TabsTrigger value="notifications">
+          <TabsTrigger value="notifications" className="shrink-0 [&_svg]:!size-5">
             <Bell />
             Уведомления
           </TabsTrigger>
-          <TabsTrigger value="security">
+          <TabsTrigger value="security" className="shrink-0 [&_svg]:!size-5">
             <Shield />
             Безопасность
           </TabsTrigger>
@@ -108,23 +116,26 @@ function ProfileSettings(): React.ReactElement {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-xl border border-border bg-card p-4">
+      <section className="rounded-xl border border-border bg-card p-4 sm:p-5">
         <h2 className="mb-4 text-sm font-semibold">Как вас видят коллеги</h2>
 
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-start">
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="group relative rounded-full"
+            className="group relative self-center rounded-full focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/25 sm:mt-1 sm:self-auto"
             aria-label="Сменить аватар"
           >
             <UserAvatar user={user} size="xl" />
             <span className="absolute inset-0 flex items-center justify-center rounded-full bg-slate-950/50 opacity-0 transition-opacity group-hover:opacity-100">
               <Camera className="size-5 text-white" />
             </span>
+            <span className="absolute -bottom-0.5 -right-0.5 hidden size-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm ring-2 ring-card [@media(pointer:coarse)]:flex">
+              <Camera className="size-4" aria-hidden />
+            </span>
           </button>
 
-          <div className="min-w-0 flex-1 space-y-3">
+          <div className="min-w-0 flex-1 space-y-4">
             <FormField label="Имя">
               <Input value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
             </FormField>
@@ -147,7 +158,7 @@ function ProfileSettings(): React.ReactElement {
 
         <Button
           variant="primary"
-          className="mt-4"
+          className="mt-5 w-full xs:w-auto"
           loading={updateProfile.isPending}
           onClick={() =>
             updateProfile.mutate(
@@ -179,9 +190,9 @@ function ProfileSettings(): React.ReactElement {
         />
       </section>
 
-      <section className="rounded-xl border border-border bg-card p-4">
+      <section className="rounded-xl border border-border bg-card p-4 sm:p-5">
         <h2 className="mb-3 text-sm font-semibold">Оформление</h2>
-        <div className="flex gap-2">
+        <div className="grid grid-cols-3 gap-2">
           {(
             [
               { value: 'light', label: 'Светлая', icon: <Sun className="size-4" /> },
@@ -194,7 +205,7 @@ function ProfileSettings(): React.ReactElement {
               type="button"
               onClick={() => setTheme(option.value)}
               className={cn(
-                'flex flex-1 flex-col items-center gap-1.5 rounded-lg border p-3 text-xs font-medium transition-colors',
+                'flex min-h-20 min-w-0 flex-col items-center justify-center gap-2 rounded-lg border p-2 text-center text-xs font-medium leading-tight transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/25 sm:p-3 [&_svg]:!size-4',
                 theme === option.value
                   ? 'border-primary bg-accent text-accent-foreground'
                   : 'border-border hover:bg-secondary',
@@ -207,14 +218,15 @@ function ProfileSettings(): React.ReactElement {
         </div>
       </section>
 
-      <section className="rounded-xl border border-border bg-card p-4">
+      <section className="rounded-xl border border-border bg-card p-4 sm:p-5">
         <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold">
-          <Send className="size-4" />
+          <Send className="size-4" aria-hidden />
           Telegram
         </h2>
         {user.botLinked ? (
-          <p className="text-sm text-muted-foreground">
-            Бот подключён{user.tgUsername ? ` к @${user.tgUsername}` : ''}. Уведомления приходят в личный чат.
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Бот подключён{user.tgUsername ? ` к @${user.tgUsername}` : ''}. Уведомления приходят в
+            личный чат.
             {user.botBlocked && (
               <span className="mt-1 block text-warning">
                 Похоже, бот заблокирован — разблокируйте его, чтобы снова получать уведомления.
@@ -222,9 +234,9 @@ function ProfileSettings(): React.ReactElement {
             )}
           </p>
         ) : (
-          <p className="text-sm text-warning">
-            Бот не подключён. Отправьте боту команду /start — иначе уведомления в Telegram
-            приходить не будут.
+          <p className="text-sm leading-relaxed text-warning">
+            Бот не подключён. Отправьте боту команду /start — иначе уведомления в Telegram приходить
+            не будут.
           </p>
         )}
       </section>
@@ -246,7 +258,7 @@ function NotificationSettings(): React.ReactElement {
 
   return (
     <div className="space-y-4">
-      <section className="rounded-xl border border-border bg-card p-4">
+      <section className="rounded-xl border border-border bg-card p-3 sm:p-5">
         <h2 className="mb-3 text-sm font-semibold">Telegram</h2>
 
         <Toggle
@@ -269,7 +281,7 @@ function NotificationSettings(): React.ReactElement {
         />
       </section>
 
-      <section className="rounded-xl border border-border bg-card p-4">
+      <section className="rounded-xl border border-border bg-card p-3 sm:p-5">
         <h2 className="mb-3 text-sm font-semibold">Утренняя сводка</h2>
         <Toggle
           label="Присылать сводку"
@@ -278,19 +290,19 @@ function NotificationSettings(): React.ReactElement {
           onChange={(value) => patch({ digestEnabled: value })}
         />
         {preferences.digestEnabled && (
-          <div className="mt-2 flex items-center gap-2">
+          <div className="mt-3 flex flex-wrap items-center gap-2 px-3 pb-1">
             <span className="text-sm text-muted-foreground">Время</span>
             <Input
               type="time"
               value={preferences.digestTime}
               onChange={(event) => patch({ digestTime: event.target.value })}
-              className="h-8 w-28"
+              className="w-32"
             />
           </div>
         )}
       </section>
 
-      <section className="rounded-xl border border-border bg-card p-4">
+      <section className="rounded-xl border border-border bg-card p-3 sm:p-5">
         <h2 className="mb-3 text-sm font-semibold">Тихие часы</h2>
         <Toggle
           label="Не беспокоить ночью"
@@ -299,19 +311,19 @@ function NotificationSettings(): React.ReactElement {
           onChange={(value) => patch({ quietHoursEnabled: value })}
         />
         {preferences.quietHoursEnabled && (
-          <div className="mt-2 flex items-center gap-2">
+          <div className="mt-3 flex flex-wrap items-center gap-2 px-3 pb-1">
             <Input
               type="time"
               value={preferences.quietHoursStart}
               onChange={(event) => patch({ quietHoursStart: event.target.value })}
-              className="h-8 w-28"
+              className="w-32"
             />
             <span className="text-sm text-muted-foreground">—</span>
             <Input
               type="time"
               value={preferences.quietHoursEnd}
               onChange={(event) => patch({ quietHoursEnd: event.target.value })}
-              className="h-8 w-28"
+              className="w-32"
             />
           </div>
         )}
@@ -327,7 +339,7 @@ function SecuritySettings(): React.ReactElement {
 
   return (
     <div className="space-y-4">
-      <section className="rounded-xl border border-border bg-card p-4">
+      <section className="rounded-xl border border-border bg-card p-4 sm:p-5">
         <h2 className="mb-1 text-sm font-semibold">Активные сессии</h2>
         <p className="mb-3 text-xs text-muted-foreground">
           Если видите незнакомое устройство — завершите сессию и сообщите администратору.
@@ -344,7 +356,7 @@ function SecuritySettings(): React.ReactElement {
             {(sessions ?? []).map((session) => (
               <li
                 key={session.id}
-                className="flex items-center gap-3 rounded-lg border border-border px-3 py-2"
+                className="flex flex-wrap items-center gap-3 rounded-lg border border-border px-3 py-3"
               >
                 <Laptop className="size-4 shrink-0 text-muted-foreground" />
                 <div className="min-w-0 flex-1">
@@ -357,13 +369,15 @@ function SecuritySettings(): React.ReactElement {
                     )}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {session.ip ?? '—'} · активность {formatRelative(session.lastUsedAt ?? session.createdAt)}
+                    {session.ip ?? '—'} · активность{' '}
+                    {formatRelative(session.lastUsedAt ?? session.createdAt)}
                   </p>
                 </div>
                 {!session.current && (
                   <Button
                     variant="ghost"
                     size="sm"
+                    className="ml-7 w-full xs:ml-0 xs:w-auto"
                     onClick={() => revokeSession.mutate(session.id)}
                     loading={revokeSession.isPending}
                   >
@@ -398,11 +412,13 @@ function Toggle({
   onChange: (value: boolean) => void;
 }): React.ReactElement {
   return (
-    <label className="flex cursor-pointer items-start gap-3 rounded-md p-2 transition-colors hover:bg-secondary/50">
+    <label className="flex min-h-12 cursor-pointer items-start gap-3 rounded-lg p-3 transition-colors hover:bg-secondary/50">
       <Switch checked={checked} onCheckedChange={onChange} className="mt-0.5" />
       <span className="min-w-0">
         <span className="block text-sm font-medium">{label}</span>
-        {hint && <span className="block text-xs text-muted-foreground">{hint}</span>}
+        {hint && (
+          <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{hint}</span>
+        )}
       </span>
     </label>
   );

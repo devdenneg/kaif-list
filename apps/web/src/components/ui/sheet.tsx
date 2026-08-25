@@ -9,8 +9,9 @@ export const Sheet = DialogPrimitive.Root;
 export const SheetTrigger = DialogPrimitive.Trigger;
 export const SheetClose = DialogPrimitive.Close;
 
-export interface SheetContentProps
-  extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> {
+export interface SheetContentProps extends React.ComponentPropsWithoutRef<
+  typeof DialogPrimitive.Content
+> {
   side?: 'right' | 'left' | 'bottom';
   width?: string;
 }
@@ -27,13 +28,16 @@ export const SheetContent = React.forwardRef<
         'fixed z-50 flex flex-col bg-card shadow-popover',
         side === 'right' &&
           cn(
-            'inset-y-0 right-0 w-full border-l border-border data-[state=open]:animate-slide-in-right',
+            'inset-y-0 right-0 w-full border-l border-border pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)] data-[state=open]:animate-slide-in-right sm:pl-0',
             width,
           ),
         side === 'left' &&
-          cn('inset-y-0 left-0 w-full border-r border-border data-[state=open]:animate-slide-in-right', width),
+          cn(
+            'inset-y-0 left-0 w-full border-r border-border pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)] data-[state=open]:animate-slide-in-right sm:pr-0',
+            width,
+          ),
         side === 'bottom' &&
-          'inset-x-0 bottom-0 max-h-[85vh] rounded-t-2xl border-t border-border pb-[env(safe-area-inset-bottom)] data-[state=open]:animate-slide-in-bottom',
+          'inset-x-0 bottom-0 max-h-[90dvh] rounded-t-2xl border-t border-border pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] data-[state=open]:animate-slide-in-bottom',
         className,
       )}
       {...props}
@@ -45,10 +49,15 @@ export const SheetContent = React.forwardRef<
       )}
       {children}
       <DialogPrimitive.Close
-        className="absolute right-3 top-3 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+        className={cn(
+          'absolute flex size-10 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/25',
+          side === 'bottom'
+            ? 'right-[max(0.5rem,env(safe-area-inset-right))] top-2'
+            : 'right-[calc(0.5rem+env(safe-area-inset-right))] top-[calc(0.5rem+env(safe-area-inset-top))]',
+        )}
         aria-label="Закрыть"
       >
-        <X className="size-4" />
+        <X className="size-[18px]" />
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
   </DialogPrimitive.Portal>
@@ -60,7 +69,7 @@ export function SheetHeader({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>): React.ReactElement {
   return (
-    <div className={cn('border-b border-border px-5 py-4 pr-12', className)} {...props} />
+    <div className={cn('border-b border-border px-4 py-4 pr-12 sm:px-5', className)} {...props} />
   );
 }
 
@@ -71,5 +80,7 @@ export function SheetBody({
   className,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>): React.ReactElement {
-  return <div className={cn('scrollbar-thin flex-1 overflow-y-auto p-5', className)} {...props} />;
+  return (
+    <div className={cn('scrollbar-thin flex-1 overflow-y-auto p-4 sm:p-5', className)} {...props} />
+  );
 }

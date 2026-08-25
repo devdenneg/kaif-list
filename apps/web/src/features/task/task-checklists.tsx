@@ -37,7 +37,7 @@ export function TaskChecklists({
           <Button
             variant="ghost"
             size="sm"
-            className="ml-auto"
+            className="ml-auto [@media(pointer:coarse)]:min-h-11"
             onClick={() => setAddingList(true)}
           >
             <Plus />
@@ -75,6 +75,7 @@ export function TaskChecklists({
           />
           <Button
             variant="primary"
+            className="[@media(pointer:coarse)]:min-h-11"
             onClick={() =>
               listTitle.trim() &&
               mutations.createChecklist.mutate(listTitle.trim(), {
@@ -88,7 +89,13 @@ export function TaskChecklists({
           >
             Создать
           </Button>
-          <Button variant="ghost" size="icon" onClick={() => setAddingList(false)}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="[@media(pointer:coarse)]:size-11"
+            onClick={() => setAddingList(false)}
+            aria-label="Отменить добавление чек-листа"
+          >
             <X />
           </Button>
         </div>
@@ -105,7 +112,7 @@ export function TaskChecklists({
               <Button
                 variant="ghost"
                 size="icon-sm"
-                className="ml-auto text-muted-foreground"
+                className="ml-auto text-muted-foreground [@media(pointer:coarse)]:size-10"
                 onClick={() => mutations.deleteChecklist.mutate(checklist.id)}
                 aria-label="Удалить чек-лист"
               >
@@ -118,10 +125,10 @@ export function TaskChecklists({
             {checklist.items.map((item) => (
               <label
                 key={item.id}
-                className="group flex items-start gap-2 rounded-md px-1 py-1 text-sm hover:bg-secondary/60"
+                className="group flex items-start gap-2 rounded-md px-1 py-1 text-sm hover:bg-secondary/60 [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:items-center"
               >
                 <Checkbox
-                  className="mt-0.5"
+                  className="mt-0.5 [@media(pointer:coarse)]:mt-0"
                   checked={item.done}
                   disabled={!editable}
                   onCheckedChange={(value) =>
@@ -140,7 +147,7 @@ export function TaskChecklists({
                   <button
                     type="button"
                     onClick={() => mutations.deleteItem.mutate(item.id)}
-                    className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+                    className="shrink-0 rounded-md opacity-0 transition-opacity group-hover:opacity-100 [@media(pointer:coarse)]:flex [@media(pointer:coarse)]:size-10 [@media(pointer:coarse)]:items-center [@media(pointer:coarse)]:justify-center [@media(pointer:coarse)]:opacity-100"
                     aria-label="Удалить пункт"
                   >
                     <X className="size-3.5 text-muted-foreground" />
@@ -190,7 +197,7 @@ function AddChecklistItem({
         value={text}
         onChange={(event) => setText(event.target.value)}
         placeholder="Добавить пункт…"
-        className="h-8"
+        className="h-8 [@media(pointer:coarse)]:h-11"
         onKeyDown={(event) => {
           if (event.key === 'Enter') {
             event.preventDefault();
@@ -198,7 +205,14 @@ function AddChecklistItem({
           }
         }}
       />
-      <Button size="sm" variant="ghost" onClick={submit} disabled={!text.trim()}>
+      <Button
+        size="sm"
+        variant="ghost"
+        className="[@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11"
+        onClick={submit}
+        disabled={!text.trim()}
+        aria-label="Добавить пункт"
+      >
         <Plus />
       </Button>
     </div>

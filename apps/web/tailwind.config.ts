@@ -75,6 +75,13 @@ export default {
           from: { transform: 'translateY(8px)', opacity: '0' },
           to: { transform: 'translateY(0)', opacity: '1' },
         },
+        'dialog-in': {
+          from: {
+            transform: 'translate(-50%, calc(-50% + 8px)) scale(0.98)',
+            opacity: '0',
+          },
+          to: { transform: 'translate(-50%, -50%) scale(1)', opacity: '1' },
+        },
         'slide-in-right': {
           from: { transform: 'translateX(100%)' },
           to: { transform: 'translateX(0)' },
@@ -94,6 +101,7 @@ export default {
       animation: {
         'fade-in': 'fade-in 150ms ease-out',
         'slide-up': 'slide-up 180ms cubic-bezier(0.16, 1, 0.3, 1)',
+        'dialog-in': 'dialog-in 180ms cubic-bezier(0.16, 1, 0.3, 1)',
         'slide-in-right': 'slide-in-right 220ms cubic-bezier(0.16, 1, 0.3, 1)',
         'slide-in-bottom': 'slide-in-bottom 260ms cubic-bezier(0.16, 1, 0.3, 1)',
         'pulse-danger': 'pulse-danger 2s ease-in-out infinite',
