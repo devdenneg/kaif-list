@@ -48,6 +48,20 @@ export function useSetGroupMembers(boardId: string) {
   );
 }
 
+/**
+ * Группы одного человека. Обратное направление к составу группы:
+ * так удобнее, когда в доску приходит новичок и надо сказать, кто он.
+ */
+export function useSetMemberGroups(boardId: string) {
+  return useGroupMutation(boardId, ({ userId, groupIds }: { userId: string; groupIds: string[] }) =>
+    api
+      .put<{ items: BoardGroupDto[] }>(`/api/boards/${boardId}/members/${userId}/groups`, {
+        groupIds,
+      })
+      .then((response) => response.items),
+  );
+}
+
 export function useDeleteGroup(boardId: string) {
   return useGroupMutation(boardId, (groupId: string) =>
     api.delete(`/api/boards/${boardId}/groups/${groupId}`),

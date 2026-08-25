@@ -76,6 +76,7 @@ export function InvitePage(): React.ReactElement {
           <span className="min-w-0">
             <span className="font-medium">{invite.invitedBy.displayName}</span> приглашает вас
             с ролью «{BOARD_ROLE_LABELS[invite.role]}»
+            {invite.groupName ? ` в группу «${invite.groupName}»` : ''}
           </span>
         </div>
 

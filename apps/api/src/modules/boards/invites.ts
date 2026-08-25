@@ -39,6 +39,7 @@ const inviteSelect = {
   boardId: true,
   token: true,
   role: true,
+  group: { select: { id: true, name: true, color: true } },
   maxUses: true,
   useCount: true,
   expiresAt: true,
@@ -59,6 +60,7 @@ function mapInvite(invite: InviteRow): BoardInviteDto {
     boardId: invite.boardId,
     url: inviteUrl(invite.token),
     role: invite.role,
+    group: invite.group,
     maxUses: invite.maxUses,
     useCount: invite.useCount,
     expiresAt: invite.expiresAt.toISOString(),
@@ -103,11 +105,23 @@ export async function createBoardInvite(
     throw new ForbiddenError('Нельзя выдать роль выше собственной');
   }
 
+  // Группа обязана принадлежать этой же доске — иначе ссылка тянула бы
+  // человека в чужую структуру.
+  const groupId = input.groupId
+    ? (
+        await prisma.boardGroup.findFirst({
+          where: { id: input.groupId, boardId: context.board.id },
+          select: { id: true },
+        })
+      )?.id ?? null
+    : null;
+
   const invite = await prisma.boardInvite.create({
     data: {
       boardId: context.board.id,
       token: randomBytes(24).toString('base64url'),
       role: input.role,
+      groupId,
       createdById: user.id,
       maxUses: input.maxUses,
       expiresAt: new Date(Date.now() + input.expiresInDays * 86_400_000),
@@ -162,6 +176,7 @@ export async function previewInvite(
     boardKey: board.key,
     boardColor: board.color,
     role: invite.role,
+    groupName: invite.group?.name ?? null,
     invitedBy: mapPublicUser(invite.createdBy),
     memberCount,
     alreadyMember: Boolean(membership),
@@ -213,6 +228,17 @@ export async function acceptInvite(
         addedById: invite.createdById,
       },
     });
+    if (invite.groupId) {
+      // Группа могла исчезнуть, пока ссылка ходила по чатам, — тогда просто
+      // пускаем человека на доску без неё.
+      const group = await tx.boardGroup.findFirst({
+        where: { id: invite.groupId, boardId: board.id },
+        select: { id: true },
+      });
+      if (group) {
+        await tx.boardGroupMember.create({ data: { groupId: group.id, userId: user.id } });
+      }
+    }
     await recordActivity(tx, {
       boardId: board.id,
       actorId: user.id,
@@ -238,10 +264,12 @@ export async function acceptInvite(
   return { boardKey: board.key, boardId: board.id, alreadyMember: false };
 }
 
-async function loadUsableInvite(token: string): Promise<InviteRow & { createdById: string }> {
+async function loadUsableInvite(
+  token: string,
+): Promise<InviteRow & { createdById: string; groupId: string | null }> {
   const invite = await prisma.boardInvite.findUnique({
     where: { token },
-    select: { ...inviteSelect, createdById: true },
+    select: { ...inviteSelect, createdById: true, groupId: true },
   });
   // Одинаковый текст для «нет такой ссылки» и «ссылка мертва»: наличие доски
   // по чужому токену подтверждать не нужно.

@@ -67,6 +67,11 @@ export async function createBoard(user: RequestUser, input: CreateBoardInput): P
         })
       : [];
 
+  // Названия групп чистим и схлопываем дубли: две «Разработки» на доске
+  // невозможны из-за уникального индекса, а падать на этом при создании
+  // доски — плохой первый опыт.
+  const startingGroups = dedupeGroups(input.groups ?? []);
+
   const board = await prisma.$transaction(async (tx) => {
     const created = await tx.board.create({
       data: {
@@ -97,6 +102,18 @@ export async function createBoard(user: RequestUser, input: CreateBoardInput): P
         labels: {
           create: DEFAULT_LABELS.map((label) => ({ name: label.name, color: label.color })),
         },
+        ...(startingGroups.length > 0
+          ? {
+              groups: {
+                create: startingGroups.map((group, index) => ({
+                  name: group.name,
+                  color:
+                    group.color ?? BOARD_COLORS[index % BOARD_COLORS.length] ?? '#6366f1',
+                  order: index,
+                })),
+              },
+            }
+          : {}),
       },
       select: { id: true },
     });
@@ -122,6 +139,21 @@ export async function createBoard(user: RequestUser, input: CreateBoardInput): P
   }
 
   return getBoard(user, board.id);
+}
+
+function dedupeGroups(
+  groups: { name: string; color?: string }[],
+): { name: string; color?: string }[] {
+  const seen = new Set<string>();
+  const result: { name: string; color?: string }[] = [];
+  for (const group of groups) {
+    const name = sanitizePlainText(group.name, 32);
+    const fingerprint = name.toLowerCase();
+    if (!name || seen.has(fingerprint)) continue;
+    seen.add(fingerprint);
+    result.push({ name, ...(group.color ? { color: group.color } : {}) });
+  }
+  return result;
 }
 
 async function assertKeyAvailable(key: string): Promise<string> {
@@ -1043,6 +1075,48 @@ export async function deleteBoardGroup(
   await assertGroupOnBoard(context.board.id, groupId);
   await prisma.boardGroup.delete({ where: { id: groupId } });
   await notifyBoardChanged(context.board.id);
+}
+
+/**
+ * Обратное направление: какие группы у конкретного человека.
+ *
+ * Прикреплять группы к человеку нужно ровно так же часто, как людей к группе:
+ * когда в доску приходит новичок, про него думают «он тестировщик», а не
+ * «надо открыть группу тестировщиков и найти его в списке».
+ */
+export async function setMemberGroups(
+  user: RequestUser,
+  context: BoardContext,
+  userId: string,
+  groupIds: string[],
+): Promise<BoardGroupDto[]> {
+  assertCan(user, context, 'board.settings.manage');
+
+  const member = await prisma.boardMember.findUnique({
+    where: { boardId_userId: { boardId: context.board.id, userId } },
+    select: { userId: true },
+  });
+  if (!member) throw new NotFoundError('Участник не найден');
+
+  // Берём только группы этой доски — чужие идентификаторы молча отбрасываем.
+  const groups = await prisma.boardGroup.findMany({
+    where: { boardId: context.board.id, id: { in: [...new Set(groupIds)] } },
+    select: { id: true },
+  });
+
+  await prisma.$transaction(async (tx) => {
+    await tx.boardGroupMember.deleteMany({
+      where: { userId, group: { boardId: context.board.id } },
+    });
+    if (groups.length > 0) {
+      await tx.boardGroupMember.createMany({
+        data: groups.map((group) => ({ groupId: group.id, userId })),
+      });
+    }
+  });
+
+  await notifyBoardChanged(context.board.id);
+  return listBoardGroups(user, context);
 }
 
 /**

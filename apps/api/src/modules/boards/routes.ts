@@ -14,6 +14,7 @@ import {
   transferOwnershipSchema,
   updateBoardSchema,
   setBoardGroupMembersSchema,
+  setMemberGroupsSchema,
   updateBoardGroupSchema,
   updateColumnSchema,
   updateLabelSchema,
@@ -35,6 +36,7 @@ import {
   deleteBoardGroup,
   listBoardGroups,
   setBoardGroupMembers,
+  setMemberGroups,
   updateBoardGroup,
   deleteBoard,
   deleteLabel,
@@ -174,6 +176,16 @@ export async function registerBoardRoutes(app: FastifyInstance): Promise<void> {
     const context = await loadBoardContext(user, boardId);
     await removeMember(user, context, userId);
     return reply.send({ success: true });
+  });
+
+  /** Группы конкретного человека — обратная сторона состава группы. */
+  app.put('/:boardId/members/:userId/groups', async (request, reply) => {
+    const user = requireUser(request);
+    const { boardId } = boardParams.parse(request.params);
+    const { userId } = z.object({ userId: z.string().min(1).max(40) }).parse(request.params);
+    const { groupIds } = setMemberGroupsSchema.parse(request.body);
+    const context = await loadBoardContext(user, boardId);
+    return reply.send({ items: await setMemberGroups(user, context, userId, groupIds) });
   });
 
   // ── Пригласительные ссылки ───────────────────────────────────────────────

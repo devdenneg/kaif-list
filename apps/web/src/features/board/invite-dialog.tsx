@@ -23,6 +23,9 @@ import { UserAvatar } from '@/components/ui/avatar';
 import { toast } from '@/lib/toast';
 import { formatDateTime } from '@/lib/utils';
 
+/** Radix Select не умеет пустое значение — нужен явный маркер «без группы». */
+const NO_GROUP = 'none';
+
 const ROLE_OPTIONS = [
   { value: BoardRole.MEMBER, label: 'Участник', hint: 'Работает с задачами' },
   { value: BoardRole.VIEWER, label: 'Наблюдатель', hint: 'Только смотрит и комментирует' },
@@ -64,6 +67,7 @@ export function InviteDialog({
   const [role, setRole] = React.useState<BoardRole>(BoardRole.MEMBER);
   const [lifetime, setLifetime] = React.useState('7');
   const [uses, setUses] = React.useState('10');
+  const [groupId, setGroupId] = React.useState<string>(NO_GROUP);
 
   const create = (): void => {
     createInvite.mutate(
@@ -71,6 +75,7 @@ export function InviteDialog({
         role,
         expiresInDays: Number(lifetime),
         maxUses: uses === 'unlimited' ? null : Number(uses),
+        groupId: groupId === NO_GROUP ? null : groupId,
       },
       {
         onSuccess: (invite) => {
@@ -139,6 +144,34 @@ export function InviteDialog({
               </Select>
             </FormField>
           </div>
+
+          {board.groups.length > 0 && (
+            <FormField
+              label="Сразу в группу"
+              hint="Кто войдёт по этой ссылке, окажется в выбранной группе."
+            >
+              <Select value={groupId} onValueChange={setGroupId}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_GROUP}>Без группы</SelectItem>
+                  {board.groups.map((group) => (
+                    <SelectItem key={group.id} value={group.id}>
+                      <span className="flex items-center gap-2">
+                        <span
+                          className="size-2 rounded-full"
+                          style={{ backgroundColor: group.color }}
+                          aria-hidden
+                        />
+                        {group.name}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FormField>
+          )}
 
           <Button
             variant="primary"
@@ -216,6 +249,12 @@ function InviteRow({
         <p className="truncate font-mono text-xs">{invite.url}</p>
         <p className="flex flex-wrap items-center gap-x-2 text-[11px] text-muted-foreground">
           <span>{ROLE_OPTIONS.find((item) => item.value === invite.role)?.label ?? invite.role}</span>
+          {invite.group && (
+            <>
+              <span>·</span>
+              <span style={{ color: invite.group.color }}>{invite.group.name}</span>
+            </>
+          )}
           <span>·</span>
           <span>
             {invite.maxUses === null

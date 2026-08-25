@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BOARD_COLORS, BOARD_KEY_REGEX, LIMITS } from '@kaif/shared';
+import { BOARD_COLORS, BOARD_KEY_REGEX, LABEL_COLORS, LIMITS } from '@kaif/shared';
 import { useCreateBoard } from '@/api/boards';
 import { Button } from '@/components/ui/button';
 import {
@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { FormField, Input, Textarea } from '@/components/ui/input';
+import { X } from 'lucide-react';
 import { ApiError } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
@@ -33,6 +34,8 @@ export function CreateBoardDialog({
   const [keyTouched, setKeyTouched] = React.useState(false);
   const [description, setDescription] = React.useState('');
   const [color, setColor] = React.useState<string>(BOARD_COLORS[0] ?? '#6366f1');
+  const [groups, setGroups] = React.useState<string[]>([]);
+  const [groupDraft, setGroupDraft] = React.useState('');
   const [errors, setErrors] = React.useState<Record<string, string>>({});
 
   React.useEffect(() => {
@@ -41,6 +44,8 @@ export function CreateBoardDialog({
       setKey('');
       setKeyTouched(false);
       setDescription('');
+      setGroups([]);
+      setGroupDraft('');
       setErrors({});
       setColor(BOARD_COLORS[Math.floor(Math.random() * BOARD_COLORS.length)] ?? '#6366f1');
     }
@@ -51,6 +56,15 @@ export function CreateBoardDialog({
     if (keyTouched) return;
     setKey(suggestKey(name));
   }, [name, keyTouched]);
+
+  const addGroup = (): void => {
+    const name = groupDraft.trim();
+    setGroupDraft('');
+    if (!name || groups.length >= 12) return;
+    // Две одинаковые группы на доске невозможны — не даём завести их и здесь.
+    if (groups.some((item) => item.toLowerCase() === name.toLowerCase())) return;
+    setGroups((current) => [...current, name]);
+  };
 
   const submit = async (event: React.FormEvent): Promise<void> => {
     event.preventDefault();
@@ -71,6 +85,14 @@ export function CreateBoardDialog({
         ...(key ? { key } : {}),
         ...(description.trim() ? { description: description.trim() } : {}),
         color,
+        ...(groups.length > 0
+          ? {
+              groups: groups.map((groupName, index) => ({
+                name: groupName,
+                color: LABEL_COLORS[index % LABEL_COLORS.length] ?? '#6366f1',
+              })),
+            }
+          : {}),
       });
       toast.success('Доска создана', `${board.key} · ${board.name}`);
       onOpenChange(false);
@@ -146,6 +168,54 @@ export function CreateBoardDialog({
                     aria-label={`Цвет ${item}`}
                   />
                 ))}
+              </div>
+            </FormField>
+
+            <FormField
+              label="Рабочие группы"
+              hint="Разработка, тестирование, дизайн. Людей распределите, когда они придут по ссылке."
+            >
+              <div className="space-y-2">
+                {groups.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {groups.map((groupName, index) => (
+                      <span
+                        key={groupName}
+                        className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium"
+                        style={{
+                          borderColor: LABEL_COLORS[index % LABEL_COLORS.length],
+                          color: LABEL_COLORS[index % LABEL_COLORS.length],
+                        }}
+                      >
+                        {groupName}
+                        <button
+                          type="button"
+                          onClick={() => setGroups((current) => current.filter((item) => item !== groupName))}
+                          aria-label={`Убрать группу ${groupName}`}
+                          className="opacity-60 hover:opacity-100"
+                        >
+                          <X className="size-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <Input
+                  value={groupDraft}
+                  onChange={(event) => setGroupDraft(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Enter') return;
+                    // Enter добавляет группу, а не отправляет форму:
+                    // иначе доска создалась бы на полуслове.
+                    event.preventDefault();
+                    addGroup();
+                  }}
+                  onBlur={addGroup}
+                  placeholder="Название группы и Enter"
+                  maxLength={32}
+                  disabled={groups.length >= 12}
+                />
               </div>
             </FormField>
 

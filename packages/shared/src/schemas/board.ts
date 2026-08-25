@@ -43,6 +43,20 @@ export const createBoardSchema = z.object({
   icon: z.string().max(32).optional(),
   /** Сразу пригласить участников. */
   memberIds: z.array(idSchema).max(100).optional(),
+  /**
+   * Рабочие группы, заведённые вместе с доской. Людей в них пока нет —
+   * на момент создания в доске один владелец, — но структура готова
+   * к тому моменту, когда придут остальные.
+   */
+  groups: z
+    .array(
+      z.object({
+        name: trimmedString(1, 32, 'Название группы'),
+        color: hexColorSchema.optional(),
+      }),
+    )
+    .max(12)
+    .optional(),
 });
 export type CreateBoardInput = z.infer<typeof createBoardSchema>;
 
@@ -120,6 +134,11 @@ export const setBoardGroupMembersSchema = z.object({
   userIds: z.array(idSchema).max(200),
 });
 
+/** Обратное направление: какие группы у конкретного человека. */
+export const setMemberGroupsSchema = z.object({
+  groupIds: z.array(idSchema).max(50),
+});
+
 export const deleteBoardSchema = z.object({
   /** Пользователь вводит ключ доски — защита от случайного удаления. */
   confirm: z.string().min(1),
@@ -129,6 +148,8 @@ export const deleteBoardSchema = z.object({
 
 export const createBoardInviteSchema = z.object({
   role: z.nativeEnum(BoardRole).default(BoardRole.MEMBER),
+  /** Кто войдёт по ссылке, сразу попадёт в эту группу. */
+  groupId: idSchema.nullable().default(null),
   /** Сколько дней ссылка живёт. По умолчанию — неделя. */
   expiresInDays: z.coerce.number().int().min(1).max(30).default(7),
   /** null — без ограничения по числу входов. */

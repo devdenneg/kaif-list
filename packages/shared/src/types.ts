@@ -97,6 +97,8 @@ export interface BoardInviteDto {
   boardId: string;
   url: string;
   role: BoardRole;
+  /** Вошедший по ссылке сразу попадёт в эту группу. */
+  group: { id: string; name: string; color: string } | null;
   maxUses: number | null;
   useCount: number;
   expiresAt: string;
@@ -112,6 +114,7 @@ export interface BoardInvitePreviewDto {
   boardKey: string;
   boardColor: string;
   role: BoardRole;
+  groupName: string | null;
   invitedBy: PublicUser;
   memberCount: number;
   /** Уже состоит в доске — тогда сразу ведём внутрь. */

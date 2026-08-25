@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Check, Layers, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { ChevronDown, Layers, Pencil, Plus, Search, Trash2, Users } from 'lucide-react';
 import { LABEL_COLORS, type BoardDto, type BoardGroupDto } from '@kaif/shared';
 import { useCreateGroup, useDeleteGroup, useSetGroupMembers, useUpdateGroup } from '@/api/groups';
 import { Button } from '@/components/ui/button';
@@ -45,6 +45,11 @@ export function BoardGroupsTab({ board }: { board: BoardDto }): React.ReactEleme
       <p className="text-sm text-muted-foreground">
         Соберите людей по направлениям — и фильтруйте доску по группе одним нажатием.
         Человек может состоять сразу в нескольких группах.
+      </p>
+      <p className="rounded-lg bg-secondary/60 px-3 py-2 text-xs text-muted-foreground">
+        Прикрепить человека к группе можно и не заходя сюда: на доске выберите его в полосе
+        людей и нажмите значок групп, либо откройте карточку человека на странице «Люди».
+        А в пригласительной ссылке можно сразу указать группу — новичок попадёт в неё сам.
       </p>
 
       <div className="rounded-lg border border-border p-3">
@@ -143,8 +148,17 @@ function GroupRow({
   const [editing, setEditing] = React.useState(false);
   const [draftName, setDraftName] = React.useState(group.name);
   const [expanded, setExpanded] = React.useState(false);
+  const [search, setSearch] = React.useState('');
 
   const memberIds = new Set(group.members.map((member) => member.id));
+  const needle = search.trim().toLowerCase();
+  const visibleMembers = needle
+    ? board.members.filter(
+        (member) =>
+          member.user.displayName.toLowerCase().includes(needle) ||
+          (member.user.tgUsername ?? '').toLowerCase().includes(needle),
+      )
+    : board.members;
 
   const rename = (): void => {
     const trimmed = draftName.trim();
@@ -228,12 +242,15 @@ function GroupRow({
           <Pencil />
         </Button>
         <Button
-          variant="ghost"
-          size="icon-sm"
+          variant={expanded ? 'secondary' : 'outline'}
+          size="sm"
+          className="h-7 shrink-0 px-2 text-xs"
           onClick={() => setExpanded((value) => !value)}
-          aria-label={expanded ? 'Свернуть состав' : 'Изменить состав'}
+          aria-expanded={expanded}
         >
-          {expanded ? <X /> : <Check />}
+          <Users />
+          Состав
+          <ChevronDown className={cn('transition-transform', expanded && 'rotate-180')} />
         </Button>
         <Button
           variant="ghost"
@@ -247,8 +264,8 @@ function GroupRow({
       </div>
 
       {expanded && (
-        <div className="scrollbar-thin max-h-56 space-y-0.5 overflow-y-auto border-t border-border p-2">
-          <div className="mb-1 flex flex-wrap gap-1.5">
+        <div className="border-t border-border p-2">
+          <div className="mb-2 flex flex-wrap items-center gap-1.5">
             {LABEL_COLORS.map((item) => (
               <button
                 key={item}
@@ -267,21 +284,42 @@ function GroupRow({
                 aria-label={`Цвет ${item}`}
               />
             ))}
+
+            <span className="ml-auto text-[11px] text-muted-foreground">
+              выбрано: {group.members.length} из {board.members.length}
+            </span>
           </div>
 
-          {board.members.map((member) => (
-            <label
-              key={member.userId}
-              className="flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-sm hover:bg-secondary"
-            >
-              <Checkbox
-                checked={memberIds.has(member.userId)}
-                onCheckedChange={() => toggleMember(member.userId)}
-              />
-              <UserAvatar user={member.user} size="xs" />
-              <span className="min-w-0 flex-1 truncate">{member.user.displayName}</span>
-            </label>
-          ))}
+          {/* Поиск появляется, когда список перестаёт читаться глазами. */}
+          {board.members.length > 8 && (
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Найти человека"
+              icon={<Search />}
+              className="mb-1 h-8"
+            />
+          )}
+
+          <div className="scrollbar-thin max-h-56 space-y-0.5 overflow-y-auto">
+            {visibleMembers.length === 0 ? (
+              <p className="py-3 text-center text-xs text-muted-foreground">Никого не нашли</p>
+            ) : (
+              visibleMembers.map((member) => (
+                <label
+                  key={member.userId}
+                  className="flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-sm hover:bg-secondary"
+                >
+                  <Checkbox
+                    checked={memberIds.has(member.userId)}
+                    onCheckedChange={() => toggleMember(member.userId)}
+                  />
+                  <UserAvatar user={member.user} size="xs" />
+                  <span className="min-w-0 flex-1 truncate">{member.user.displayName}</span>
+                </label>
+              ))
+            )}
+          </div>
         </div>
       )}
     </div>

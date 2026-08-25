@@ -1,6 +1,14 @@
 import * as React from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, CalendarClock, CheckCircle2, LogOut, Plus, Shield } from 'lucide-react';
+import {
+  AlertTriangle,
+  CalendarClock,
+  CheckCircle2,
+  Layers,
+  LogOut,
+  Plus,
+  Shield,
+} from 'lucide-react';
 import { BOARD_ROLE_LABELS, BoardRole, type BoardDto } from '@kaif/shared';
 import { useBoardWorkload, useChangeMemberRole, useRemoveMember } from '@/api/boards';
 import { useTaskList } from '@/api/tasks';
@@ -19,6 +27,7 @@ import {
 } from '@/components/ui/select';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { TaskCard } from './task-card';
+import { GroupPickerMenu } from './group-picker';
 import { toast } from '@/lib/toast';
 import { useAuthStore } from '@/stores/auth';
 
@@ -58,6 +67,9 @@ export function MemberPanel({
 
   const isSelf = member.userId === currentUserId;
   const isOwner = member.role === BoardRole.OWNER;
+  const memberGroups = board.groups.filter((group) =>
+    group.members.some((item) => item.id === member.userId),
+  );
 
   return (
     <>
@@ -132,6 +144,55 @@ export function MemberPanel({
                   <LogOut />
                   {isSelf ? 'Покинуть доску' : 'Исключить'}
                 </Button>
+              )}
+            </div>
+
+            <Separator />
+
+            {/* ── Рабочие группы человека ── */}
+            <div>
+              <div className="mb-2 flex items-center gap-2">
+                <Layers className="size-4 text-muted-foreground" />
+                <h3 className="text-sm font-semibold">Рабочие группы</h3>
+                {canManage && (
+                  <GroupPickerMenu
+                    board={board}
+                    userId={member.userId}
+                    canManage={canManage}
+                    align="start"
+                    trigger={
+                      <Button variant="ghost" size="sm" className="ml-auto h-7 px-2 text-xs">
+                        <Plus />
+                        Прикрепить
+                      </Button>
+                    }
+                  />
+                )}
+              </div>
+
+              {memberGroups.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  {canManage
+                    ? 'Человек ни в одной группе. Прикрепите — и доску можно будет фильтровать по направлению.'
+                    : 'Человек ни в одной группе.'}
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {memberGroups.map((group) => (
+                    <span
+                      key={group.id}
+                      className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium"
+                      style={{ borderColor: group.color, color: group.color }}
+                    >
+                      <span
+                        className="size-2 rounded-full"
+                        style={{ backgroundColor: group.color }}
+                        aria-hidden
+                      />
+                      {group.name}
+                    </span>
+                  ))}
+                </div>
               )}
             </div>
 

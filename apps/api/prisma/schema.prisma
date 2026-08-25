@@ -366,6 +366,8 @@ model BoardInvite {
   boardId     String
   token       String    @unique
   role        BoardRole @default(MEMBER)
+  /// Вошедший по ссылке сразу попадёт в эту группу.
+  groupId     String?
   createdById String
   /// null — без ограничения по числу входов.
   maxUses     Int?
@@ -374,8 +376,9 @@ model BoardInvite {
   revokedAt   DateTime?
   createdAt   DateTime  @default(now())
 
-  board     Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  createdBy User  @relation("InviteCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  board     Board       @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  group     BoardGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  createdBy User        @relation("InviteCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
 
   @@index([boardId, revokedAt])
 }
@@ -393,6 +396,7 @@ model BoardGroup {
 
   board   Board              @relation(fields: [boardId], references: [id], onDelete: Cascade)
   members BoardGroupMember[]
+  invites BoardInvite[]
 
   @@unique([boardId, name])
   @@index([boardId, order])

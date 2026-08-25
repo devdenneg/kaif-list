@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { UserPlus, UserRound, UserX, X } from 'lucide-react';
+import { Layers, UserPlus, UserRound, UserX, X } from 'lucide-react';
 import { BOARD_ROLE_LABELS, type BoardDto, type PresenceUser } from '@kaif/shared';
 import { useBoardWorkload } from '@/api/boards';
 import { EMPTY_FILTERS, useUiStore } from '@/stores/ui';
@@ -9,6 +9,7 @@ import { Tooltip } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { MemberPanel } from './member-panel';
 import { InviteDialog } from './invite-dialog';
+import { GroupPickerMenu } from './group-picker';
 
 /**
  * Быстрая фильтрация по людям — как в Jira: имена стоят слева направо,
@@ -168,6 +169,23 @@ export function PeopleBar({
               <UserPlus />
             </Button>
           </Tooltip>
+          {canManage && (
+            <GroupPickerMenu
+              board={board}
+              userId={soleSelected.userId}
+              canManage={canManage}
+              trigger={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`Рабочие группы · ${soleSelected.user.displayName}`}
+                  title="Прикрепить к рабочей группе"
+                >
+                  <Layers />
+                </Button>
+              }
+            />
+          )}
         </div>
       )}
 

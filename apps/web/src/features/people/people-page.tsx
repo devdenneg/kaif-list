@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, Plus, UserPlus, Users } from 'lucide-react';
-import { BOARD_ROLE_LABELS, can, type MemberWorkloadDto } from '@kaif/shared';
+import { ArrowLeft, Layers, Plus, UserPlus, Users } from 'lucide-react';
+import { BOARD_ROLE_LABELS, can, type BoardDto, type MemberWorkloadDto } from '@kaif/shared';
 import { useBoard, useBoardWorkload } from '@/api/boards';
 import { useAuthStore } from '@/stores/auth';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { EmptyState, Progress, Skeleton } from '@/components/ui/misc';
 import { FullScreenLoader } from '@/app/loader';
 import { MemberPanel } from '@/features/board/member-panel';
 import { useBoardRealtime } from '@/features/board/use-board-realtime';
+import { GroupPickerMenu, MemberGroupChips } from '@/features/board/group-picker';
 import { InviteDialog } from '@/features/board/invite-dialog';
 import { CreateTaskDialog } from '@/features/task/create-task-dialog';
 import { cn } from '@/lib/utils';
@@ -81,8 +82,10 @@ export function PeoplePage(): React.ReactElement {
           {(workload ?? []).map((item) => (
             <PersonCard
               key={item.user.id}
+              board={board}
               item={item}
               maxActive={maxActive}
+              canManage={canManage}
               onOpen={() => setSelectedUserId(item.user.id)}
               onCreateTask={() => setCreateTaskFor(item.user.id)}
             />
@@ -114,13 +117,17 @@ export function PeoplePage(): React.ReactElement {
 }
 
 function PersonCard({
+  board,
   item,
   maxActive,
+  canManage,
   onOpen,
   onCreateTask,
 }: {
+  board: BoardDto;
   item: MemberWorkloadDto;
   maxActive: number;
+  canManage: boolean;
   onOpen: () => void;
   onCreateTask: () => void;
 }): React.ReactElement {
@@ -150,6 +157,28 @@ function PersonCard({
             load > 80 ? 'bg-destructive' : load > 50 ? 'bg-warning' : 'bg-success',
           )}
         />
+      </div>
+
+      {/* ── Рабочие группы человека ── */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <MemberGroupChips board={board} userId={item.user.id} />
+        {canManage && (
+          <GroupPickerMenu
+            board={board}
+            userId={item.user.id}
+            canManage={canManage}
+            align="start"
+            trigger={
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 rounded-full border border-dashed border-border px-2 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-secondary"
+              >
+                <Layers className="size-3" />
+                Группа
+              </button>
+            }
+          />
+        )}
       </div>
 
       <div className="flex flex-wrap gap-1.5">
