@@ -1,11 +1,32 @@
 import type { FastifyInstance } from 'fastify';
+import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
-import { GlobalRole, LIMITS } from '@kaif/shared';
+import { LIMITS } from '@kaif/shared';
 import { requireUser } from '../../plugins/auth.js';
 import { heavyRateLimit } from '../../plugins/security.js';
 import { prisma } from '../../lib/prisma.js';
 import { mapPublicUser, mapTaskCard, publicUserSelect, taskCardSelect } from '../../lib/mappers.js';
 import { accessibleBoardIds } from '../../lib/rbac.js';
+
+/**
+ * Кого можно найти по имени.
+ *
+ * Только тех, с кем есть общая доска. Исключений нет ни для кого, включая
+ * суперадмина: палитра — рабочий инструмент, а не справочник компании.
+ * Раньше суперадмин видел здесь вообще всех, кто когда-либо завёл аккаунт, —
+ * то есть состав организации утекал в обычный поиск по задачам.
+ * Полный список людей живёт в админке, и это отдельный экран с отдельным правом.
+ */
+export function peopleSearchWhere(userId: string, query: string): Prisma.UserWhereInput {
+  return {
+    isActive: true,
+    OR: [
+      { displayName: { contains: query, mode: 'insensitive' } },
+      { tgUsername: { contains: query, mode: 'insensitive' } },
+    ],
+    memberships: { some: { board: { members: { some: { userId } } } } },
+  };
+}
 
 /**
  * Сквозной поиск для командной палитры: задачи, доски, люди.
@@ -54,16 +75,7 @@ export async function registerSearchRoutes(app: FastifyInstance): Promise<void> 
         select: { id: true, key: true, name: true, color: true },
       }),
       prisma.user.findMany({
-        where: {
-          isActive: true,
-          OR: [
-            { displayName: { contains: q, mode: 'insensitive' } },
-            { tgUsername: { contains: q, mode: 'insensitive' } },
-          ],
-          ...(user.globalRole === GlobalRole.SUPERADMIN
-            ? {}
-            : { memberships: { some: { board: { members: { some: { userId: user.id } } } } } }),
-        },
+        where: peopleSearchWhere(user.id, q),
         take: 5,
         select: publicUserSelect,
       }),
