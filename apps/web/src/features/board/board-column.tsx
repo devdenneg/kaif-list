@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Tooltip } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { SortableTaskCard } from './sortable-task-card';
-import { QuickAddTask } from './quick-add-task';
+import { QuickAddTask, type TaskDefaults } from './quick-add-task';
 
 /** Цветовой акцент колонки — помогает ориентироваться боковым зрением. */
 const COLUMN_ACCENT: Record<ColumnKey, string> = {
@@ -50,6 +50,8 @@ export interface BoardColumnProps {
   onToggleCollapse: () => void;
   onOpenTask: (task: TaskCardDto) => void;
   onCreateTask?: (columnKey: ColumnKey) => void;
+  /** Признак дорожки, если доска сгруппирована. */
+  taskDefaults?: TaskDefaults;
   canCreate: boolean;
   canDrag: boolean;
   timeZone?: string;
@@ -60,6 +62,7 @@ export interface BoardColumnProps {
 export function BoardColumn({
   boardId,
   columnKey,
+  taskDefaults,
   name,
   tasks,
   wipLimit,
@@ -216,6 +219,7 @@ export function BoardColumn({
           <QuickAddTask
             boardId={boardId}
             columnKey={columnKey}
+            {...(taskDefaults ? { defaults: taskDefaults } : {})}
             onClose={() => setQuickAddOpen(false)}
           />
         )}

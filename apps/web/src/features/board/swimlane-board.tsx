@@ -12,6 +12,7 @@ import type { BoardColumns } from '@/api/tasks';
 import type { Swimlane } from '@/stores/ui';
 import { UserAvatar } from '@/components/ui/avatar';
 import { KanbanBoard, type MoveRequest } from './kanban-board';
+import type { TaskDefaults } from './quick-add-task';
 import { TaskTypeIcon, PriorityIcon } from '@/features/task/task-visuals';
 
 /**
@@ -95,6 +96,7 @@ export function SwimlaneBoard({
                 onMove={onMove}
                 canDrag={canDrag}
                 canCreate={canCreate}
+                taskDefaults={lane.defaults}
                 {...(timeZone ? { timeZone } : {})}
                 {...(mobile ? { mobile: true } : {})}
               />
@@ -112,6 +114,14 @@ interface Lane {
   icon: React.ReactNode;
   columns: BoardColumns;
   total: number;
+  /**
+   * Чем заполнить задачу, созданную внутри этой дорожки.
+   *
+   * Дорожка — это и есть признак: добавляя карточку под именем человека,
+   * его и имеют в виду. Заставлять после этого открывать задачу и назначать
+   * исполнителя вручную — значит не понимать, зачем включили группировку.
+   */
+  defaults: TaskDefaults;
 }
 
 const emptyColumns = (): BoardColumns => ({
@@ -164,6 +174,8 @@ function buildLanes(board: BoardDto, columns: BoardColumns, swimlane: Exclude<Sw
         ),
         columns: laneColumns,
         total,
+        // «Без исполнителя» — не признак, назначать некого.
+        defaults: member ? { assigneeId: member.userId } : {},
       });
       continue;
     }
@@ -176,6 +188,7 @@ function buildLanes(board: BoardDto, columns: BoardColumns, swimlane: Exclude<Sw
         icon: <PriorityIcon priority={priority} />,
         columns: laneColumns,
         total,
+        defaults: { priority },
       });
       continue;
     }
@@ -187,6 +200,7 @@ function buildLanes(board: BoardDto, columns: BoardColumns, swimlane: Exclude<Sw
       icon: <TaskTypeIcon type={type} />,
       columns: laneColumns,
       total,
+      defaults: { type },
     });
   }
 

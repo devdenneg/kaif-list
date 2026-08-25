@@ -1,9 +1,21 @@
 import * as React from 'react';
-import type { ColumnKey } from '@kaif/shared';
+import type { ColumnKey, TaskPriority, TaskType } from '@kaif/shared';
 import { useCreateTask } from '@/api/tasks';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/input';
 import { toast } from '@/lib/toast';
+
+/**
+ * Чем заполнить задачу, созданную в конкретном месте доски.
+ *
+ * Сейчас это признак дорожки при группировке: исполнитель, приоритет
+ * или тип — смотря по чему сгруппировано.
+ */
+export interface TaskDefaults {
+  assigneeId?: string;
+  priority?: TaskPriority;
+  type?: TaskType;
+}
 
 /**
  * Быстрое создание задачи прямо в колонке.
@@ -13,10 +25,12 @@ import { toast } from '@/lib/toast';
 export function QuickAddTask({
   boardId,
   columnKey,
+  defaults,
   onClose,
 }: {
   boardId: string;
   columnKey: ColumnKey;
+  defaults?: TaskDefaults;
   onClose: () => void;
 }): React.ReactElement {
   const [title, setTitle] = React.useState('');
@@ -37,9 +51,10 @@ export function QuickAddTask({
       await createTask.mutateAsync({
         title: trimmed,
         columnKey,
-        type: 'TASK',
-        priority: 'MEDIUM',
+        type: defaults?.type ?? 'TASK',
+        priority: defaults?.priority ?? 'MEDIUM',
         isBacklog: false,
+        ...(defaults?.assigneeId ? { assigneeId: defaults.assigneeId } : {}),
       });
       setTitle('');
       inputRef.current?.focus();

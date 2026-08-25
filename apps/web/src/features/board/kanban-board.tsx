@@ -19,6 +19,7 @@ import { NO_COLLAPSED_COLUMNS, useUiStore } from '@/stores/ui';
 import { haptic } from '@/lib/utils';
 import { TaskCard } from './task-card';
 import { BoardColumn } from './board-column';
+import type { TaskDefaults } from './quick-add-task';
 import type { BoardColumns } from '@/api/tasks';
 
 export interface MoveRequest {
@@ -35,6 +36,8 @@ export interface KanbanBoardProps {
   onMove: (request: MoveRequest) => void;
   canDrag: boolean;
   canCreate: boolean;
+  /** Признак дорожки: чем заполнять задачу, созданную внутри неё. */
+  taskDefaults?: TaskDefaults;
   timeZone?: string;
   mobile?: boolean;
 }
@@ -53,6 +56,7 @@ export function KanbanBoard({
   onMove,
   canDrag,
   canCreate,
+  taskDefaults,
   timeZone,
   mobile,
 }: KanbanBoardProps): React.ReactElement {
@@ -238,6 +242,7 @@ export function KanbanBoard({
               onOpenTask={onOpenTask}
               canCreate={canCreate}
               canDrag={canDrag}
+              {...(taskDefaults ? { taskDefaults } : {})}
               {...(timeZone ? { timeZone } : {})}
               {...(mobile ? { mobile: true } : {})}
             />
