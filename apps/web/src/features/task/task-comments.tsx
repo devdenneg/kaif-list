@@ -147,16 +147,36 @@ export function TaskComments({
       ) : (
         <div className="space-y-3">
           {(comments ?? []).map((comment) => (
-            <CommentItem
-              key={comment.id}
-              comment={comment}
-              taskId={task.id}
-              members={members}
-              canDelete={
-                comment.author?.id === currentUser?.id || task.permissions.canModerateComments
-              }
-              onReply={() => setReplyTo(comment)}
-            />
+            <div key={comment.id} className="space-y-2">
+              <CommentItem
+                comment={comment}
+                taskId={task.id}
+                members={members}
+                canDelete={
+                  comment.author?.id === currentUser?.id || task.permissions.canModerateComments
+                }
+                onReply={() => setReplyTo(comment)}
+              />
+
+              {/* Ответы — с отступом и линией слева: видно, к чему они. */}
+              {comment.replies.length > 0 && (
+                <div className="ml-5 space-y-2 border-l border-border pl-3 sm:ml-9">
+                  {comment.replies.map((reply) => (
+                    <CommentItem
+                      key={reply.id}
+                      comment={reply}
+                      taskId={task.id}
+                      members={members}
+                      canDelete={
+                        reply.author?.id === currentUser?.id ||
+                        task.permissions.canModerateComments
+                      }
+                      onReply={() => setReplyTo(comment)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           ))}
         </div>
       )}
@@ -207,7 +227,7 @@ export function TaskComments({
                   setIsEmpty(empty);
                   if (!empty) notifyTyping();
                 }}
-                placeholder="Написать комментарий… (@ — упомянуть, Ctrl+Enter — отправить)"
+                placeholder="Написать комментарий… (@ — упомянуть, Enter — отправить)"
                 users={members}
                 minHeight="72px"
                 toolbar={false}
@@ -216,7 +236,7 @@ export function TaskComments({
               />
               <div className="mt-2 flex items-center justify-between">
                 <span className="text-[11px] text-muted-foreground">
-                  Ctrl+Enter — отправить · картинку можно вставить из буфера
+                  Enter — отправить, Shift+Enter — перенос строки · картинку можно вставить из буфера
                 </span>
                 <Button
                   size="sm"

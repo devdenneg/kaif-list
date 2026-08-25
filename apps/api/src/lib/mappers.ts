@@ -270,7 +270,8 @@ export function mapTaskLink(row: TaskLinkRow): TaskLinkDto {
 
 // ──────────────────────────────── Комментарии ───────────────────────────────
 
-export const commentSelect = {
+/** Поля одного комментария без ответов — из них же собираются и сами ответы. */
+const commentFields = {
   id: true,
   taskId: true,
   kind: true,
@@ -289,13 +290,38 @@ export const commentSelect = {
   _count: { select: { replies: true } },
 } satisfies Prisma.CommentSelect;
 
+/**
+ * Комментарий вместе с ответами.
+ *
+ * Ответы отдаём сразу: обсуждение в задаче короткое, а отдельный запрос
+ * за ними никто не делал — из-за этого ответы просто не показывались,
+ * хотя в счётчике учитывались.
+ */
+export const commentSelect = {
+  ...commentFields,
+  replies: {
+    where: { deletedAt: null },
+    orderBy: { createdAt: 'asc' },
+    take: 100,
+    select: commentFields,
+  },
+} satisfies Prisma.CommentSelect;
+
 export type CommentRow = Prisma.CommentGetPayload<{ select: typeof commentSelect }>;
+type CommentLeafRow = Prisma.CommentGetPayload<{ select: typeof commentFields }>;
 
 /**
  * `currentUserId` нужен, чтобы отметить собственные реакции —
  * по ним рисуется подсветка кнопки.
  */
 export function mapComment(row: CommentRow, currentUserId?: string): CommentDto {
+  return {
+    ...mapCommentLeaf(row, currentUserId),
+    replies: (row.replies ?? []).map((reply) => mapCommentLeaf(reply, currentUserId)),
+  };
+}
+
+function mapCommentLeaf(row: CommentLeafRow, currentUserId?: string): CommentDto {
   const isDeleted = row.deletedAt !== null;
   return {
     id: row.id,
@@ -311,6 +337,7 @@ export function mapComment(row: CommentRow, currentUserId?: string): CommentDto 
     editedAt: row.editedAt?.toISOString() ?? null,
     isDeleted,
     replyCount: row._count.replies,
+    replies: [],
     reactions: groupReactions(row.reactions, currentUserId),
   };
 }

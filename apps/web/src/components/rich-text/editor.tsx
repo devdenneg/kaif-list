@@ -183,13 +183,27 @@ export function RichTextEditor({
         return true;
       },
       handleKeyDown: (_view, event) => {
-        // Cmd/Ctrl+Enter — отправить (комментарий, форма).
-        if (onSubmit && (event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+        if (!onSubmit || event.key !== 'Enter') return false;
+
+        // Cmd/Ctrl+Enter отправляет всегда — привычка остаётся рабочей.
+        if (event.metaKey || event.ctrlKey) {
           event.preventDefault();
           onSubmit();
           return true;
         }
-        return false;
+
+        // Shift+Enter — перенос строки, как в мессенджерах.
+        if (event.shiftKey) return false;
+
+        // Внутри блока кода Enter обязан переносить строку: отправлять код
+        // построчно бессмысленно.
+        if (editorRef.current?.isActive('codeBlock')) return false;
+
+        // Подсказка упоминаний перехватывает Enter раньше нас — там он
+        // выбирает человека, а не отправляет сообщение.
+        event.preventDefault();
+        onSubmit();
+        return true;
       },
     },
     onUpdate: ({ editor: instance }) => {

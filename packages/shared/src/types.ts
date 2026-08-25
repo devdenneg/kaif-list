@@ -291,6 +291,11 @@ export interface CommentDto {
   editedAt: string | null;
   isDeleted: boolean;
   replyCount: number;
+  /**
+   * Ответы на этот комментарий. Вложенность одноуровневая: ответ на ответ
+   * прикрепляется к тому же корню, поэтому дерево здесь не нужно.
+   */
+  replies: CommentDto[];
   reactions: CommentReactionDto[];
 }
 
