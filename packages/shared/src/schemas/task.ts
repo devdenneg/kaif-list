@@ -172,6 +172,8 @@ export const taskFiltersSchema = z
   .object({
     search: z.string().trim().max(LIMITS.search.max).optional(),
     assigneeIds: listParam(idSchema).optional(),
+    /** Задачи, где исполнитель состоит в одной из этих рабочих групп. */
+    groupIds: listParam(idSchema).optional(),
     /** Специальное значение для «без исполнителя». */
     unassigned: z.coerce.boolean().optional(),
     reporterIds: listParam(idSchema).optional(),

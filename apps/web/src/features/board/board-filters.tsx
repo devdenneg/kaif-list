@@ -45,6 +45,7 @@ export function BoardFilters({ board }: { board: BoardDto }): React.ReactElement
   const active = hasActiveFilters(filters);
   const activeCount =
     filters.assigneeIds.length +
+    filters.groupIds.length +
     filters.labelIds.length +
     filters.priorities.length +
     filters.types.length +
@@ -113,6 +114,50 @@ export function BoardFilters({ board }: { board: BoardDto }): React.ReactElement
                 ))}
               </div>
             </section>
+
+            {board.groups.length > 0 && (
+              <section>
+                <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Группы
+                </p>
+                <p className="mb-1.5 text-[11px] text-muted-foreground">
+                  Показываем задачи всех, кто входит в выбранные группы.
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {board.groups.map((group) => {
+                    const selected = filters.groupIds.includes(group.id);
+                    return (
+                      <button
+                        key={group.id}
+                        type="button"
+                        onClick={() =>
+                          setFilters(board.id, { groupIds: toggle(filters.groupIds, group.id) })
+                        }
+                        className={cn(
+                          'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
+                          selected
+                            ? 'text-accent-foreground'
+                            : 'border-border text-muted-foreground hover:bg-secondary',
+                        )}
+                        style={
+                          selected
+                            ? { borderColor: group.color, backgroundColor: `${group.color}1f` }
+                            : undefined
+                        }
+                      >
+                        <span
+                          className="size-2 rounded-full"
+                          style={{ backgroundColor: group.color }}
+                          aria-hidden
+                        />
+                        {group.name}
+                        <span className="opacity-60">{group.members.length}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
 
             {board.labels.length > 0 && (
               <section>

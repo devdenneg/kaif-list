@@ -41,6 +41,13 @@ describe('матрица прав', () => {
     expect(can(ctx(BoardRole.MEMBER), 'task.delete')).toBe(false);
   });
 
+  it('свою задачу автор удаляет сам, чужую — нет', () => {
+    expect(can(ctx(BoardRole.MEMBER, { isTaskAuthor: true }), 'task.delete')).toBe(true);
+    expect(can(ctx(BoardRole.MEMBER, { isTaskAssignee: true }), 'task.delete')).toBe(false);
+    expect(can(ctx(BoardRole.VIEWER, { isTaskAuthor: true }), 'task.delete')).toBe(false);
+    expect(can(ctx(BoardRole.ADMIN), 'task.delete')).toBe(true);
+  });
+
   it('участник архивирует только свои задачи', () => {
     expect(can(ctx(BoardRole.MEMBER), 'task.archive')).toBe(false);
     expect(can(ctx(BoardRole.MEMBER, { isTaskAuthor: true }), 'task.archive')).toBe(true);

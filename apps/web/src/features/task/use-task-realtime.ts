@@ -7,7 +7,7 @@ import {
   type TaskDetailDto,
 } from '@kaif/shared';
 import { getSocket, subscribeToTask, unsubscribeFromTask } from '@/lib/socket';
-import { queryKeys } from '@/lib/query-client';
+import { invalidateEntity, queryKeys, updateEntityData } from '@/lib/query-client';
 import { useAuthStore } from '@/stores/auth';
 
 /**
@@ -66,7 +66,7 @@ export function useTaskRealtime(
       });
 
       // Счётчик на карточке доски меняем на месте, без похода на сервер.
-      queryClient.setQueryData<TaskDetailDto>(queryKeys.task(taskId), (task) =>
+      updateEntityData<TaskDetailDto>('task', taskId, (task) =>
         task ? { ...task, commentCount: task.commentCount + 1 } : task,
       );
     };
@@ -84,20 +84,20 @@ export function useTaskRealtime(
     const onCommentDeleted = (payload: { taskId?: string }): void => {
       if (!isThisTask(payload)) return;
       void queryClient.invalidateQueries({ queryKey: queryKeys.taskComments(taskId) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.task(taskId) });
+      invalidateEntity('task', taskId);
     };
 
     const onTaskUpdated = (payload: { taskId?: string; actorId?: string }): void => {
       if (!isThisTask(payload)) return;
       // Свои изменения уже применены ответом сервера — лишний запрос только мигнёт.
       if (payload.actorId && payload.actorId === currentUserId) return;
-      void queryClient.invalidateQueries({ queryKey: queryKeys.task(taskId) });
+      invalidateEntity('task', taskId);
       void queryClient.invalidateQueries({ queryKey: queryKeys.taskActivity(taskId) });
     };
 
     const onAttachmentChanged = (payload: { taskId?: string }): void => {
       if (!isThisTask(payload)) return;
-      void queryClient.invalidateQueries({ queryKey: queryKeys.task(taskId) });
+      invalidateEntity('task', taskId);
     };
 
     const onTaskDeleted = (payload: { taskId?: string; actorId?: string }): void => {
@@ -127,8 +127,18 @@ export function useTaskRealtime(
     socket.on(SOCKET_EVENTS.TASK_DELETED, onTaskDeleted);
     socket.on(SOCKET_EVENTS.PRESENCE_SYNC, onPresence);
 
-    // Комнату надо занять заново после каждого переподключения.
-    const join = (): void => subscribeToTask(taskId, boardId);
+    // Комнату надо занять заново после каждого переподключения, а заодно
+    // перечитать задачу: события, пришедшие в разрыв связи, к нам не попали.
+    let firstConnect = true;
+    const join = (): void => {
+      subscribeToTask(taskId, boardId);
+      if (firstConnect) {
+        firstConnect = false;
+        return;
+      }
+      invalidateEntity('task', taskId);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.taskComments(taskId) });
+    };
     join();
     socket.on('connect', join);
 

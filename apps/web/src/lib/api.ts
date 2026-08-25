@@ -182,6 +182,7 @@ export const api = {
     apiRequest<T>(path, { method: 'GET', ...(query ? { query } : {}), ...(signal ? { signal } : {}) }),
   post: <T>(path: string, body?: unknown) => apiRequest<T>(path, { method: 'POST', body }),
   patch: <T>(path: string, body?: unknown) => apiRequest<T>(path, { method: 'PATCH', body }),
+  put: <T>(path: string, body?: unknown) => apiRequest<T>(path, { method: 'PUT', body }),
   delete: <T>(path: string, body?: unknown) => apiRequest<T>(path, { method: 'DELETE', body }),
   upload: <T>(path: string, formData: FormData, query?: Record<string, unknown>) =>
     apiRequest<T>(path, { method: 'POST', formData, ...(query ? { query } : {}) }),

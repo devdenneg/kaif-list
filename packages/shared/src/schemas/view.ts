@@ -8,6 +8,7 @@ import { taskPrioritySchema, taskTypeSchema } from './enums.js';
 export const savedViewFiltersSchema = z.object({
   search: z.string().trim().max(100).optional(),
   assigneeIds: z.array(idSchema).max(50).optional(),
+  groupIds: z.array(idSchema).max(50).optional(),
   labelIds: z.array(idSchema).max(50).optional(),
   priorities: z.array(taskPrioritySchema).max(6).optional(),
   types: z.array(taskTypeSchema).max(5).optional(),

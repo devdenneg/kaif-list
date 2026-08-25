@@ -170,6 +170,13 @@ export function buildNotificationText(
         }`,
       };
 
+    case NotificationType.BOARD_MEMBER_JOINED:
+      return {
+        icon: '🤝',
+        title: 'Новый человек на доске',
+        body: `${actor} присоединился(ась) к доске «${payload.boardName ?? ''}» по вашей ссылке`,
+      };
+
     case NotificationType.BOARD_ROLE_CHANGED:
       return {
         icon: '🔑',

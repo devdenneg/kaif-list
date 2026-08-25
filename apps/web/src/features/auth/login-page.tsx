@@ -81,7 +81,10 @@ export function LoginPage(): React.ReactElement {
             code: loginCode.code,
           });
           setSession(result.accessToken, result.user);
-          navigate(result.user.profileCompleted ? redirectTo : '/onboarding', { replace: true });
+          navigate(result.user.profileCompleted ? redirectTo : '/onboarding', {
+            replace: true,
+            ...(result.user.profileCompleted ? {} : { state: { from: redirectTo } }),
+          });
           return;
         }
         if (status === 'EXPIRED' || status === 'CONSUMED') setStage('expired');

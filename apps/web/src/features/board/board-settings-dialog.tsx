@@ -1,6 +1,15 @@
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, Archive, Crown, Palette, Settings2, Tag, Trash2 } from 'lucide-react';
+import {
+  AlertTriangle,
+  Archive,
+  Crown,
+  Layers,
+  Palette,
+  Settings2,
+  Tag,
+  Trash2,
+} from 'lucide-react';
 import {
   BOARD_COLORS,
   COLUMN_LABELS,
@@ -38,6 +47,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { BoardGroupsTab } from './board-groups-tab';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 
@@ -117,6 +127,10 @@ export function BoardSettingsDialog({
                 <TabsTrigger value="labels">
                   <Tag />
                   Метки
+                </TabsTrigger>
+                <TabsTrigger value="groups">
+                  <Layers />
+                  Группы
                 </TabsTrigger>
                 <TabsTrigger value="danger">
                   <AlertTriangle />
@@ -332,6 +346,10 @@ export function BoardSettingsDialog({
                     <p className="py-4 text-center text-sm text-muted-foreground">Меток пока нет</p>
                   )}
                 </div>
+              </TabsContent>
+
+              <TabsContent value="groups">
+                <BoardGroupsTab board={board} />
               </TabsContent>
 
               {/* ── Опасная зона ── */}

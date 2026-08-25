@@ -208,7 +208,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       .parse(request.query ?? {});
 
     const where = boardId
-      ? buildTaskWhere(boardId, { ...filters, onlyBacklog: true })
+      ? await buildTaskWhere(boardId, { ...filters, onlyBacklog: true })
       : {
           archivedAt: null,
           isBacklog: true,

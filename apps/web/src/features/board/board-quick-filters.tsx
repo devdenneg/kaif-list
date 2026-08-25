@@ -66,6 +66,7 @@ export function BoardQuickFilters({ board }: { board: BoardDto }): React.ReactEl
     setFilters(board.id, {
       search: saved.search ?? '',
       assigneeIds: saved.assigneeIds ?? [],
+      groupIds: saved.groupIds ?? [],
       labelIds: saved.labelIds ?? [],
       priorities: saved.priorities ?? [],
       types: saved.types ?? [],
@@ -77,6 +78,7 @@ export function BoardQuickFilters({ board }: { board: BoardDto }): React.ReactEl
   const currentAsSaved = (): SavedViewFilters => ({
     ...(filters.search ? { search: filters.search } : {}),
     ...(filters.assigneeIds.length > 0 ? { assigneeIds: filters.assigneeIds } : {}),
+    ...(filters.groupIds.length > 0 ? { groupIds: filters.groupIds } : {}),
     ...(filters.labelIds.length > 0 ? { labelIds: filters.labelIds } : {}),
     ...(filters.priorities.length > 0 ? { priorities: filters.priorities } : {}),
     ...(filters.types.length > 0 ? { types: filters.types } : {}),
@@ -115,6 +117,47 @@ export function BoardQuickFilters({ board }: { board: BoardDto }): React.ReactEl
       >
         Свободные
       </Chip>
+
+      {/* ── Группы: тот же быстрый доступ, что и у остальных чипов ── */}
+      {board.groups.length > 0 && <span className="mx-0.5 h-5 w-px bg-border" aria-hidden />}
+      {board.groups.map((group) => {
+        const active = filters.groupIds.includes(group.id);
+        return (
+          <button
+            key={group.id}
+            type="button"
+            aria-pressed={active}
+            onClick={() =>
+              setFilters(board.id, {
+                groupIds: active
+                  ? filters.groupIds.filter((id) => id !== group.id)
+                  : [...filters.groupIds, group.id],
+              })
+            }
+            title={
+              group.members.length > 0
+                ? group.members.map((member) => member.displayName).join(', ')
+                : 'В группе пока никого'
+            }
+            className={cn(
+              'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium transition-colors',
+              active
+                ? 'text-accent-foreground'
+                : 'border-border bg-surface text-muted-foreground hover:bg-secondary',
+            )}
+            style={
+              active ? { borderColor: group.color, backgroundColor: `${group.color}1f` } : undefined
+            }
+          >
+            <span
+              className="size-2 shrink-0 rounded-full"
+              style={{ backgroundColor: group.color }}
+              aria-hidden
+            />
+            {group.name}
+          </button>
+        );
+      })}
 
       {/* ── Сохранённые виды ── */}
       <DropdownMenu>

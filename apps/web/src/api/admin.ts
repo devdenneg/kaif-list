@@ -104,8 +104,9 @@ export function useSetUserRole() {
   return useMutation({
     mutationFn: (input: { userId: string; role: GlobalRole }) =>
       api.patch(`/api/admin/users/${input.userId}/role`, { role: input.role }),
+    // Роль видна и в сводке, и в списке досок — обновляем админку целиком.
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      void queryClient.invalidateQueries({ queryKey: ['admin'] });
     },
   });
 }
@@ -117,8 +118,12 @@ export function useSetUserActive() {
       const { userId, ...rest } = input;
       return api.patch(`/api/admin/users/${userId}/active`, rest);
     },
+    // Отключение переназначает задачи: меняются и доски, и «Мои задачи».
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      void queryClient.invalidateQueries({ queryKey: ['admin'] });
+      void queryClient.invalidateQueries({ queryKey: ['board'] });
+      void queryClient.invalidateQueries({ queryKey: ['boards'] });
+      void queryClient.invalidateQueries({ queryKey: ['my-tasks'] });
     },
   });
 }

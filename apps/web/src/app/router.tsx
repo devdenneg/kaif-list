@@ -35,6 +35,9 @@ const NotificationsPage = lazyWithRetry('notifications/notifications-page', () =
 const SettingsPage = lazyWithRetry('settings/settings-page', () =>
   import('@/features/settings/settings-page').then((m) => ({ default: m.SettingsPage })),
 );
+const InvitePage = lazyWithRetry('board/invite-page', () =>
+  import('@/features/board/invite-page').then((m) => ({ default: m.InvitePage })),
+);
 const AdminPage = lazyWithRetry('admin/admin-page', () =>
   import('@/features/admin/admin-page').then((m) => ({ default: m.AdminPage })),
 );
@@ -50,7 +53,12 @@ function ProtectedRoute(): React.ReactElement {
     return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />;
   }
   // Без имени и аватара пользоваться доской нельзя — это требование продукта.
-  if (user && !user.profileCompleted) return <Navigate to="/onboarding" replace />;
+  // Приглашение не должно потеряться, пока человек заполняет профиль.
+  if (user && !user.profileCompleted) {
+    return (
+      <Navigate to="/onboarding" replace state={{ from: location.pathname + location.search }} />
+    );
+  }
 
   return (
     <AppShell>
@@ -111,6 +119,7 @@ export const router = createBrowserRouter([
       { path: '/boards/:boardKey/backlog', element: <BacklogPage /> },
       { path: '/boards/:boardKey/people', element: <PeoplePage /> },
       { path: '/boards/:boardKey/dashboard', element: <DashboardPage /> },
+      { path: '/invite/:token', element: <InvitePage /> },
       { path: '/tasks/:taskKey', element: <TaskPage /> },
       { path: '/my', element: <MyTasksPage /> },
       { path: '/notifications', element: <NotificationsPage /> },

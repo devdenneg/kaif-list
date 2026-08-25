@@ -97,7 +97,46 @@ export const updateColumnSchema = z
   })
   .refine((v) => Object.keys(v).length > 0, 'Нечего обновлять');
 
+// ── Рабочие группы ──
+
+export const createBoardGroupSchema = z.object({
+  name: trimmedString(1, 32, 'Название группы'),
+  color: hexColorSchema.optional(),
+  /** Можно сразу добавить людей. */
+  userIds: z.array(idSchema).max(100).optional(),
+});
+export type CreateBoardGroupInput = z.infer<typeof createBoardGroupSchema>;
+export type CreateBoardGroupPayload = z.input<typeof createBoardGroupSchema>;
+
+export const updateBoardGroupSchema = z
+  .object({
+    name: trimmedString(1, 32, 'Название группы').optional(),
+    color: hexColorSchema.optional(),
+    order: z.number().int().min(0).max(999).optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, 'Нечего обновлять');
+
+export const setBoardGroupMembersSchema = z.object({
+  userIds: z.array(idSchema).max(200),
+});
+
 export const deleteBoardSchema = z.object({
   /** Пользователь вводит ключ доски — защита от случайного удаления. */
   confirm: z.string().min(1),
+});
+
+// ── Пригласительные ссылки ──
+
+export const createBoardInviteSchema = z.object({
+  role: z.nativeEnum(BoardRole).default(BoardRole.MEMBER),
+  /** Сколько дней ссылка живёт. По умолчанию — неделя. */
+  expiresInDays: z.coerce.number().int().min(1).max(30).default(7),
+  /** null — без ограничения по числу входов. */
+  maxUses: z.coerce.number().int().min(1).max(500).nullable().default(null),
+});
+export type CreateBoardInviteInput = z.infer<typeof createBoardInviteSchema>;
+export type CreateBoardInvitePayload = z.input<typeof createBoardInviteSchema>;
+
+export const inviteTokenSchema = z.object({
+  token: z.string().min(20).max(120),
 });

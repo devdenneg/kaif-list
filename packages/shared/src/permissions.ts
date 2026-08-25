@@ -165,8 +165,9 @@ export function can(ctx: AccessContext, action: Action): boolean {
       return isAdmin || (isMember && (ctx.isTaskAuthor === true || ctx.isTaskAssignee === true));
 
     case 'task.delete':
-      // Безвозвратное удаление — только администраторы доски.
-      return isAdmin;
+      // Свою задачу автор удаляет сам — иначе за каждой опечаткой при создании
+      // приходится идти к администратору. Чужие задачи — только админ доски.
+      return isAdmin || (isMember && ctx.isTaskAuthor === true);
 
     // --- Комментарии ---
     case 'comment.create':

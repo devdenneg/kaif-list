@@ -14,7 +14,12 @@ import type {
 } from '@kaif/shared';
 import { COLUMN_ORDER } from '@kaif/shared';
 import { api } from '@/lib/api';
-import { queryKeys } from '@/lib/query-client';
+import {
+  invalidateEntity,
+  invalidateTaskScopes,
+  queryKeys,
+  setEntityData,
+} from '@/lib/query-client';
 import type { BoardFilters } from '@/stores/ui';
 
 export type BoardColumns = Record<ColumnKey, TaskCardDto[]>;
@@ -23,6 +28,7 @@ function filtersToQuery(filters: BoardFilters): Record<string, unknown> {
   return {
     search: filters.search.trim() || undefined,
     assigneeIds: filters.assigneeIds.length > 0 ? filters.assigneeIds : undefined,
+    groupIds: filters.groupIds.length > 0 ? filters.groupIds : undefined,
     labelIds: filters.labelIds.length > 0 ? filters.labelIds : undefined,
     priorities: filters.priorities.length > 0 ? filters.priorities : undefined,
     types: filters.types.length > 0 ? filters.types : undefined,
@@ -81,14 +87,13 @@ export function useTask(taskId: string | undefined) {
 }
 
 export function useCreateTask(boardId: string) {
-  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateTaskPayload) =>
       api
         .post<{ task: TaskDetailDto }>(`/api/boards/${boardId}/tasks`, input)
         .then((response) => response.task),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['board', boardId] });
+      invalidateTaskScopes(boardId);
     },
   });
 }
@@ -101,8 +106,8 @@ export function useUpdateTask(taskId: string, boardId?: string) {
         .patch<{ task: TaskDetailDto }>(`/api/tasks/${taskId}`, input)
         .then((response) => response.task),
     onSuccess: (task) => {
-      queryClient.setQueryData(queryKeys.task(taskId), task);
-      void queryClient.invalidateQueries({ queryKey: ['board', boardId ?? task.boardId] });
+      setEntityData('task', task);
+      invalidateTaskScopes(boardId ?? task.boardId);
       void queryClient.invalidateQueries({ queryKey: queryKeys.taskComments(taskId) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.taskActivity(taskId) });
     },
@@ -171,30 +176,28 @@ export function useMoveTask(boardId: string, filters: BoardFilters) {
     },
 
     onSettled: (task) => {
-      void queryClient.invalidateQueries({ queryKey: ['board', boardId] });
-      if (task) queryClient.setQueryData(queryKeys.task(task.id), task);
+      invalidateTaskScopes(boardId);
+      if (task) setEntityData('task', task);
     },
   });
 }
 
 export function useArchiveTask(taskId: string, boardId: string) {
-  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: { archived: boolean; reason?: string }) =>
       api.post<{ task: TaskDetailDto }>(`/api/tasks/${taskId}/archive`, input),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['board', boardId] });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.task(taskId) });
+      invalidateTaskScopes(boardId);
+      invalidateEntity('task', taskId);
     },
   });
 }
 
 export function useDeleteTask(taskId: string, boardId: string) {
-  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (confirm: string) => api.delete(`/api/tasks/${taskId}`, { confirm }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['board', boardId] });
+      invalidateTaskScopes(boardId);
     },
   });
 }
@@ -206,64 +209,59 @@ export function useDeleteTask(taskId: string, boardId: string) {
  * это нужно быстрым действиям из меню карточки, где задача заранее неизвестна.
  */
 export function useUpdateTaskById(boardId: string) {
-  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ taskId, ...input }: UpdateTaskPayload & { taskId: string }) =>
       api
         .patch<{ task: TaskDetailDto }>(`/api/tasks/${taskId}`, input)
         .then((response) => response.task),
     onSuccess: (task) => {
-      queryClient.setQueryData(queryKeys.task(task.id), task);
-      void queryClient.invalidateQueries({ queryKey: ['board', boardId] });
+      setEntityData('task', task);
+      invalidateTaskScopes(boardId);
     },
   });
 }
 
 export function useArchiveTaskById(boardId: string) {
-  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: { taskId: string; archived: boolean; reason?: string }) => {
       const { taskId, ...rest } = input;
       return api.post<{ task: TaskDetailDto }>(`/api/tasks/${taskId}/archive`, rest);
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['board', boardId] });
+      invalidateTaskScopes(boardId);
     },
   });
 }
 
 export function useDuplicateTaskById(boardId: string) {
-  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ taskId, ...input }: DuplicateTaskPayload & { taskId: string }) =>
       api
         .post<{ task: TaskDetailDto }>(`/api/tasks/${taskId}/duplicate`, input)
         .then((response) => response.task),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['board', boardId] });
+      invalidateTaskScopes(boardId);
     },
   });
 }
 
 export function useDuplicateTask(taskId: string, boardId: string) {
-  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: DuplicateTaskPayload) =>
       api
         .post<{ task: TaskDetailDto }>(`/api/tasks/${taskId}/duplicate`, input)
         .then((response) => response.task),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['board', boardId] });
+      invalidateTaskScopes(boardId);
     },
   });
 }
 
 export function useWatchTask(taskId: string) {
-  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (watch: boolean) => api.post(`/api/tasks/${taskId}/watch`, { watch }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.task(taskId) });
+      invalidateEntity('task', taskId);
     },
   });
 }
@@ -271,11 +269,10 @@ export function useWatchTask(taskId: string) {
 // ──────────────────────────────── Чек-листы ─────────────────────────────────
 
 export function useChecklistMutations(taskId: string, boardId?: string) {
-  const queryClient = useQueryClient();
 
   const invalidate = (): void => {
-    void queryClient.invalidateQueries({ queryKey: queryKeys.task(taskId) });
-    if (boardId) void queryClient.invalidateQueries({ queryKey: ['board', boardId] });
+    invalidateEntity('task', taskId);
+    if (boardId) invalidateTaskScopes(boardId);
   };
 
   const createChecklist = useMutation({
@@ -314,10 +311,9 @@ export function useChecklistMutations(taskId: string, boardId?: string) {
 // ────────────────────────────────── Связи ───────────────────────────────────
 
 export function useTaskLinks(taskId: string, boardId?: string) {
-  const queryClient = useQueryClient();
   const invalidate = (): void => {
-    void queryClient.invalidateQueries({ queryKey: queryKeys.task(taskId) });
-    if (boardId) void queryClient.invalidateQueries({ queryKey: ['board', boardId] });
+    invalidateEntity('task', taskId);
+    if (boardId) invalidateTaskScopes(boardId);
   };
 
   const createLink = useMutation({
@@ -350,12 +346,11 @@ export function useTaskActivity(taskId: string | undefined) {
 }
 
 export function useBulkTaskAction(boardId: string) {
-  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: BulkTaskActionPayload) =>
       api.post<{ affected: number }>(`/api/boards/${boardId}/tasks/bulk`, input),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['board', boardId] });
+      invalidateTaskScopes(boardId);
     },
   });
 }

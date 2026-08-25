@@ -56,7 +56,7 @@
 
 | Метод | Путь | Описание |
 |---|---|---|
-| GET | `/` | Справочник людей (для назначения и упоминаний) |
+| GET | `/?boardId=` | Люди на конкретной доске (для назначения и упоминаний). `boardId` обязателен: общий список всех зарегистрированных наружу не отдаётся |
 | PATCH | `/me` | Имя, аватар, часовой пояс, язык |
 | POST | `/me/avatar` | Загрузить аватар (multipart) |
 | GET | `/me/notifications-settings` | Настройки уведомлений |
@@ -82,6 +82,12 @@
 | PATCH | `/:boardId/members/:userId` | Изменить роль |
 | DELETE | `/:boardId/members/:userId` | Исключить (или выйти самому) |
 | GET | `/:boardId/workload` | Загрузка участников |
+| GET | `/:boardId/invites` | Действующие пригласительные ссылки |
+| POST | `/:boardId/invites` | Создать ссылку (`role`, `expiresInDays`, `maxUses`) |
+| DELETE | `/:boardId/invites/:inviteId` | Отозвать ссылку |
+| GET · POST | `/:boardId/groups` | Рабочие группы: список и создание |
+| PATCH · DELETE | `/:boardId/groups/:groupId` | Название, цвет, порядок / удалить |
+| PUT | `/:boardId/groups/:groupId/members` | Задать состав группы целиком |
 | POST | `/:boardId/labels` · PATCH `/labels/:labelId` · DELETE | Метки |
 | PATCH | `/:boardId/columns/:columnKey` | Название колонки и WIP-лимит |
 | GET | `/:boardId/tasks` | **Канбан**: задачи, сгруппированные по колонкам |
@@ -97,9 +103,25 @@
 `:boardId` принимает и id, и ключ доски (`OPS`).
 
 **Фильтры задач** (query): `search`, `assigneeIds`, `unassigned`, `reporterIds`,
-`testerIds`, `labelIds`, `priorities`, `types`, `columns`, `due`
+`testerIds`, `groupIds`, `labelIds`, `priorities`, `types`, `columns`, `due`
 (`overdue|today|week|has|none`), `includeArchived`, `onlyBacklog`, `sort`, `order`,
 `cursor`, `limit`. Списки принимаются и через запятую, и повторяющимся параметром.
+Фильтры складываются друг с другом (`AND`), а `assigneeIds`, `groupIds`
+и `unassigned` внутри себя объединяются по `ИЛИ`: группа разворачивается
+в список её участников.
+
+---
+
+## Приглашения · `/api/invites`
+
+| Метод | Путь | Описание |
+|---|---|---|
+| GET | `/:token` | Что за доска и кто зовёт (нужна авторизация) |
+| POST | `/:token/accept` | Вступить в доску по ссылке |
+
+Ссылка — единственный способ попасть в чужую доску: справочник всех
+зарегистрированных людей наружу не отдаётся. Токен живёт ограниченное время,
+имеет лимит входов и отзывается владельцем.
 
 ---
 

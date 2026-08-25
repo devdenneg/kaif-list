@@ -13,7 +13,7 @@ import type {
   ActivityDto,
 } from '@kaif/shared';
 import { api } from '@/lib/api';
-import { queryKeys } from '@/lib/query-client';
+import { invalidateEntity, queryKeys, setEntityData } from '@/lib/query-client';
 
 export function useBoards(includeArchived = false) {
   return useQuery({
@@ -53,7 +53,7 @@ export function useUpdateBoard(boardId: string) {
         .patch<{ board: BoardDto }>(`/api/boards/${boardId}`, input)
         .then((response) => response.board),
     onSuccess: (board) => {
-      queryClient.setQueryData(queryKeys.board(boardId), board);
+      setEntityData('board', board);
       void queryClient.invalidateQueries({ queryKey: queryKeys.boards });
     },
   });
@@ -65,7 +65,7 @@ export function useArchiveBoard(boardId: string) {
     mutationFn: (archived: boolean) =>
       api.post<{ board: BoardDto }>(`/api/boards/${boardId}/archive`, { archived }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.board(boardId) });
+      invalidateEntity('board', boardId);
       void queryClient.invalidateQueries({ queryKey: queryKeys.boards });
     },
   });
@@ -82,12 +82,11 @@ export function useDeleteBoard(boardId: string) {
 }
 
 export function useTransferOwnership(boardId: string) {
-  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: { newOwnerId: string; confirm: string }) =>
       api.post(`/api/boards/${boardId}/transfer-ownership`, input),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.board(boardId) });
+      invalidateEntity('board', boardId);
     },
   });
 }
@@ -98,7 +97,7 @@ export function useToggleFavorite(boardId: string) {
     mutationFn: (favorite: boolean) => api.post(`/api/boards/${boardId}/favorite`, { favorite }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.boards });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.board(boardId) });
+      invalidateEntity('board', boardId);
     },
   });
 }
@@ -125,19 +124,18 @@ export function useAddBoardMember(boardId: string) {
         .post<{ member: BoardMemberDto }>(`/api/boards/${boardId}/members`, input)
         .then((response) => response.member),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.board(boardId) });
+      invalidateEntity('board', boardId);
       void queryClient.invalidateQueries({ queryKey: queryKeys.boardWorkload(boardId) });
     },
   });
 }
 
 export function useChangeMemberRole(boardId: string) {
-  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: { userId: string; role: BoardRole }) =>
       api.patch(`/api/boards/${boardId}/members/${input.userId}`, { role: input.role }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.board(boardId) });
+      invalidateEntity('board', boardId);
     },
   });
 }
@@ -147,7 +145,7 @@ export function useRemoveMember(boardId: string) {
   return useMutation({
     mutationFn: (userId: string) => api.delete(`/api/boards/${boardId}/members/${userId}`),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.board(boardId) });
+      invalidateEntity('board', boardId);
       void queryClient.invalidateQueries({ queryKey: queryKeys.boardWorkload(boardId) });
     },
   });
@@ -156,50 +154,46 @@ export function useRemoveMember(boardId: string) {
 // ────────────────────────────── Метки и колонки ─────────────────────────────
 
 export function useCreateLabel(boardId: string) {
-  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: { name: string; color: string; description?: string }) =>
       api
         .post<{ label: LabelDto }>(`/api/boards/${boardId}/labels`, input)
         .then((response) => response.label),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.board(boardId) });
+      invalidateEntity('board', boardId);
     },
   });
 }
 
 export function useUpdateLabel(boardId: string) {
-  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: { labelId: string; name?: string; color?: string; description?: string }) => {
       const { labelId, ...rest } = input;
       return api.patch(`/api/boards/${boardId}/labels/${labelId}`, rest);
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.board(boardId) });
+      invalidateEntity('board', boardId);
     },
   });
 }
 
 export function useDeleteLabel(boardId: string) {
-  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (labelId: string) => api.delete(`/api/boards/${boardId}/labels/${labelId}`),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.board(boardId) });
+      invalidateEntity('board', boardId);
     },
   });
 }
 
 export function useUpdateColumn(boardId: string) {
-  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: { columnKey: ColumnKey; name?: string; wipLimit?: number | null }) => {
       const { columnKey, ...rest } = input;
       return api.patch(`/api/boards/${boardId}/columns/${columnKey}`, rest);
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.board(boardId) });
+      invalidateEntity('board', boardId);
     },
   });
 }

@@ -2,7 +2,7 @@ import * as React from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { SOCKET_EVENTS, type PresenceSyncPayload, type PresenceUser } from '@kaif/shared';
 import { getSocket, subscribeToBoard, unsubscribeFromBoard } from '@/lib/socket';
-import { queryKeys } from '@/lib/query-client';
+import { invalidateEntity } from '@/lib/query-client';
 import { useAuthStore } from '@/stores/auth';
 
 /**
@@ -24,16 +24,16 @@ export function useBoardRealtime(boardId: string | undefined): PresenceUser[] {
     const invalidateBoard = (payload: { boardId?: string; actorId?: string }): void => {
       if (payload.boardId && payload.boardId !== boardId) return;
       if (payload.actorId && payload.actorId === currentUserId) return;
-      void queryClient.invalidateQueries({ queryKey: ['board', boardId] });
+      invalidateEntity('board', boardId);
     };
 
     const invalidateTask = (payload: { taskId?: string; actorId?: string; boardId?: string }): void => {
       if (payload.boardId && payload.boardId !== boardId) return;
       if (payload.taskId) {
-        void queryClient.invalidateQueries({ queryKey: queryKeys.task(payload.taskId) });
+        invalidateEntity('task', payload.taskId);
       }
       if (payload.actorId === currentUserId) return;
-      void queryClient.invalidateQueries({ queryKey: ['board', boardId] });
+      invalidateEntity('board', boardId);
     };
 
     const onPresence = (payload: PresenceSyncPayload): void => {
@@ -49,7 +49,18 @@ export function useBoardRealtime(boardId: string | undefined): PresenceUser[] {
     socket.on(SOCKET_EVENTS.BOARD_MEMBERS_CHANGED, invalidateBoard);
     socket.on(SOCKET_EVENTS.PRESENCE_SYNC, onPresence);
 
-    const join = (): void => subscribeToBoard(boardId);
+    // Пока соединения не было, события шли мимо — после переподключения
+    // перечитываем доску целиком, иначе пропущенное потеряно навсегда.
+    let firstConnect = true;
+    const join = (): void => {
+      subscribeToBoard(boardId);
+      if (firstConnect) {
+        firstConnect = false;
+        return;
+      }
+      invalidateEntity('board', boardId);
+      void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    };
     join();
     socket.on('connect', join);
 

@@ -27,6 +27,67 @@ export const queryClient = new QueryClient({
   },
 });
 
+/**
+ * Инвалидация доски или задачи по любому из двух её имён.
+ *
+ * Экраны открываются по человекочитаемому ключу (`/boards/KAIF`,
+ * `/tasks/KAIF-12`), поэтому в кеше запись лежит под ним. Мутации и
+ * события сокета знают только идентификатор — и без этой сшивки
+ * инвалидировали бы пустую запись, а на экране оставалось бы старое
+ * значение до перезагрузки страницы.
+ *
+ * Второе имя ищем в самих данных кеша: там есть и `id`, и `key`.
+ */
+export function invalidateEntity(scope: 'board' | 'task', idOrKey: string): void {
+  void queryClient.invalidateQueries({ queryKey: [scope, idOrKey] });
+
+  for (const query of queryClient.getQueryCache().findAll({ queryKey: [scope] })) {
+    const alias = query.queryKey[1];
+    if (typeof alias !== 'string' || alias === idOrKey) continue;
+
+    const data = query.state.data as { id?: string; key?: string } | undefined;
+    if (!data || typeof data !== 'object') continue;
+    if (data.id === idOrKey || data.key === idOrKey) {
+      void queryClient.invalidateQueries({ queryKey: [scope, alias] });
+    }
+  }
+}
+
+/** Записать свежий объект под оба его имени — и по id, и по ключу. */
+export function setEntityData<T extends { id: string; key: string }>(
+  scope: 'board' | 'task',
+  data: T,
+): void {
+  queryClient.setQueryData([scope, data.id], data);
+  queryClient.setQueryData([scope, data.key], data);
+}
+
+/** Точечно поправить объект в кеше, не дожидаясь ответа сервера. */
+export function updateEntityData<T extends { id: string; key: string }>(
+  scope: 'board' | 'task',
+  idOrKey: string,
+  updater: (previous: T) => T,
+): void {
+  for (const query of queryClient.getQueryCache().findAll({ queryKey: [scope] })) {
+    const data = query.state.data as T | undefined;
+    if (!data || typeof data !== 'object') continue;
+    if (data.id !== idOrKey && data.key !== idOrKey) continue;
+    queryClient.setQueryData<T>(query.queryKey, (previous) =>
+      previous ? updater(previous) : previous,
+    );
+  }
+}
+
+/**
+ * Задача изменилась — а вместе с ней счётчики на карточках досок в сайдбаре
+ * и экран «Мои задачи». Раньше они замирали до перезагрузки страницы.
+ */
+export function invalidateTaskScopes(boardId?: string): void {
+  if (boardId) invalidateEntity('board', boardId);
+  void queryClient.invalidateQueries({ queryKey: ['boards'] });
+  void queryClient.invalidateQueries({ queryKey: ['my-tasks'] });
+}
+
 export const queryKeys = {
   boards: ['boards'] as const,
   board: (boardId: string) => ['board', boardId] as const,

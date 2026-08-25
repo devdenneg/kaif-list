@@ -43,7 +43,7 @@ import { SwimlaneBoard } from './swimlane-board';
 import { TaskActionsProvider } from './task-actions-context';
 import { BoardFilters } from './board-filters';
 import { BoardQuickFilters } from './board-quick-filters';
-import { MembersBar } from './members-bar';
+import { PeopleBar } from './people-bar';
 import { MobileColumnTabs } from './mobile-column-tabs';
 import { BoardSettingsDialog } from './board-settings-dialog';
 import { useBoardRealtime } from './use-board-realtime';
@@ -238,18 +238,6 @@ export function BoardPage(): React.ReactElement {
           )}
 
           <div className="ml-auto flex items-center gap-2">
-            {!isMobile && (
-              <MembersBar
-                board={board}
-                presence={presence}
-                canManage={canManageBoard}
-                onCreateTaskFor={(assigneeId) => {
-                  setCreateTaskDefaults({ assigneeId });
-                  setCreateTaskOpen(true);
-                }}
-              />
-            )}
-
             {canCreate && (
               <Button
                 variant="primary"
@@ -314,6 +302,7 @@ export function BoardPage(): React.ReactElement {
                     window.location.href = buildExportUrl(board.id, {
                       search: filters.search,
                       assigneeIds: filters.assigneeIds,
+                      groupIds: filters.groupIds,
                       labelIds: filters.labelIds,
                       priorities: filters.priorities,
                       types: filters.types,
@@ -359,23 +348,23 @@ export function BoardPage(): React.ReactElement {
           </div>
         </div>
 
+        {/* ── Быстрая фильтрация по людям: слева направо, как в Jira ── */}
+        <div className="pb-2">
+          <PeopleBar
+            board={board}
+            presence={presence}
+            canManage={canManageBoard}
+            onCreateTaskFor={(assigneeId) => {
+              setCreateTaskDefaults({ assigneeId });
+              setCreateTaskOpen(true);
+            }}
+            {...(isMobile ? { compact: true } : {})}
+          />
+        </div>
+
         <div className="pb-3">
           <BoardQuickFilters board={board} />
         </div>
-
-        {isMobile && (
-          <div className="pb-1">
-            <MembersBar
-              board={board}
-              presence={presence}
-              canManage={canManageBoard}
-              onCreateTaskFor={(assigneeId) => {
-                setCreateTaskDefaults({ assigneeId });
-                setCreateTaskOpen(true);
-              }}
-            />
-          </div>
-        )}
       </div>
 
       {/* ── Колонки ── */}

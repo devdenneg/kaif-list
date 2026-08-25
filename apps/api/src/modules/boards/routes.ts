@@ -3,6 +3,8 @@ import {
   addBoardMemberSchema,
   bulkTaskActionSchema,
   changeBoardMemberRoleSchema,
+  createBoardGroupSchema,
+  createBoardInviteSchema,
   createBoardSchema,
   createLabelSchema,
   createSavedViewSchema,
@@ -11,12 +13,15 @@ import {
   taskFiltersSchema,
   transferOwnershipSchema,
   updateBoardSchema,
+  setBoardGroupMembersSchema,
+  updateBoardGroupSchema,
   updateColumnSchema,
   updateLabelSchema,
   updateSavedViewSchema,
   type ColumnKey,
 } from '@kaif/shared';
 import { z } from 'zod';
+import { createBoardInvite, listBoardInvites, revokeBoardInvite } from './invites.js';
 import { requireUser } from '../../plugins/auth.js';
 import { heavyRateLimit } from '../../plugins/security.js';
 import { loadBoardContext } from '../../lib/rbac.js';
@@ -25,7 +30,12 @@ import {
   addMember,
   changeMemberRole,
   createBoard,
+  createBoardGroup,
   createLabel,
+  deleteBoardGroup,
+  listBoardGroups,
+  setBoardGroupMembers,
+  updateBoardGroup,
   deleteBoard,
   deleteLabel,
   getBoard,
@@ -163,6 +173,76 @@ export async function registerBoardRoutes(app: FastifyInstance): Promise<void> {
     const { userId } = z.object({ userId: z.string().min(1).max(40) }).parse(request.params);
     const context = await loadBoardContext(user, boardId);
     await removeMember(user, context, userId);
+    return reply.send({ success: true });
+  });
+
+  // ── Пригласительные ссылки ───────────────────────────────────────────────
+
+  app.get('/:boardId/invites', async (request, reply) => {
+    const user = requireUser(request);
+    const { boardId } = boardParams.parse(request.params);
+    const context = await loadBoardContext(user, boardId);
+    return reply.send({ items: await listBoardInvites(user, context) });
+  });
+
+  app.post('/:boardId/invites', async (request, reply) => {
+    const user = requireUser(request);
+    const { boardId } = boardParams.parse(request.params);
+    const input = createBoardInviteSchema.parse(request.body ?? {});
+    const context = await loadBoardContext(user, boardId);
+    return reply.code(201).send({ invite: await createBoardInvite(user, context, input) });
+  });
+
+  app.delete('/:boardId/invites/:inviteId', async (request, reply) => {
+    const user = requireUser(request);
+    const { boardId } = boardParams.parse(request.params);
+    const { inviteId } = z.object({ inviteId: z.string().min(1).max(40) }).parse(request.params);
+    const context = await loadBoardContext(user, boardId);
+    await revokeBoardInvite(user, context, inviteId);
+    return reply.send({ success: true });
+  });
+
+  // ── Рабочие группы ───────────────────────────────────────────────────────
+
+  app.get('/:boardId/groups', async (request, reply) => {
+    const user = requireUser(request);
+    const { boardId } = boardParams.parse(request.params);
+    const context = await loadBoardContext(user, boardId);
+    return reply.send({ items: await listBoardGroups(user, context) });
+  });
+
+  app.post('/:boardId/groups', async (request, reply) => {
+    const user = requireUser(request);
+    const { boardId } = boardParams.parse(request.params);
+    const input = createBoardGroupSchema.parse(request.body);
+    const context = await loadBoardContext(user, boardId);
+    return reply.code(201).send({ group: await createBoardGroup(user, context, input) });
+  });
+
+  app.patch('/:boardId/groups/:groupId', async (request, reply) => {
+    const user = requireUser(request);
+    const { boardId } = boardParams.parse(request.params);
+    const { groupId } = z.object({ groupId: z.string().min(1).max(40) }).parse(request.params);
+    const input = updateBoardGroupSchema.parse(request.body);
+    const context = await loadBoardContext(user, boardId);
+    return reply.send({ group: await updateBoardGroup(user, context, groupId, input) });
+  });
+
+  app.put('/:boardId/groups/:groupId/members', async (request, reply) => {
+    const user = requireUser(request);
+    const { boardId } = boardParams.parse(request.params);
+    const { groupId } = z.object({ groupId: z.string().min(1).max(40) }).parse(request.params);
+    const { userIds } = setBoardGroupMembersSchema.parse(request.body);
+    const context = await loadBoardContext(user, boardId);
+    return reply.send({ group: await setBoardGroupMembers(user, context, groupId, userIds) });
+  });
+
+  app.delete('/:boardId/groups/:groupId', async (request, reply) => {
+    const user = requireUser(request);
+    const { boardId } = boardParams.parse(request.params);
+    const { groupId } = z.object({ groupId: z.string().min(1).max(40) }).parse(request.params);
+    const context = await loadBoardContext(user, boardId);
+    await deleteBoardGroup(user, context, groupId);
     return reply.send({ success: true });
   });
 

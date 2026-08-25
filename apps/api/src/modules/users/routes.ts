@@ -14,22 +14,34 @@ import { BadRequestError } from '../../lib/errors.js';
 import { sanitizePlainText } from '../../lib/sanitize.js';
 import { deleteAvatar, storeAvatar } from '../../lib/files.js';
 import { mapPublicUser, mapTaskCard, publicUserSelect, taskCardSelect } from '../../lib/mappers.js';
-import { accessibleBoardIds } from '../../lib/rbac.js';
+import { accessibleBoardIds, loadBoardContext } from '../../lib/rbac.js';
 import { readMultipartFile } from '../attachments/service.js';
 import { getCurrentUser } from './service.js';
 
 export async function registerUserRoutes(app: FastifyInstance): Promise<void> {
   app.addHook('preHandler', app.authenticate);
 
-  /** Справочник людей — для выбора исполнителя и упоминаний. */
+  /**
+   * Справочник людей в пределах одной доски — для выбора исполнителя
+   * и упоминаний.
+   *
+   * `boardId` обязателен намеренно: общий список всех, кто зарегистрирован
+   * в системе, наружу не отдаётся никому, включая суперадмина (у него для
+   * этого есть админка). Иначе любой участник любой доски видел бы всю
+   * компанию целиком, а состав доски перестал бы быть решением её владельца.
+   */
   app.get('/', async (request, reply) => {
     const user = requireUser(request);
     const query = listUsersSchema.parse(request.query ?? {});
+    if (!query.boardId) throw new BadRequestError('Укажите доску');
+
+    // Смотреть состав доски может только тот, кто сам на ней есть.
+    await loadBoardContext(user, query.boardId);
 
     const users = await prisma.user.findMany({
       where: {
         ...(query.includeInactive ? {} : { isActive: true }),
-        ...(query.boardId ? { memberships: { some: { boardId: query.boardId } } } : {}),
+        memberships: { some: { boardId: query.boardId } },
         ...(query.search
           ? {
               OR: [
@@ -38,10 +50,6 @@ export async function registerUserRoutes(app: FastifyInstance): Promise<void> {
               ],
             }
           : {}),
-        // Обычный пользователь видит только тех, с кем пересекается на досках.
-        ...(user.globalRole === 'SUPERADMIN'
-          ? {}
-          : { memberships: { some: { board: { members: { some: { userId: user.id } } } } } }),
       },
       orderBy: { displayName: 'asc' },
       take: query.limit,

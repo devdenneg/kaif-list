@@ -8,6 +8,8 @@ export type Swimlane = 'none' | 'assignee' | 'priority' | 'type';
 export interface BoardFilters {
   search: string;
   assigneeIds: string[];
+  /** Рабочие группы: показываем задачи их участников. */
+  groupIds: string[];
   labelIds: string[];
   priorities: TaskPriority[];
   types: TaskType[];
@@ -30,6 +32,7 @@ export const NO_COLLAPSED_COLUMNS: ColumnKey[] = [];
 export const EMPTY_FILTERS: BoardFilters = {
   search: '',
   assigneeIds: [],
+  groupIds: [],
   labelIds: [],
   priorities: [],
   types: [],
@@ -107,6 +110,16 @@ export const useUiStore = create<UiState>()(
     }),
     {
       name: 'kaif-ui',
+      /**
+       * Фильтры лежат в localStorage с прошлых версий и могут не знать
+       * о новых полях. Достраиваем их до полного набора при загрузке:
+       * иначе первое же обращение к `filters.groupIds.length` роняет
+       * приложение белым экраном у тех, кто уже пользовался доской.
+       */
+      merge: (persisted, current) => {
+        const saved = (persisted ?? {}) as Partial<UiState>;
+        return { ...current, ...saved, filters: normalizeStoredFilters(saved.filters) };
+      },
       partialize: (state) => ({
         theme: state.theme,
         sidebarCollapsed: state.sidebarCollapsed,
@@ -131,6 +144,21 @@ export function applyTheme(theme: Theme): void {
   }
 }
 
+/**
+ * Достраивает сохранённые наборы фильтров до текущего набора полей.
+ * Вынесено отдельно, чтобы это можно было проверить тестом без браузера.
+ */
+export function normalizeStoredFilters(
+  stored: Record<string, Partial<BoardFilters>> | undefined,
+): Record<string, BoardFilters> {
+  return Object.fromEntries(
+    Object.entries(stored ?? {}).map(([boardId, filters]) => [
+      boardId,
+      { ...EMPTY_FILTERS, ...filters },
+    ]),
+  );
+}
+
 export function useBoardFilters(boardId: string): BoardFilters {
   return useUiStore((state) => state.filters[boardId] ?? EMPTY_FILTERS);
 }
@@ -139,6 +167,7 @@ export function hasActiveFilters(filters: BoardFilters): boolean {
   return (
     filters.search.trim().length > 0 ||
     filters.assigneeIds.length > 0 ||
+    filters.groupIds.length > 0 ||
     filters.labelIds.length > 0 ||
     filters.priorities.length > 0 ||
     filters.types.length > 0 ||

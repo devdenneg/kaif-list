@@ -31,6 +31,7 @@ import { UserAvatar } from '@/components/ui/avatar';
 import { FullScreenLoader } from '@/app/loader';
 import { TaskCard } from '@/features/board/task-card';
 import { TaskActionsProvider } from '@/features/board/task-actions-context';
+import { useBoardRealtime } from '@/features/board/use-board-realtime';
 import { CreateTaskDialog } from '@/features/task/create-task-dialog';
 import { TaskDialog } from '@/features/task/task-dialog';
 
@@ -44,6 +45,9 @@ export function BacklogPage(): React.ReactElement {
   const { boardKey } = useParams<{ boardKey: string }>();
   const user = useAuthStore((state) => state.user);
   const { data: board, isLoading } = useBoard(boardKey);
+  // Бэклог живёт по тем же событиям, что и доска: задачи уезжают в работу
+  // и возвращаются обратно, пока экран открыт.
+  useBoardRealtime(board?.id);
 
   const [search, setSearch] = React.useState('');
   const debouncedSearch = useDebounce(search, 250);

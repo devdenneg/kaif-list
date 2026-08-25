@@ -1,9 +1,8 @@
 import * as React from 'react';
 import { Download, FileText, Paperclip, Trash2, Upload } from 'lucide-react';
 import { LIMITS, type AttachmentDto, type TaskDetailDto } from '@kaif/shared';
-import { useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { queryKeys } from '@/lib/query-client';
+import { invalidateEntity, invalidateTaskScopes } from '@/lib/query-client';
 import { Button } from '@/components/ui/button';
 import { Tooltip } from '@/components/ui/tooltip';
 import { Lightbox } from '@/components/ui/lightbox';
@@ -21,7 +20,6 @@ export function TaskAttachments({
   task: TaskDetailDto;
   editable: boolean;
 }): React.ReactElement {
-  const queryClient = useQueryClient();
   const [uploading, setUploading] = React.useState(false);
   const [dragOver, setDragOver] = React.useState(false);
   const [lightboxIndex, setLightboxIndex] = React.useState<number | null>(null);
@@ -42,7 +40,8 @@ export function TaskAttachments({
       const formData = new FormData();
       for (const file of list) formData.append('files', file);
       await api.upload(`/api/tasks/${task.id}/attachments`, formData);
-      await queryClient.invalidateQueries({ queryKey: queryKeys.task(task.id) });
+      invalidateEntity('task', task.id);
+      invalidateTaskScopes(task.board.id);
       toast.success(list.length === 1 ? 'Файл приложен' : `Приложено файлов: ${list.length}`);
     } catch (error) {
       toast.error('Не удалось загрузить файл', error);
@@ -54,7 +53,8 @@ export function TaskAttachments({
   const remove = async (attachment: AttachmentDto): Promise<void> => {
     try {
       await api.delete(`/api/attachments/${attachment.id}`);
-      await queryClient.invalidateQueries({ queryKey: queryKeys.task(task.id) });
+      invalidateEntity('task', task.id);
+      invalidateTaskScopes(task.board.id);
     } catch (error) {
       toast.error('Не удалось удалить файл', error);
     }

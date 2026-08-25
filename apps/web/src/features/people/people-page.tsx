@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, Plus, Users } from 'lucide-react';
+import { ArrowLeft, Plus, UserPlus, Users } from 'lucide-react';
 import { BOARD_ROLE_LABELS, can, type MemberWorkloadDto } from '@kaif/shared';
 import { useBoard, useBoardWorkload } from '@/api/boards';
 import { useAuthStore } from '@/stores/auth';
@@ -10,7 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { EmptyState, Progress, Skeleton } from '@/components/ui/misc';
 import { FullScreenLoader } from '@/app/loader';
 import { MemberPanel } from '@/features/board/member-panel';
-import { AddMemberDialog } from '@/features/board/add-member-dialog';
+import { useBoardRealtime } from '@/features/board/use-board-realtime';
+import { InviteDialog } from '@/features/board/invite-dialog';
 import { CreateTaskDialog } from '@/features/task/create-task-dialog';
 import { cn } from '@/lib/utils';
 
@@ -23,6 +24,8 @@ export function PeoplePage(): React.ReactElement {
   const user = useAuthStore((state) => state.user);
   const { data: board, isLoading } = useBoard(boardKey);
   const { data: workload, isLoading: workloadLoading } = useBoardWorkload(board?.id);
+  // Нагрузка меняется от чужих действий — экран должен обновляться сам.
+  useBoardRealtime(board?.id);
 
   const [selectedUserId, setSelectedUserId] = React.useState<string | null>(null);
   const [addMemberOpen, setAddMemberOpen] = React.useState(false);
@@ -60,8 +63,8 @@ export function PeoplePage(): React.ReactElement {
 
           {canManage && (
             <Button variant="primary" onClick={() => setAddMemberOpen(true)}>
-              <Plus />
-              Добавить
+              <UserPlus />
+              Пригласить
             </Button>
           )}
         </div>
@@ -98,7 +101,7 @@ export function PeoplePage(): React.ReactElement {
         canManage={canManage}
       />
 
-      <AddMemberDialog board={board} open={addMemberOpen} onOpenChange={setAddMemberOpen} />
+      <InviteDialog board={board} open={addMemberOpen} onOpenChange={setAddMemberOpen} />
 
       <CreateTaskDialog
         board={board}

@@ -153,7 +153,8 @@ export function TaskComments({
               taskId={task.id}
               members={members}
               canDelete={
-                comment.author?.id === currentUser?.id || task.permissions.canDelete
+                comment.author?.id === currentUser?.id ||
+                task.permissions.canModerateComments
               }
               onReply={() => setReplyTo(comment)}
             />

@@ -14,6 +14,7 @@ import {
   mergeBoardSettings,
   rooms,
   type BoardDto,
+  type BoardGroupDto,
   type BoardMemberDto,
   type BoardSummaryDto,
   type CreateBoardInput,
@@ -21,6 +22,7 @@ import {
   type MemberWorkloadDto,
   type UpdateBoardInput,
 } from '@kaif/shared';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma.js';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../../lib/errors.js';
 import { mapColumns, mapPublicUser, publicUserSelect } from '../../lib/mappers.js';
@@ -274,6 +276,17 @@ export async function getBoard(user: RequestUser, boardIdOrKey: string): Promise
           user: { select: publicUserSelect },
         },
       },
+      groups: {
+        orderBy: [{ order: 'asc' }, { name: 'asc' }],
+        select: {
+          id: true,
+          boardId: true,
+          name: true,
+          color: true,
+          order: true,
+          members: { select: { user: { select: publicUserSelect } } },
+        },
+      },
       _count: { select: { members: true } },
     },
   });
@@ -345,6 +358,16 @@ export async function getBoard(user: RequestUser, boardIdOrKey: string): Promise
         role: member.role,
         user: mapPublicUser(member.user),
         addedAt: member.createdAt.toISOString(),
+      }),
+    ),
+    groups: board.groups.map(
+      (group): BoardGroupDto => ({
+        id: group.id,
+        boardId: group.boardId,
+        name: group.name,
+        color: group.color,
+        order: group.order,
+        members: group.members.map((member) => mapPublicUser(member.user)),
       }),
     ),
     owner: mapPublicUser(board.owner),
@@ -909,5 +932,172 @@ export async function updateColumn(
     room: rooms.board(context.board.id),
     event: SOCKET_EVENTS.BOARD_UPDATED,
     data: { boardId: context.board.id },
+  });
+}
+
+
+// ────────────────────────────── Рабочие группы ──────────────────────────────
+
+/**
+ * Группы — это способ смотреть на доску глазами направления, а не человека:
+ * «что сейчас у тестирования», «что у разработки». Поэтому они принадлежат
+ * доске, а не системе целиком: в разных досках состав команд разный.
+ */
+
+const groupSelect = {
+  id: true,
+  boardId: true,
+  name: true,
+  color: true,
+  order: true,
+  members: { select: { user: { select: publicUserSelect } } },
+} satisfies Prisma.BoardGroupSelect;
+
+function mapGroup(row: Prisma.BoardGroupGetPayload<{ select: typeof groupSelect }>): BoardGroupDto {
+  return {
+    id: row.id,
+    boardId: row.boardId,
+    name: row.name,
+    color: row.color,
+    order: row.order,
+    members: row.members.map((member) => mapPublicUser(member.user)),
+  };
+}
+
+export async function listBoardGroups(
+  user: RequestUser,
+  context: BoardContext,
+): Promise<BoardGroupDto[]> {
+  assertCan(user, context, 'board.view');
+  const groups = await prisma.boardGroup.findMany({
+    where: { boardId: context.board.id },
+    orderBy: [{ order: 'asc' }, { name: 'asc' }],
+    select: groupSelect,
+  });
+  return groups.map(mapGroup);
+}
+
+export async function createBoardGroup(
+  user: RequestUser,
+  context: BoardContext,
+  input: { name: string; color?: string; userIds?: string[] },
+): Promise<BoardGroupDto> {
+  assertCan(user, context, 'board.settings.manage');
+
+  const name = sanitizePlainText(input.name, 32);
+  const existing = await prisma.boardGroup.findUnique({
+    where: { boardId_name: { boardId: context.board.id, name } },
+    select: { id: true },
+  });
+  if (existing) throw new ConflictError('Группа с таким названием уже есть');
+
+  const memberIds = await filterBoardMembers(context.board.id, input.userIds);
+  const count = await prisma.boardGroup.count({ where: { boardId: context.board.id } });
+
+  const group = await prisma.boardGroup.create({
+    data: {
+      boardId: context.board.id,
+      name,
+      color: input.color ?? BOARD_COLORS[count % BOARD_COLORS.length] ?? '#6366f1',
+      order: count,
+      ...(memberIds.length > 0
+        ? { members: { create: memberIds.map((userId) => ({ userId })) } }
+        : {}),
+    },
+    select: groupSelect,
+  });
+
+  await notifyBoardChanged(context.board.id);
+  return mapGroup(group);
+}
+
+export async function updateBoardGroup(
+  user: RequestUser,
+  context: BoardContext,
+  groupId: string,
+  input: { name?: string; color?: string; order?: number },
+): Promise<BoardGroupDto> {
+  assertCan(user, context, 'board.settings.manage');
+  await assertGroupOnBoard(context.board.id, groupId);
+
+  const group = await prisma.boardGroup.update({
+    where: { id: groupId },
+    data: {
+      ...(input.name !== undefined ? { name: sanitizePlainText(input.name, 32) } : {}),
+      ...(input.color !== undefined ? { color: input.color } : {}),
+      ...(input.order !== undefined ? { order: input.order } : {}),
+    },
+    select: groupSelect,
+  });
+
+  await notifyBoardChanged(context.board.id);
+  return mapGroup(group);
+}
+
+export async function deleteBoardGroup(
+  user: RequestUser,
+  context: BoardContext,
+  groupId: string,
+): Promise<void> {
+  assertCan(user, context, 'board.settings.manage');
+  await assertGroupOnBoard(context.board.id, groupId);
+  await prisma.boardGroup.delete({ where: { id: groupId } });
+  await notifyBoardChanged(context.board.id);
+}
+
+/**
+ * Состав группы задаётся целиком, а не по одному человеку: интерфейс
+ * работает списком с галочками, и частичные операции только плодили бы
+ * рассинхрон между тем, что видно на экране, и тем, что в базе.
+ */
+export async function setBoardGroupMembers(
+  user: RequestUser,
+  context: BoardContext,
+  groupId: string,
+  userIds: string[],
+): Promise<BoardGroupDto> {
+  assertCan(user, context, 'board.settings.manage');
+  await assertGroupOnBoard(context.board.id, groupId);
+
+  const memberIds = await filterBoardMembers(context.board.id, userIds);
+
+  const group = await prisma.$transaction(async (tx) => {
+    await tx.boardGroupMember.deleteMany({ where: { groupId } });
+    if (memberIds.length > 0) {
+      await tx.boardGroupMember.createMany({
+        data: memberIds.map((userId) => ({ groupId, userId })),
+      });
+    }
+    return tx.boardGroup.findUniqueOrThrow({ where: { id: groupId }, select: groupSelect });
+  });
+
+  await notifyBoardChanged(context.board.id);
+  return mapGroup(group);
+}
+
+async function assertGroupOnBoard(boardId: string, groupId: string): Promise<void> {
+  const group = await prisma.boardGroup.findFirst({
+    where: { id: groupId, boardId },
+    select: { id: true },
+  });
+  if (!group) throw new NotFoundError('Группа не найдена');
+}
+
+/** В группу попадают только те, кто действительно есть на доске. */
+async function filterBoardMembers(boardId: string, userIds?: string[]): Promise<string[]> {
+  if (!userIds || userIds.length === 0) return [];
+  const members = await prisma.boardMember.findMany({
+    where: { boardId, userId: { in: [...new Set(userIds)] } },
+    select: { userId: true },
+  });
+  return members.map((member) => member.userId);
+}
+
+/** Состав групп виден всем на доске — сообщаем об изменении сразу. */
+async function notifyBoardChanged(boardId: string): Promise<void> {
+  await publishRealtime({
+    room: rooms.board(boardId),
+    event: SOCKET_EVENTS.BOARD_UPDATED,
+    data: { boardId },
   });
 }

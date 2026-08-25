@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { CommentDto, ReactionEmoji, RichTextDoc } from '@kaif/shared';
 import { api } from '@/lib/api';
-import { queryKeys } from '@/lib/query-client';
+import { invalidateEntity, invalidateTaskScopes, queryKeys } from '@/lib/query-client';
 
 export function useComments(taskId: string | undefined) {
   return useQuery({
@@ -26,8 +26,8 @@ export function useCreateComment(taskId: string, boardId?: string) {
         .then((response) => response.comment),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.taskComments(taskId) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.task(taskId) });
-      if (boardId) void queryClient.invalidateQueries({ queryKey: ['board', boardId] });
+      invalidateEntity('task', taskId);
+      invalidateTaskScopes(boardId);
     },
   });
 }
@@ -73,7 +73,7 @@ export function useDeleteComment(taskId: string) {
     mutationFn: (commentId: string) => api.delete(`/api/tasks/${taskId}/comments/${commentId}`),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.taskComments(taskId) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.task(taskId) });
+      invalidateEntity('task', taskId);
     },
   });
 }

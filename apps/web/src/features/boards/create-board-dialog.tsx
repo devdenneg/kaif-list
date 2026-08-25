@@ -2,7 +2,6 @@ import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BOARD_COLORS, BOARD_KEY_REGEX, LIMITS } from '@kaif/shared';
 import { useCreateBoard } from '@/api/boards';
-import { useUsers } from '@/api/users';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -14,8 +13,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { FormField, Input, Textarea } from '@/components/ui/input';
-import { UserAvatar } from '@/components/ui/avatar';
-import { Checkbox } from '@/components/ui/misc';
 import { ApiError } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
@@ -30,14 +27,12 @@ export function CreateBoardDialog({
 }): React.ReactElement {
   const navigate = useNavigate();
   const createBoard = useCreateBoard();
-  const { data: users } = useUsers();
 
   const [name, setName] = React.useState('');
   const [key, setKey] = React.useState('');
   const [keyTouched, setKeyTouched] = React.useState(false);
   const [description, setDescription] = React.useState('');
   const [color, setColor] = React.useState<string>(BOARD_COLORS[0] ?? '#6366f1');
-  const [memberIds, setMemberIds] = React.useState<string[]>([]);
   const [errors, setErrors] = React.useState<Record<string, string>>({});
 
   React.useEffect(() => {
@@ -46,7 +41,6 @@ export function CreateBoardDialog({
       setKey('');
       setKeyTouched(false);
       setDescription('');
-      setMemberIds([]);
       setErrors({});
       setColor(BOARD_COLORS[Math.floor(Math.random() * BOARD_COLORS.length)] ?? '#6366f1');
     }
@@ -77,7 +71,6 @@ export function CreateBoardDialog({
         ...(key ? { key } : {}),
         ...(description.trim() ? { description: description.trim() } : {}),
         color,
-        ...(memberIds.length > 0 ? { memberIds } : {}),
       });
       toast.success('Доска создана', `${board.key} · ${board.name}`);
       onOpenChange(false);
@@ -156,34 +149,10 @@ export function CreateBoardDialog({
               </div>
             </FormField>
 
-            {users && users.length > 0 && (
-              <FormField label="Пригласить сразу" hint="Можно добавить людей и позже">
-                <div className="scrollbar-thin max-h-44 space-y-0.5 overflow-y-auto rounded-lg border border-border p-1">
-                  {users.map((user) => {
-                    const checked = memberIds.includes(user.id);
-                    return (
-                      <label
-                        key={user.id}
-                        className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-secondary"
-                      >
-                        <Checkbox
-                          checked={checked}
-                          onCheckedChange={(value) =>
-                            setMemberIds((current) =>
-                              value === true
-                                ? [...current, user.id]
-                                : current.filter((id) => id !== user.id),
-                            )
-                          }
-                        />
-                        <UserAvatar user={user} size="sm" />
-                        <span className="min-w-0 flex-1 truncate">{user.displayName}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </FormField>
-            )}
+            <p className="rounded-lg bg-secondary/60 px-3 py-2 text-xs text-muted-foreground">
+              Доска создаётся только для вас. Людей позовёте пригласительной ссылкой —
+              кнопка появится на самой доске.
+            </p>
           </DialogBody>
 
           <DialogFooter>

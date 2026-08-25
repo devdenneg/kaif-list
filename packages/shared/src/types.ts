@@ -81,6 +81,43 @@ export interface LabelDto {
   taskCount?: number;
 }
 
+/** Рабочая группа доски: разработка, тестирование и так далее. */
+export interface BoardGroupDto {
+  id: string;
+  boardId: string;
+  name: string;
+  color: string;
+  order: number;
+  members: PublicUser[];
+}
+
+/** Пригласительная ссылка. Токен отдаётся только тем, кто управляет доской. */
+export interface BoardInviteDto {
+  id: string;
+  boardId: string;
+  url: string;
+  role: BoardRole;
+  maxUses: number | null;
+  useCount: number;
+  expiresAt: string;
+  createdAt: string;
+  createdBy: PublicUser;
+  isExpired: boolean;
+  isExhausted: boolean;
+}
+
+/** Что видит человек, открывший приглашение: только витрина доски. */
+export interface BoardInvitePreviewDto {
+  boardName: string;
+  boardKey: string;
+  boardColor: string;
+  role: BoardRole;
+  invitedBy: PublicUser;
+  memberCount: number;
+  /** Уже состоит в доске — тогда сразу ведём внутрь. */
+  alreadyMember: boolean;
+}
+
 export interface BoardColumnDto {
   key: ColumnKey;
   name: string;
@@ -127,6 +164,7 @@ export interface BoardDto extends BoardSummaryDto {
   columns: BoardColumnDto[];
   labels: LabelDto[];
   members: BoardMemberDto[];
+  groups: BoardGroupDto[];
   owner: PublicUser;
 }
 
@@ -282,6 +320,8 @@ export interface TaskPermissions {
   canDelete: boolean;
   canAttach: boolean;
   canManageLinks: boolean;
+  /** Право удалять чужие комментарии — только у администраторов доски. */
+  canModerateComments: boolean;
 }
 
 export interface NotificationDto {
@@ -316,6 +356,7 @@ export interface SavedViewDto {
 export interface SavedViewFilters {
   search?: string;
   assigneeIds?: string[];
+  groupIds?: string[];
   labelIds?: string[];
   priorities?: TaskPriority[];
   types?: TaskType[];

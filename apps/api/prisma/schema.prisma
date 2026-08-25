@@ -2,7 +2,7 @@
 // Все enum'ы дублируют packages/shared/src/enums.ts один-в-один.
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
   // "native" — для локальной разработки.
   // Второй таргет обязателен для контейнера: базовый образ node:22-bookworm-slim
   // идёт с OpenSSL 3.0, а автоопределение Prisma в минимальном образе
@@ -148,6 +148,7 @@ enum NotificationType {
   MENTIONED
   ATTACHMENT_ADDED
   BOARD_INVITED
+  BOARD_MEMBER_JOINED
   BOARD_ROLE_CHANGED
   BOARD_REMOVED
   DAILY_DIGEST
@@ -175,14 +176,14 @@ enum SecurityEventType {
 // ─────────────────────────────── Пользователи ───────────────────────────────
 
 model User {
-  id         String  @id @default(cuid())
-  telegramId BigInt  @unique
-  tgUsername String?
+  id          String  @id @default(cuid())
+  telegramId  BigInt  @unique
+  tgUsername  String?
   tgFirstName String?
   tgLastName  String?
 
-  displayName String
-  avatarUrl   String?
+  displayName  String
+  avatarUrl    String?
   /// Аватар загружен вручную — не перетирать данными из Telegram.
   avatarCustom Boolean @default(false)
 
@@ -195,8 +196,8 @@ model User {
   locale   String @default("ru")
 
   /// chat_id личного чата с ботом. Пока null — уведомления в Telegram невозможны.
-  botChatId  BigInt?
-  botBlocked Boolean @default(false)
+  botChatId    BigInt?
+  botBlocked   Boolean   @default(false)
   botStartedAt DateTime?
 
   notificationPrefs Json @default("{}")
@@ -208,25 +209,27 @@ model User {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
-  sessions         Session[]
-  loginTokens      LoginToken[]
-  securityEvents   SecurityEvent[]
-  ownedBoards      Board[]              @relation("BoardOwner")
-  memberships      BoardMember[]        @relation("MemberUser")
-  membershipsAdded BoardMember[]        @relation("MemberAddedBy")
-  favorites        BoardFavorite[]
-  reportedTasks    Task[]               @relation("TaskReporter")
-  assignedTasks    Task[]               @relation("TaskAssignee")
-  testingTasks     Task[]               @relation("TaskTester")
-  participations   TaskParticipant[]
-  comments         Comment[]
-  attachments      Attachment[]
-  activities       Activity[]
-  notifications    Notification[]       @relation("NotificationRecipient")
+  sessions           Session[]
+  loginTokens        LoginToken[]
+  securityEvents     SecurityEvent[]
+  ownedBoards        Board[]            @relation("BoardOwner")
+  memberships        BoardMember[]      @relation("MemberUser")
+  membershipsAdded   BoardMember[]      @relation("MemberAddedBy")
+  favorites          BoardFavorite[]
+  reportedTasks      Task[]             @relation("TaskReporter")
+  assignedTasks      Task[]             @relation("TaskAssignee")
+  testingTasks       Task[]             @relation("TaskTester")
+  participations     TaskParticipant[]
+  comments           Comment[]
+  attachments        Attachment[]
+  activities         Activity[]
+  notifications      Notification[]     @relation("NotificationRecipient")
   actedNotifications Notification[]     @relation("NotificationActor")
-  checklistItems   ChecklistItem[]
-  savedViews       SavedView[]
-  commentReactions CommentReaction[]
+  checklistItems     ChecklistItem[]
+  savedViews         SavedView[]
+  commentReactions   CommentReaction[]
+  groupMemberships   BoardGroupMember[]
+  createdInvites     BoardInvite[]      @relation("InviteCreatedBy")
 
   @@index([isActive])
   @@index([globalRole])
@@ -234,10 +237,10 @@ model User {
 }
 
 model Session {
-  id               String    @id @default(cuid())
+  id               String       @id @default(cuid())
   userId           String
   /// SHA-256 от refresh-токена. Сам токен не хранится никогда.
-  refreshTokenHash String    @unique
+  refreshTokenHash String       @unique
   /// Семья токенов — нужна для обнаружения повторного использования.
   family           String
   userAgent        String?
@@ -249,7 +252,7 @@ model Session {
   revokedReason    String?
   replacedById     String?
   lastUsedAt       DateTime?
-  createdAt        DateTime  @default(now())
+  createdAt        DateTime     @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -259,22 +262,22 @@ model Session {
 }
 
 model LoginToken {
-  id        String           @id @default(cuid())
+  id               String           @id @default(cuid())
   /// SHA-256 от кода. Сам код живёт только у клиента.
-  tokenHash String           @unique
+  tokenHash        String           @unique
   /// Короткий код, который показывается и в браузере, и в боте.
   /// Пользователь сверяет их глазами перед подтверждением входа —
   /// иначе чужой браузер можно впустить, прислав ссылку на свой код.
-  verificationCode String    @default("")
-  status    LoginTokenStatus @default(PENDING)
-  userId    String?
-  ip        String?
-  userAgent String?
-  deviceLabel String?
-  expiresAt DateTime
-  approvedAt DateTime?
-  consumedAt DateTime?
-  createdAt DateTime         @default(now())
+  verificationCode String           @default("")
+  status           LoginTokenStatus @default(PENDING)
+  userId           String?
+  ip               String?
+  userAgent        String?
+  deviceLabel      String?
+  expiresAt        DateTime
+  approvedAt       DateTime?
+  consumedAt       DateTime?
+  createdAt        DateTime         @default(now())
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
@@ -318,16 +321,18 @@ model Board {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  owner     User            @relation("BoardOwner", fields: [ownerId], references: [id])
-  members   BoardMember[]
-  columns   BoardColumn[]
-  labels    Label[]
-  tasks     Task[]
-  activities Activity[]
-  favorites BoardFavorite[]
+  owner         User            @relation("BoardOwner", fields: [ownerId], references: [id])
+  members       BoardMember[]
+  groups        BoardGroup[]
+  columns       BoardColumn[]
+  labels        Label[]
+  tasks         Task[]
+  activities    Activity[]
+  favorites     BoardFavorite[]
+  invites       BoardInvite[]
   notifications Notification[]
-  attachments Attachment[]
-  savedViews SavedView[]
+  attachments   Attachment[]
+  savedViews    SavedView[]
 
   @@index([ownerId])
   @@index([isArchived])
@@ -348,6 +353,61 @@ model BoardMember {
   @@unique([boardId, userId])
   @@index([userId])
   @@index([boardId, role])
+}
+
+/// Пригласительная ссылка на доску.
+///
+/// Единственный способ попасть в чужую доску: справочник всех
+/// зарегистрированных людей наружу не отдаётся, поэтому владелец делится
+/// ссылкой адресно. Токен — случайные 32 байта; ссылка ограничена сроком,
+/// числом использований и может быть отозвана в любой момент.
+model BoardInvite {
+  id          String    @id @default(cuid())
+  boardId     String
+  token       String    @unique
+  role        BoardRole @default(MEMBER)
+  createdById String
+  /// null — без ограничения по числу входов.
+  maxUses     Int?
+  useCount    Int       @default(0)
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  board     Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  createdBy User  @relation("InviteCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([boardId, revokedAt])
+}
+
+/// Рабочая группа внутри доски: разработка, тестирование, аналитика.
+/// Нужна, чтобы фильтровать доску по направлению работы, а не по одному человеку.
+model BoardGroup {
+  id        String   @id @default(cuid())
+  boardId   String
+  name      String
+  color     String   @default("#6366f1")
+  /// Порядок отображения в панели быстрых фильтров.
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  board   Board              @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  members BoardGroupMember[]
+
+  @@unique([boardId, name])
+  @@index([boardId, order])
+}
+
+model BoardGroupMember {
+  groupId   String
+  userId    String
+  createdAt DateTime @default(now())
+
+  group BoardGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, userId])
+  @@index([userId])
 }
 
 model BoardFavorite {
@@ -376,7 +436,7 @@ model BoardColumn {
 }
 
 model Label {
-  id          String  @id @default(cuid())
+  id          String   @id @default(cuid())
   boardId     String
   name        String
   color       String
@@ -444,19 +504,19 @@ model Task {
   /// Нормализованный текст для поиска (title + описание + ключ), в нижнем регистре.
   searchText String @default("")
 
-  board        Board             @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  reporter     User              @relation("TaskReporter", fields: [reporterId], references: [id])
-  assignee     User?             @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
-  tester       User?             @relation("TaskTester", fields: [testerId], references: [id], onDelete: SetNull)
-  labels       TaskLabel[]
-  participants TaskParticipant[]
-  comments     Comment[]
-  attachments  Attachment[]
-  checklists   Checklist[]
-  activities   Activity[]
+  board         Board             @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  reporter      User              @relation("TaskReporter", fields: [reporterId], references: [id])
+  assignee      User?             @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  tester        User?             @relation("TaskTester", fields: [testerId], references: [id], onDelete: SetNull)
+  labels        TaskLabel[]
+  participants  TaskParticipant[]
+  comments      Comment[]
+  attachments   Attachment[]
+  checklists    Checklist[]
+  activities    Activity[]
   notifications Notification[]
-  linksFrom    TaskLink[]        @relation("LinkFrom")
-  linksTo      TaskLink[]        @relation("LinkTo")
+  linksFrom     TaskLink[]        @relation("LinkFrom")
+  linksTo       TaskLink[]        @relation("LinkTo")
 
   @@unique([boardId, number])
   @@index([boardId, isBacklog, archivedAt, columnKey, rank])
@@ -498,7 +558,7 @@ model TaskParticipant {
 }
 
 model TaskLink {
-  id        String       @id @default(cuid())
+  id         String       @id @default(cuid())
   fromTaskId String
   toTaskId   String
   type       TaskLinkType
@@ -605,13 +665,13 @@ model Attachment {
 }
 
 model Activity {
-  id      String       @id @default(cuid())
-  boardId String
-  taskId  String?
-  actorId String?
-  type    ActivityType
-  payload Json         @default("{}")
-  createdAt DateTime   @default(now())
+  id        String       @id @default(cuid())
+  boardId   String
+  taskId    String?
+  actorId   String?
+  type      ActivityType
+  payload   Json         @default("{}")
+  createdAt DateTime     @default(now())
 
   board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
   task  Task? @relation(fields: [taskId], references: [id], onDelete: Cascade)
@@ -663,12 +723,12 @@ model CommentReaction {
 
 /// Сохранённые фильтры доски («Мои баги», «Горит на этой неделе»).
 model SavedView {
-  id      String  @id @default(cuid())
-  userId  String
-  boardId String?
-  name    String
-  filters Json    @default("{}")
-  isShared Boolean @default(false)
+  id        String   @id @default(cuid())
+  userId    String
+  boardId   String?
+  name      String
+  filters   Json     @default("{}")
+  isShared  Boolean  @default(false)
   createdAt DateTime @default(now())
 
   user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)

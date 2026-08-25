@@ -7,6 +7,7 @@ import { registerAuth } from './plugins/auth.js';
 import { registerErrorHandler } from './plugins/errors.js';
 import { registerAuthRoutes } from './modules/auth/routes.js';
 import { registerBoardRoutes } from './modules/boards/routes.js';
+import { registerInviteRoutes } from './modules/boards/invite-routes.js';
 import { registerTaskRoutes } from './modules/tasks/routes.js';
 import { registerUserRoutes } from './modules/users/routes.js';
 import { registerNotificationRoutes } from './modules/notifications/routes.js';
@@ -57,6 +58,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   await app.register(registerAuthRoutes, { prefix: '/api/auth' });
   await app.register(registerUserRoutes, { prefix: '/api/users' });
   await app.register(registerBoardRoutes, { prefix: '/api/boards' });
+  await app.register(registerInviteRoutes, { prefix: '/api/invites' });
   await app.register(registerTaskRoutes, { prefix: '/api/tasks' });
   await app.register(registerNotificationRoutes, { prefix: '/api/notifications' });
   await app.register(registerSearchRoutes, { prefix: '/api/search' });

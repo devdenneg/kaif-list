@@ -389,6 +389,7 @@ export async function getTaskDetail(user: RequestUser, taskIdOrKey: string): Pro
       canDelete: checkTask(user, context, 'task.delete'),
       canAttach: checkTask(user, context, 'attachment.create'),
       canManageLinks: checkTask(user, context, 'task.link.manage'),
+      canModerateComments: checkTask(user, context, 'comment.delete'),
     },
   };
 }
@@ -398,7 +399,7 @@ export async function listBoardTasks(
   context: BoardContext,
   filters: TaskFiltersInput,
 ): Promise<{ items: TaskCardDto[]; nextCursor: string | null }> {
-  const where = buildTaskWhere(context.board.id, filters);
+  const where = await buildTaskWhere(context.board.id, filters);
 
   const orderBy: Prisma.TaskOrderByWithRelationInput[] =
     filters.sort === 'rank'
@@ -422,65 +423,97 @@ export async function listBoardTasks(
   };
 }
 
-export function buildTaskWhere(boardId: string, filters: TaskFiltersInput): Prisma.TaskWhereInput {
-  const where: Prisma.TaskWhereInput = {
-    boardId,
-    ...(filters.includeArchived ? {} : { archivedAt: null }),
-  };
+/**
+ * Сборка условия выборки задач.
+ *
+ * Каждый фильтр добавляет отдельное условие в `AND`, а не пишет поле в объект
+ * напрямую. Так фильтры гарантированно комбинируются: раньше «Просрочено»
+ * перезаписывало `columnKey`, и выбранные колонки молча терялись — человек
+ * видел не тот список, который просил, и не понимал почему.
+ */
+export async function buildTaskWhere(
+  boardId: string,
+  filters: TaskFiltersInput,
+): Promise<Prisma.TaskWhereInput> {
+  const and: Prisma.TaskWhereInput[] = [];
 
-  if (filters.onlyBacklog) where.isBacklog = true;
-  else if (!filters.includeBacklog) where.isBacklog = false;
+  if (!filters.includeArchived) and.push({ archivedAt: null });
+
+  if (filters.onlyBacklog) and.push({ isBacklog: true });
+  else if (!filters.includeBacklog) and.push({ isBacklog: false });
 
   if (filters.search && filters.search.length >= 2) {
-    where.searchText = { contains: filters.search.toLowerCase() };
+    and.push({ searchText: { contains: filters.search.toLowerCase() } });
   }
 
-  // «Исполнитель из списка» и «без исполнителя» могут комбинироваться.
-  const assigneeConditions: Prisma.TaskWhereInput[] = [];
-  if (filters.assigneeIds && filters.assigneeIds.length > 0) {
-    assigneeConditions.push({ assigneeId: { in: filters.assigneeIds } });
-  }
-  if (filters.unassigned) assigneeConditions.push({ assigneeId: null });
-  if (assigneeConditions.length > 0) where.OR = assigneeConditions;
+  // «Кто» — один фильтр из нескольких источников: выбранные люди, участники
+  // выбранных групп и «без исполнителя». Между собой они складываются (ИЛИ),
+  // потому что выбор человека И его группы должен расширять выборку, а не
+  // сводить её к пустоте.
+  const assigneeOptions: Prisma.TaskWhereInput[] = [];
 
-  if (filters.reporterIds?.length) where.reporterId = { in: filters.reporterIds };
-  if (filters.testerIds?.length) where.testerId = { in: filters.testerIds };
-  if (filters.priorities?.length) where.priority = { in: filters.priorities };
-  if (filters.types?.length) where.type = { in: filters.types };
-  if (filters.columns?.length) where.columnKey = { in: filters.columns };
+  const selectedAssignees = new Set(filters.assigneeIds ?? []);
+  if (filters.groupIds && filters.groupIds.length > 0) {
+    const groupMembers = await prisma.boardGroupMember.findMany({
+      where: { groupId: { in: filters.groupIds }, group: { boardId } },
+      select: { userId: true },
+      distinct: ['userId'],
+    });
+    for (const member of groupMembers) selectedAssignees.add(member.userId);
+
+    // Группа без людей не должна показывать всю доску: явно отсекаем.
+    if (groupMembers.length === 0 && selectedAssignees.size === 0) {
+      assigneeOptions.push({ assigneeId: { in: [] } });
+    }
+  }
+
+  if (selectedAssignees.size > 0) {
+    assigneeOptions.push({ assigneeId: { in: [...selectedAssignees] } });
+  }
+  if (filters.unassigned) assigneeOptions.push({ assigneeId: null });
+
+  if (assigneeOptions.length === 1) and.push(assigneeOptions[0] as Prisma.TaskWhereInput);
+  else if (assigneeOptions.length > 1) and.push({ OR: assigneeOptions });
+
+  if (filters.reporterIds?.length) and.push({ reporterId: { in: filters.reporterIds } });
+  if (filters.testerIds?.length) and.push({ testerId: { in: filters.testerIds } });
+  if (filters.priorities?.length) and.push({ priority: { in: filters.priorities } });
+  if (filters.types?.length) and.push({ type: { in: filters.types } });
+  if (filters.columns?.length) and.push({ columnKey: { in: filters.columns } });
   if (filters.labelIds?.length) {
-    where.labels = { some: { labelId: { in: filters.labelIds } } };
+    and.push({ labels: { some: { labelId: { in: filters.labelIds } } } });
   }
 
   const now = new Date();
+  const startOfDay = new Date(now);
+  startOfDay.setHours(0, 0, 0, 0);
+
   switch (filters.due) {
     case 'overdue':
-      where.dueDate = { lt: now };
-      where.columnKey = { not: ColumnKey.DONE };
+      // Отдельными условиями: фильтр по колонкам, если он задан, остаётся в силе.
+      and.push({ dueDate: { lt: now } }, { columnKey: { not: ColumnKey.DONE } });
       break;
-    case 'today': {
-      const start = new Date(now);
-      start.setHours(0, 0, 0, 0);
-      where.dueDate = { gte: start, lt: new Date(start.getTime() + 86_400_000) };
+    case 'today':
+      and.push({
+        dueDate: { gte: startOfDay, lt: new Date(startOfDay.getTime() + 86_400_000) },
+      });
       break;
-    }
-    case 'week': {
-      const start = new Date(now);
-      start.setHours(0, 0, 0, 0);
-      where.dueDate = { gte: start, lt: new Date(start.getTime() + 7 * 86_400_000) };
+    case 'week':
+      and.push({
+        dueDate: { gte: startOfDay, lt: new Date(startOfDay.getTime() + 7 * 86_400_000) },
+      });
       break;
-    }
     case 'none':
-      where.dueDate = null;
+      and.push({ dueDate: null });
       break;
     case 'has':
-      where.dueDate = { not: null };
+      and.push({ dueDate: { not: null } });
       break;
     default:
       break;
   }
 
-  return where;
+  return and.length > 0 ? { boardId, AND: and } : { boardId };
 }
 
 /** Все задачи доски, сгруппированные по колонкам — основной запрос канбана. */
@@ -488,7 +521,7 @@ export async function getBoardTasks(
   context: BoardContext,
   filters: TaskFiltersInput,
 ): Promise<Record<ColumnKey, TaskCardDto[]>> {
-  const where = buildTaskWhere(context.board.id, { ...filters, sort: 'rank', order: 'asc' });
+  const where = await buildTaskWhere(context.board.id, { ...filters, sort: 'rank', order: 'asc' });
 
   const tasks = await prisma.task.findMany({
     where,
@@ -988,7 +1021,7 @@ export async function exportBoardCsv(
   context: BoardContext,
   filters: TaskFiltersInput,
 ): Promise<string> {
-  const where = buildTaskWhere(context.board.id, filters);
+  const where = await buildTaskWhere(context.board.id, filters);
 
   const tasks = await prisma.task.findMany({
     where,

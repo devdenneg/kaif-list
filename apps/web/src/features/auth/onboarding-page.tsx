@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Camera, Check, Loader2, UserCircle2 } from 'lucide-react';
 import { DEFAULT_TIMEZONE, LIMITS, type AuthResult } from '@kaif/shared';
 import { api } from '@/lib/api';
@@ -43,6 +43,8 @@ export function OnboardingPage(): React.ReactElement {
   const user = useAuthStore((state) => state.user);
   const setSession = useAuthStore((state) => state.setSession);
   const navigate = useNavigate();
+  const location = useLocation();
+  const redirectTo = (location.state as { from?: string } | null)?.from ?? '/boards';
 
   const [displayName, setDisplayName] = React.useState(user?.displayName ?? '');
   const [avatarUrl, setAvatarUrl] = React.useState<string | null>(user?.avatarUrl ?? null);
@@ -102,7 +104,7 @@ export function OnboardingPage(): React.ReactElement {
       });
       setSession(result.accessToken, result.user);
       toast.success('Профиль готов', 'Добро пожаловать в Kaif Board');
-      navigate('/boards', { replace: true });
+      navigate(redirectTo, { replace: true });
     } catch (error) {
       if (error instanceof ApiError && error.fields) setErrors(error.fields);
       toast.error('Не удалось сохранить профиль', error);
