@@ -6,6 +6,7 @@ import {
   SOCKET_EVENTS,
   ranksBetween,
   assigneeChangeRequiresReason,
+  dayRangeInTimeZone,
   docFromText,
   dueDateChangeRequiresReason,
   extractMentionIds,
@@ -403,8 +404,9 @@ export async function getTaskDetail(user: RequestUser, taskIdOrKey: string): Pro
 export async function listBoardTasks(
   context: BoardContext,
   filters: TaskFiltersInput,
+  viewerTimeZone?: string,
 ): Promise<{ items: TaskCardDto[]; nextCursor: string | null }> {
-  const where = await buildTaskWhere(context.board.id, filters);
+  const where = await buildTaskWhere(context.board.id, filters, viewerTimeZone);
 
   const orderBy: Prisma.TaskOrderByWithRelationInput[] =
     filters.sort === 'rank'
@@ -439,6 +441,8 @@ export async function listBoardTasks(
 export async function buildTaskWhere(
   boardId: string,
   filters: TaskFiltersInput,
+  /** Часовой пояс того, кто смотрит: «сегодня» у каждого своё. */
+  viewerTimeZone?: string,
 ): Promise<Prisma.TaskWhereInput> {
   const and: Prisma.TaskWhereInput[] = [];
 
@@ -491,8 +495,7 @@ export async function buildTaskWhere(
   }
 
   const now = new Date();
-  const startOfDay = new Date(now);
-  startOfDay.setHours(0, 0, 0, 0);
+  const { start: startOfDay, end: endOfDay } = dayRangeInTimeZone(now, viewerTimeZone);
 
   switch (filters.due) {
     case 'overdue':
@@ -500,9 +503,7 @@ export async function buildTaskWhere(
       and.push({ dueDate: { lt: now } }, { columnKey: { not: ColumnKey.DONE } });
       break;
     case 'today':
-      and.push({
-        dueDate: { gte: startOfDay, lt: new Date(startOfDay.getTime() + 86_400_000) },
-      });
+      and.push({ dueDate: { gte: startOfDay, lt: endOfDay } });
       break;
     case 'week':
       and.push({
@@ -526,8 +527,13 @@ export async function buildTaskWhere(
 export async function getBoardTasks(
   context: BoardContext,
   filters: TaskFiltersInput,
+  viewerTimeZone?: string,
 ): Promise<Record<ColumnKey, TaskCardDto[]>> {
-  const where = await buildTaskWhere(context.board.id, { ...filters, sort: 'rank', order: 'asc' });
+  const where = await buildTaskWhere(
+    context.board.id,
+    { ...filters, sort: 'rank', order: 'asc' },
+    viewerTimeZone,
+  );
 
   const tasks = await prisma.task.findMany({
     where,

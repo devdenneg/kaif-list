@@ -11,6 +11,7 @@ import {
   SOCKET_EVENTS,
   canAssignBoardRole,
   canRemoveBoardMember,
+  dayRangeInTimeZone,
   mergeBoardSettings,
   rooms,
   type BoardDto,
@@ -777,7 +778,10 @@ function roleLabel(role: BoardRole): string {
  * Сводка по людям: сколько на ком задач, сколько просрочено.
  * Используется панелью «Люди» и подсказками при назначении.
  */
-export async function memberWorkload(context: BoardContext): Promise<MemberWorkloadDto[]> {
+export async function memberWorkload(
+  context: BoardContext,
+  viewerTimeZone?: string,
+): Promise<MemberWorkloadDto[]> {
   const members = await prisma.boardMember.findMany({
     where: { boardId: context.board.id },
     orderBy: [{ role: 'asc' }, { createdAt: 'asc' }],
@@ -787,9 +791,8 @@ export async function memberWorkload(context: BoardContext): Promise<MemberWorkl
 
   const userIds = members.map((m) => m.userId);
   const now = new Date();
-  const startOfDay = new Date(now);
-  startOfDay.setHours(0, 0, 0, 0);
-  const endOfDay = new Date(startOfDay.getTime() + 86_400_000);
+  // Сутки считаем по поясу того, кто смотрит: он и читает эти цифры.
+  const { start: startOfDay, end: endOfDay } = dayRangeInTimeZone(now, viewerTimeZone);
   const monthAgo = new Date(now.getTime() - 30 * 86_400_000);
 
   const [byColumn, overdue, dueToday, done30d] = await Promise.all([

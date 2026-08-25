@@ -2,6 +2,7 @@ import { Worker, type Job } from 'bullmq';
 import {
   ColumnKey,
   NotificationType,
+  dayRangeInTimeZone,
   localMinutesOfDay,
   mergeNotificationPreferences,
 } from '@kaif/shared';
@@ -224,9 +225,7 @@ async function runDailyDigest(): Promise<void> {
     // Попадаем ровно в одно 15-минутное окно за сутки.
     if (local < target || local >= target + 15) continue;
 
-    const startOfDay = new Date(now);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(startOfDay.getTime() + 86_400_000);
+    const { start: startOfDay, end: endOfDay } = dayRangeInTimeZone(now, user.timezone);
 
     const [overdue, today, inProgress, items] = await Promise.all([
       prisma.task.count({

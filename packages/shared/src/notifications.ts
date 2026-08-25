@@ -96,6 +96,95 @@ export function localMinutesOfDay(now: Date, timeZone: string = DEFAULT_TIMEZONE
   }
 }
 
+/**
+ * Начало суток по часовому поясу человека.
+ *
+ * «Сегодня» — понятие личное: для того, кто в Москве, задача со сроком
+ * 26 августа 09:00 горит сегодня, а сервер, живущий по UTC, в час ночи
+ * считает, что сегодня ещё 25-е. Из-за этого значок на карточке говорил
+ * «Сегодня», а вкладка «Сегодня» была пустой.
+ */
+export function startOfDayInTimeZone(now: Date, timeZone: string = DEFAULT_TIMEZONE): Date {
+  const parts = zoneParts(now, timeZone);
+  if (!parts) return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+
+  const midnightUtc = Date.UTC(parts.year, parts.month - 1, parts.day);
+
+  // Вычесть текущее смещение недостаточно: в день перевода часов смещение
+  // в полночь и в полдень разное, и полночь уезжает на час. Поэтому берём
+  // смещение уже в найденной точке и уточняем ответ.
+  const rough = midnightUtc - zoneOffsetMinutes(now, timeZone) * 60_000;
+  const exact = midnightUtc - zoneOffsetMinutes(new Date(rough), timeZone) * 60_000;
+  return new Date(exact);
+}
+
+interface ZoneParts {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+}
+
+function zoneParts(instant: Date, timeZone: string): ZoneParts | null {
+  try {
+    const formatted = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      hour12: false,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    }).formatToParts(instant);
+
+    const values = new Map(formatted.map((part) => [part.type, part.value]));
+    return {
+      year: Number(values.get('year')),
+      month: Number(values.get('month')),
+      day: Number(values.get('day')),
+      // Полночь местами приходит как «24» — приводим к нулю.
+      hour: Number(values.get('hour')) % 24,
+      minute: Number(values.get('minute')),
+      second: Number(values.get('second')),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Смещение зоны от UTC в минутах в конкретный момент. */
+function zoneOffsetMinutes(instant: Date, timeZone: string): number {
+  const parts = zoneParts(instant, timeZone);
+  if (!parts) return 0;
+  const asUtc = Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hour,
+    parts.minute,
+    parts.second,
+  );
+  return (asUtc - Math.floor(instant.getTime() / 1000) * 1000) / 60_000;
+}
+
+/**
+ * Границы суток человека: `[начало, начало следующих суток)`.
+ *
+ * Конец считаем повторным поиском полуночи, а не прибавлением 24 часов:
+ * в день перевода часов сутки длятся 23 или 25 часов.
+ */
+export function dayRangeInTimeZone(
+  now: Date,
+  timeZone: string = DEFAULT_TIMEZONE,
+): { start: Date; end: Date } {
+  const start = startOfDayInTimeZone(now, timeZone);
+  const end = startOfDayInTimeZone(new Date(start.getTime() + 36 * 3_600_000), timeZone);
+  return { start, end };
+}
+
 /** Сейчас тихие часы у пользователя? Упоминания и безопасность игнорируют это. */
 export function isQuietHours(
   prefs: NotificationPreferences,

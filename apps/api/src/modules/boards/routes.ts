@@ -147,7 +147,7 @@ export async function registerBoardRoutes(app: FastifyInstance): Promise<void> {
     const { boardId } = boardParams.parse(request.params);
     const context = await loadBoardContext(user, boardId);
     assertCan(user, context, 'board.workload.view');
-    return reply.send({ items: await memberWorkload(context) });
+    return reply.send({ items: await memberWorkload(context, user.timezone) });
   });
 
   app.post('/:boardId/members', async (request, reply) => {
@@ -303,7 +303,7 @@ export async function registerBoardRoutes(app: FastifyInstance): Promise<void> {
     const { boardId } = boardParams.parse(request.params);
     const filters = taskFiltersSchema.parse(request.query ?? {});
     const context = await loadBoardContext(user, boardId);
-    return reply.send({ columns: await getBoardTasks(context, filters) });
+    return reply.send({ columns: await getBoardTasks(context, filters, user.timezone) });
   });
 
   /** Плоский список с фильтрами и пагинацией: бэклог, поиск, таблица. */
@@ -312,7 +312,7 @@ export async function registerBoardRoutes(app: FastifyInstance): Promise<void> {
     const { boardId } = boardParams.parse(request.params);
     const filters = taskFiltersSchema.parse(request.query ?? {});
     const context = await loadBoardContext(user, boardId);
-    return reply.send(await listBoardTasks(context, filters));
+    return reply.send(await listBoardTasks(context, filters, user.timezone));
   });
 
   app.post('/:boardId/tasks', async (request, reply) => {

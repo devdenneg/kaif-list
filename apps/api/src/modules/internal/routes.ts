@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
   ColumnKey,
   columnKeySchema,
+  dayRangeInTimeZone,
   docFromText,
   mergeNotificationPreferences,
   updateNotificationPreferencesSchema,
@@ -170,8 +171,7 @@ export async function registerInternalRoutes(app: FastifyInstance): Promise<void
 
     const user = await findUserByChat(chatId);
     const now = new Date();
-    const startOfDay = new Date(now);
-    startOfDay.setHours(0, 0, 0, 0);
+    const { end: endOfDay } = dayRangeInTimeZone(now, user.timezone);
 
     const where = (() => {
       switch (scope) {
@@ -180,7 +180,7 @@ export async function registerInternalRoutes(app: FastifyInstance): Promise<void
             assigneeId: user.id,
             archivedAt: null,
             columnKey: { not: ColumnKey.DONE },
-            dueDate: { lt: new Date(startOfDay.getTime() + 86_400_000) },
+            dueDate: { lt: endOfDay },
           };
         case 'overdue':
           return {

@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import {
   ColumnKey,
+  dayRangeInTimeZone,
   LIMITS,
   listUsersSchema,
   mergeNotificationPreferences,
@@ -152,8 +153,9 @@ export async function registerUserRoutes(app: FastifyInstance): Promise<void> {
 
     const boardIds = await accessibleBoardIds(user);
     const now = new Date();
-    const startOfDay = new Date(now);
-    startOfDay.setHours(0, 0, 0, 0);
+    // «Сегодня» считаем по часовому поясу человека, а не сервера: иначе
+    // ночью значок на карточке и вкладка «Сегодня» расходятся на день.
+    const { start: startOfDay, end: endOfDay } = dayRangeInTimeZone(now, user.timezone);
 
     const base = {
       archivedAt: null,
@@ -171,7 +173,7 @@ export async function registerUserRoutes(app: FastifyInstance): Promise<void> {
             ...base,
             assigneeId: user.id,
             columnKey: { not: ColumnKey.DONE },
-            dueDate: { gte: startOfDay, lt: new Date(startOfDay.getTime() + 86_400_000) },
+            dueDate: { gte: startOfDay, lt: endOfDay },
           };
         case 'overdue':
           return {

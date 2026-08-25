@@ -126,12 +126,10 @@ export function DueBadge({
     completed: completed ?? false,
     ...(timeZone ? { timeZone } : {}),
   });
-  const label =
-    state === 'today'
-      ? 'Сегодня'
-      : state === 'overdue'
-        ? formatDueRelative(dueDate)
-        : formatDueRelative(dueDate);
+
+  // Подпись — законченная фраза, а не склейка названия состояния со
+  // значением: из такой склейки получалось «Сегодня: Сегодня».
+  const label = dueLabel(state, dueDate, showLabel, timeZone);
 
   return (
     <Tooltip content={`${DUE_STATE_LABELS[state]} · ${formatFullDateTime(dueDate)}`}>
@@ -143,10 +141,48 @@ export function DueBadge({
         )}
       >
         {state === 'overdue' && <span className="size-1.5 rounded-full bg-current" aria-hidden />}
-        {showLabel ? `${DUE_STATE_LABELS[state]}: ${label}` : label}
+        {label}
       </span>
     </Tooltip>
   );
+}
+
+/**
+ * Что написать на значке срока.
+ *
+ * Коротко — на карточке доски, где место дорого. Полностью — в карточке
+ * задачи, где значок стоит рядом с датой и должен объяснять, что она значит.
+ */
+function dueLabel(
+  state: DueState,
+  dueDate: string,
+  full: boolean,
+  timeZone?: string,
+): string {
+  if (state === 'done') return 'Закрыта в срок или позже';
+  if (state === 'today') {
+    const time = formatTimeOfDay(dueDate, timeZone);
+    return full ? `Сегодня до ${time}` : `Сегодня, ${time}`;
+  }
+  if (state === 'overdue') {
+    const relative = formatDueRelative(dueDate);
+    return full ? capitalize(relative) : relative;
+  }
+
+  const relative = formatDueRelative(dueDate);
+  return full ? `${DUE_STATE_LABELS[state]} · ${relative}` : relative;
+}
+
+function formatTimeOfDay(value: string, timeZone?: string): string {
+  return new Date(value).toLocaleTimeString('ru-RU', {
+    hour: '2-digit',
+    minute: '2-digit',
+    ...(timeZone ? { timeZone } : {}),
+  });
+}
+
+function capitalize(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 /** Рамка карточки, подсвечивающая срочность. */
