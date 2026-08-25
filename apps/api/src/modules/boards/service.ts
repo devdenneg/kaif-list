@@ -857,10 +857,16 @@ export async function memberWorkload(context: BoardContext): Promise<MemberWorkl
       .filter(([key]) => key !== ColumnKey.DONE)
       .reduce((sum, [, count]) => sum + count, 0);
 
+    // В разбивку отдаём только незакрытое: «Завершено» не нагрузка.
+    const byColumn = Object.fromEntries(
+      Object.entries(columns).filter(([key, count]) => key !== ColumnKey.DONE && count > 0),
+    );
+
     return {
       user: mapPublicUser(member.user),
       role: member.role,
       active,
+      byColumn,
       inProgress: columns[ColumnKey.IN_PROGRESS] ?? 0,
       qa: columns[ColumnKey.QA] ?? 0,
       overdue: overdueMap.get(member.userId) ?? 0,

@@ -383,13 +383,29 @@ export interface SavedViewFilters {
 export interface MemberWorkloadDto {
   user: PublicUser;
   role: BoardRole;
+  /** Всё незакрытое на человеке. Завершённые задачи сюда не входят. */
   active: number;
+  /**
+   * Разбивка активных по колонкам — чтобы число «активных» всегда сходилось
+   * на глаз. Без неё «3 активных» рядом с «на тесте: 2» выглядит ошибкой.
+   */
+  byColumn: Partial<Record<ColumnKey, number>>;
   inProgress: number;
   qa: number;
   overdue: number;
   dueToday: number;
   done30d: number;
 }
+
+/**
+ * Сколько активных задач считать полной загрузкой.
+ *
+ * Раньше шкала строилась от самого загруженного человека на доске — и когда
+ * в команде один человек, его полоска всегда была полной, что бы он ни делал.
+ * Теперь это фиксированный ориентир: шкала растягивается, только если
+ * кто-то работает сверх него.
+ */
+export const WORKLOAD_FULL_LOAD = 8;
 
 /** Значение за период рядом с таким же прошлым периодом. */
 export interface MetricDelta {

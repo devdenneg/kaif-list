@@ -3,6 +3,9 @@ import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Layers, Plus, UserPlus, Users } from 'lucide-react';
 import {
   BOARD_ROLE_LABELS,
+  COLUMN_LABELS,
+  COLUMN_ORDER,
+  WORKLOAD_FULL_LOAD,
   can,
   type BoardDto,
   type BoardRole,
@@ -62,7 +65,10 @@ export function PeoplePage(): React.ReactElement {
     : null;
   const canManage = accessContext ? can(accessContext, 'board.member.invite') : false;
 
-  const maxActive = Math.max(1, ...(workload ?? []).map((item) => item.active));
+  // Шкала не должна упираться в самого загруженного: с одним человеком
+  // на доске его полоска была бы полной всегда. Ориентир фиксированный,
+  // растягиваем только если кто-то работает сверх него.
+  const maxActive = Math.max(WORKLOAD_FULL_LOAD, ...(workload ?? []).map((item) => item.active));
 
   // Состав доски виден всем, цифры — только тем, кто работает на доске.
   const statsByUser = new Map((workload ?? []).map((item) => [item.user.id, item]));
@@ -186,7 +192,9 @@ function PersonCard({
         <div className="space-y-1">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>Загрузка</span>
-            <span>{stats.active} активных</span>
+            <span>
+              {stats.active} {activeWord(stats.active)}
+            </span>
           </div>
           <Progress
             value={load}
@@ -194,6 +202,14 @@ function PersonCard({
               load > 80 ? 'bg-destructive' : load > 50 ? 'bg-warning' : 'bg-success',
             )}
           />
+          {/* Разбивка по колонкам: чтобы число активных сходилось на глаз. */}
+          {stats.active > 0 && (
+            <p className="text-[11px] text-muted-foreground">
+              {COLUMN_ORDER.filter((column) => (stats.byColumn[column] ?? 0) > 0)
+                .map((column) => `${COLUMN_LABELS[column].toLowerCase()}: ${stats.byColumn[column]}`)
+                .join(' · ')}
+            </p>
+          )}
         </div>
       )}
 
@@ -219,10 +235,8 @@ function PersonCard({
         )}
       </div>
 
-      {stats && (
+      {stats && (stats.dueToday > 0 || stats.overdue > 0 || stats.done30d > 0) && (
         <div className="flex flex-wrap gap-1.5">
-          {stats.inProgress > 0 && <Badge variant="primary">в работе: {stats.inProgress}</Badge>}
-          {stats.qa > 0 && <Badge variant="outline">на тесте: {stats.qa}</Badge>}
           {stats.dueToday > 0 && <Badge variant="warning">сегодня: {stats.dueToday}</Badge>}
           {stats.overdue > 0 && <Badge variant="danger">просрочено: {stats.overdue}</Badge>}
           {stats.done30d > 0 && (
@@ -237,4 +251,14 @@ function PersonCard({
       </Button>
     </div>
   );
+}
+
+/** «1 активная», «2 активные», «5 активных» — иначе подпись режет глаз. */
+function activeWord(count: number): string {
+  const mod100 = count % 100;
+  if (mod100 >= 11 && mod100 <= 14) return 'активных';
+  const mod10 = count % 10;
+  if (mod10 === 1) return 'активная';
+  if (mod10 >= 2 && mod10 <= 4) return 'активные';
+  return 'активных';
 }

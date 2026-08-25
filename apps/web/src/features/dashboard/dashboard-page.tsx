@@ -14,6 +14,7 @@ import {
   COLUMN_LABELS,
   PRIORITY_LABELS,
   TASK_TYPE_LABELS,
+  WORKLOAD_FULL_LOAD,
   can,
   type PersonStatsDto,
   type TaskPriority,
@@ -400,7 +401,9 @@ function PeopleTable({ people }: { people: PersonStatsDto[] }): React.ReactEleme
     return <p className="py-4 text-center text-sm text-muted-foreground">На доске никого нет</p>;
   }
 
-  const maxActive = Math.max(...people.map((person) => person.active), 1);
+  // Шкала от фиксированного ориентира, а не от самого загруженного:
+  // иначе у первого в списке полоска полная всегда.
+  const maxActive = Math.max(WORKLOAD_FULL_LOAD, ...people.map((person) => person.active));
 
   return (
     <div className="scrollbar-thin -mx-1 overflow-x-auto px-1">
