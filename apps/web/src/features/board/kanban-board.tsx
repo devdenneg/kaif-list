@@ -15,7 +15,7 @@ import {
 import { restrictToWindowEdges } from '@dnd-kit/modifiers';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { COLUMN_ORDER, type BoardDto, type ColumnKey, type TaskCardDto } from '@kaif/shared';
-import { useUiStore } from '@/stores/ui';
+import { NO_COLLAPSED_COLUMNS, useUiStore } from '@/stores/ui';
 import { haptic } from '@/lib/utils';
 import { TaskCard } from './task-card';
 import { BoardColumn } from './board-column';
@@ -56,7 +56,10 @@ export function KanbanBoard({
   timeZone,
   mobile,
 }: KanbanBoardProps): React.ReactElement {
-  const collapsedColumns = useUiStore((state) => state.collapsedColumns[board.id] ?? []);
+  // Фолбэк вынесен за пределы селектора: возвращать из него новый литерал
+  // нельзя — см. комментарий к NO_COLLAPSED_COLUMNS.
+  const collapsedColumns =
+    useUiStore((state) => state.collapsedColumns[board.id]) ?? NO_COLLAPSED_COLUMNS;
   const toggleColumn = useUiStore((state) => state.toggleColumn);
 
   const [local, setLocal] = React.useState<BoardColumns>(columns);

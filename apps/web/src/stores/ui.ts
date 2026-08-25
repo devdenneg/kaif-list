@@ -17,6 +17,16 @@ export interface BoardFilters {
   includeArchived: boolean;
 }
 
+/**
+ * Стабильная ссылка на пустой список свёрнутых колонок.
+ *
+ * Селектор Zustand обязан возвращать одно и то же значение при одинаковом
+ * состоянии: под капотом `useSyncExternalStore`, и свежий литерал `[]`
+ * на каждом вызове читается как «состояние изменилось» — приложение
+ * уходит в бесконечную перерисовку.
+ */
+export const NO_COLLAPSED_COLUMNS: ColumnKey[] = [];
+
 export const EMPTY_FILTERS: BoardFilters = {
   search: '',
   assigneeIds: [],
