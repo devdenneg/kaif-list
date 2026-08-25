@@ -123,11 +123,11 @@ export function TaskAttachments({
       )}
 
       {images.length > 0 && (
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(8.5rem,10rem))] gap-2">
           {images.map((attachment, index) => (
             <figure
               key={attachment.id}
-              className="group relative overflow-hidden rounded-lg border border-border"
+              className="group relative min-w-0 overflow-hidden rounded-lg border border-border bg-surface"
             >
               {onInsertIntoDescription && (
                 <Tooltip content="Поставить в описание">
@@ -135,9 +135,21 @@ export function TaskAttachments({
                     type="button"
                     onClick={() => onInsertIntoDescription(attachment)}
                     aria-label={`Поставить ${attachment.filename} в описание`}
-                    className="absolute left-1 top-1 z-10 inline-flex size-7 items-center justify-center rounded-md bg-background/80 text-muted-foreground opacity-0 backdrop-blur transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100 [&_svg]:size-3.5"
+                    className="absolute left-1 top-1 z-10 inline-flex size-7 items-center justify-center rounded-md bg-background/85 text-muted-foreground opacity-0 shadow-sm backdrop-blur transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:size-9 [@media(pointer:coarse)]:opacity-100 [&_svg]:size-3.5"
                   >
                     <TextCursorInput />
+                  </button>
+                </Tooltip>
+              )}
+              {editable && (
+                <Tooltip content="Удалить вложение">
+                  <button
+                    type="button"
+                    onClick={() => void remove(attachment)}
+                    className="absolute right-1 top-1 z-10 inline-flex size-7 items-center justify-center rounded-md bg-background/85 text-muted-foreground opacity-0 shadow-sm backdrop-blur transition-opacity hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:size-9 [@media(pointer:coarse)]:opacity-100 [&_svg]:size-3.5"
+                    aria-label={`Удалить ${attachment.filename}`}
+                  >
+                    <Trash2 />
                   </button>
                 </Tooltip>
               )}
@@ -150,22 +162,12 @@ export function TaskAttachments({
                 <img
                   src={attachment.thumbnailUrl ?? attachment.url}
                   alt={attachment.filename}
-                  className="h-28 w-full object-cover transition-transform group-hover:scale-105"
+                  className="aspect-video w-full object-cover transition-transform group-hover:scale-105"
                   loading="lazy"
                 />
               </button>
-              <figcaption className="flex items-center gap-1 px-1.5 py-1 text-[10px] text-muted-foreground">
-                <span className="min-w-0 flex-1 truncate">{attachment.filename}</span>
-                {editable && (
-                  <button
-                    type="button"
-                    onClick={() => void remove(attachment)}
-                    className="shrink-0 rounded-md opacity-0 transition-opacity group-hover:opacity-100 [@media(pointer:coarse)]:flex [@media(pointer:coarse)]:size-10 [@media(pointer:coarse)]:items-center [@media(pointer:coarse)]:justify-center [@media(pointer:coarse)]:opacity-100"
-                    aria-label="Удалить"
-                  >
-                    <Trash2 className="size-3" />
-                  </button>
-                )}
+              <figcaption className="truncate px-2 py-1.5 text-[10px] leading-4 text-muted-foreground">
+                {attachment.filename}
               </figcaption>
             </figure>
           ))}

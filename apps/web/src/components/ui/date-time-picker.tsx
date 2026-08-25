@@ -525,13 +525,13 @@ export function DateTimePicker({
         collisionPadding={8}
         className="max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-80 overflow-y-auto overscroll-contain p-2"
       >
-        <div className="flex min-w-0 flex-col gap-3">
-          <div className="flex min-h-10 items-center justify-between gap-2 [@media(pointer:coarse)]:min-h-11">
+        <div className="flex min-w-0 flex-col gap-2">
+          <div className="flex h-9 items-center justify-between gap-2">
             <Button
               type="button"
               variant="ghost"
-              size="icon"
-              className="shrink-0 [@media(pointer:coarse)]:size-11"
+              size="icon-sm"
+              className="shrink-0"
               aria-label="Предыдущий месяц"
               onClick={() => changeVisibleMonth(-1)}
             >
@@ -548,8 +548,8 @@ export function DateTimePicker({
             <Button
               type="button"
               variant="ghost"
-              size="icon"
-              className="shrink-0 [@media(pointer:coarse)]:size-11"
+              size="icon-sm"
+              className="shrink-0"
               aria-label="Следующий месяц"
               onClick={() => changeVisibleMonth(1)}
             >
@@ -564,7 +564,7 @@ export function DateTimePicker({
                   key={weekDay}
                   role="columnheader"
                   aria-label={weekDay}
-                  className="flex h-6 items-center justify-center text-[11px] font-medium text-muted-foreground"
+                  className="flex h-5 items-center justify-center text-[11px] font-medium text-muted-foreground"
                 >
                   {weekDay}
                 </div>
@@ -598,7 +598,7 @@ export function DateTimePicker({
                         onKeyDown={(event) => handleDayKeyDown(event, day)}
                         onClick={() => selectDate(day, true)}
                         className={cn(
-                          'flex h-10 w-full min-w-0 touch-manipulation items-center justify-center rounded-md text-sm tabular-nums transition-colors',
+                          'flex h-9 w-full min-w-0 touch-manipulation items-center justify-center rounded-md text-sm tabular-nums transition-colors',
                           'hover:bg-secondary focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/25',
                           outsideMonth && 'text-muted-foreground/55',
                           isToday &&
@@ -628,7 +628,7 @@ export function DateTimePicker({
                 type="button"
                 variant="outline"
                 size="sm"
-                className="min-h-10 min-w-0 px-1.5 text-[11px] xs:text-xs [@media(pointer:coarse)]:min-h-11"
+                className="h-9 min-w-0 px-1.5 text-[11px] xs:text-xs"
                 onClick={() => selectDate(addCalendarDays(today, offset))}
               >
                 <span className="truncate">{label}</span>
@@ -636,29 +636,31 @@ export function DateTimePicker({
             ))}
           </div>
 
-          <div className="border-t border-border pt-3">
-            <label
-              htmlFor={timeInputId}
-              className="mb-1.5 flex items-center gap-2 text-sm font-medium"
-            >
-              <Clock className="size-[18px] text-muted-foreground" aria-hidden />
-              Время
-            </label>
-            <input
-              id={timeInputId}
-              type="time"
-              step={60}
-              value={draft.time}
-              aria-describedby={visibleError ? errorId : undefined}
-              onChange={(event) => {
-                setApplyError(null);
-                setDraft((current) => ({ ...current, time: event.target.value }));
-              }}
-              className={cn(
-                'h-11 w-full rounded-lg border border-input bg-surface px-3 text-base shadow-sm [color-scheme:light] dark:[color-scheme:dark]',
-                'focus-visible:border-ring focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/20',
-              )}
-            />
+          <div className="border-t border-border pt-2">
+            <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2">
+              <label
+                htmlFor={timeInputId}
+                className="flex items-center gap-1.5 text-sm font-medium"
+              >
+                <Clock className="size-[18px] text-muted-foreground" aria-hidden />
+                Время
+              </label>
+              <input
+                id={timeInputId}
+                type="time"
+                step={60}
+                value={draft.time}
+                aria-describedby={visibleError ? errorId : undefined}
+                onChange={(event) => {
+                  setApplyError(null);
+                  setDraft((current) => ({ ...current, time: event.target.value }));
+                }}
+                className={cn(
+                  'h-10 min-w-0 rounded-lg border border-input bg-surface px-3 text-base shadow-sm [color-scheme:light] dark:[color-scheme:dark]',
+                  'focus-visible:border-ring focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/20',
+                )}
+              />
+            </div>
             <div className="mt-1 grid grid-cols-3 gap-1" aria-label="Быстрый выбор времени">
               {QUICK_TIMES.map((quickTime) => (
                 <Button
@@ -666,7 +668,7 @@ export function DateTimePicker({
                   type="button"
                   variant={draft.time === quickTime ? 'secondary' : 'ghost'}
                   size="sm"
-                  className="min-h-10 tabular-nums [@media(pointer:coarse)]:min-h-11"
+                  className="h-9 tabular-nums"
                   aria-pressed={draft.time === quickTime}
                   onClick={() => {
                     setApplyError(null);
@@ -685,11 +687,12 @@ export function DateTimePicker({
             </p>
           )}
 
-          <div className="grid grid-cols-[auto_1fr_1fr] gap-1 border-t border-border pt-3">
+          <div className="grid grid-cols-[auto_1fr_1fr] gap-1 border-t border-border pt-2">
             <Button
               type="button"
               variant="ghost"
-              className="min-h-10 px-2.5 text-muted-foreground [@media(pointer:coarse)]:min-h-11"
+              size="sm"
+              className="h-9 px-2.5 text-muted-foreground"
               disabled={!value}
               onClick={clear}
             >
@@ -698,7 +701,8 @@ export function DateTimePicker({
             <Button
               type="button"
               variant="outline"
-              className="min-h-10 px-2 [@media(pointer:coarse)]:min-h-11"
+              size="sm"
+              className="h-9 px-2"
               onClick={() => setOpen(false)}
             >
               Отмена
@@ -706,7 +710,8 @@ export function DateTimePicker({
             <Button
               type="button"
               variant="primary"
-              className="min-h-10 px-2 [@media(pointer:coarse)]:min-h-11"
+              size="sm"
+              className="h-9 px-2"
               disabled={!draft.date || !draft.time || Boolean(zone.error)}
               onClick={apply}
             >

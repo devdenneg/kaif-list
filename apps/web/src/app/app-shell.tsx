@@ -256,9 +256,11 @@ function SidebarLink({
       aria-label={collapsed ? label : undefined}
       className={({ isActive }) =>
         cn(
-          'flex h-10 min-h-10 shrink-0 items-center rounded-lg text-sm font-medium transition-colors',
+          'h-10 min-h-10 shrink-0 rounded-lg text-sm font-medium transition-colors',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
-          collapsed ? 'mx-auto w-10 justify-center px-0' : 'w-full justify-start gap-2.5 px-3.5',
+          collapsed
+            ? 'mx-auto grid w-10 place-items-center px-0'
+            : 'flex w-full items-center justify-start gap-2.5 px-3.5',
           isActive
             ? 'bg-accent text-accent-foreground'
             : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
@@ -300,9 +302,11 @@ function BoardLink({
       aria-label={collapsed ? board.name : undefined}
       className={({ isActive }) =>
         cn(
-          'group flex h-10 min-h-10 shrink-0 items-center rounded-lg text-sm transition-colors',
+          'group h-10 min-h-10 shrink-0 rounded-lg text-sm transition-colors',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
-          collapsed ? 'mx-auto w-10 justify-center px-0' : 'w-full justify-start gap-2.5 px-[19px]',
+          collapsed
+            ? 'mx-auto grid w-10 place-items-center px-0'
+            : 'flex w-full items-center justify-start gap-2.5 px-[19px]',
           isActive
             ? 'bg-accent font-medium text-accent-foreground'
             : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
