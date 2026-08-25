@@ -1,9 +1,6 @@
 import {
   ActivityType,
-  COLUMN_LABELS,
   ColumnKey,
-  PRIORITY_LABELS,
-  TASK_TYPE_LABELS,
   NotificationType,
   ParticipantRole,
   SOCKET_EVENTS,
@@ -50,8 +47,6 @@ import { dispatchNotification, taskRecipients } from '../../services/notify.js';
 import { ensureContributor, syncCoreParticipants } from '../../services/participants.js';
 import { publishRealtime } from '../../realtime/bridge.js';
 import { computeRank } from './rank.js';
-import { buildCsv } from '../../lib/csv.js';
-import { env } from '../../config/env.js';
 
 /** Поля, которые участвуют в полнотекстовом поиске. */
 function buildSearchText(key: string, title: string, descriptionText: string): string {
@@ -1011,94 +1006,3 @@ export async function deleteTask(
 
 // ──────────────────────────────── Выгрузка ──────────────────────────────────
 
-/**
- * Экспорт задач доски в CSV.
- *
- * Отдаём человекочитаемые значения, а не коды: файл открывают в Excel,
- * и «IN_PROGRESS» там никому не помогает.
- */
-export async function exportBoardCsv(
-  context: BoardContext,
-  filters: TaskFiltersInput,
-): Promise<string> {
-  const where = await buildTaskWhere(context.board.id, filters);
-
-  const tasks = await prisma.task.findMany({
-    where,
-    orderBy: [{ columnKey: 'asc' }, { rank: 'asc' }],
-    take: Math.min(filters.limit, 5000),
-    select: {
-      key: true,
-      title: true,
-      columnKey: true,
-      type: true,
-      priority: true,
-      isBacklog: true,
-      storyPoints: true,
-      estimateMinutes: true,
-      spentMinutes: true,
-      dueDate: true,
-      startDate: true,
-      completedAt: true,
-      createdAt: true,
-      updatedAt: true,
-      descriptionText: true,
-      commentCount: true,
-      assignee: { select: { displayName: true } },
-      tester: { select: { displayName: true } },
-      reporter: { select: { displayName: true } },
-      labels: { select: { label: { select: { name: true } } } },
-    },
-  });
-
-  const formatDate = (value: Date | null): string =>
-    value ? value.toISOString().slice(0, 16).replace('T', ' ') : '';
-
-  const headers = [
-    'Ключ',
-    'Заголовок',
-    'Статус',
-    'Тип',
-    'Приоритет',
-    'Исполнитель',
-    'Тестировщик',
-    'Автор',
-    'Метки',
-    'Начало',
-    'Дедлайн',
-    'Завершена',
-    'Оценка (SP)',
-    'План, мин',
-    'Факт, мин',
-    'Комментариев',
-    'Создана',
-    'Обновлена',
-    'Ссылка',
-    'Описание',
-  ];
-
-  const rows = tasks.map((task) => [
-    task.key,
-    task.title,
-    task.isBacklog ? 'Бэклог' : COLUMN_LABELS[task.columnKey],
-    TASK_TYPE_LABELS[task.type],
-    PRIORITY_LABELS[task.priority],
-    task.assignee?.displayName ?? '',
-    task.tester?.displayName ?? '',
-    task.reporter.displayName,
-    task.labels.map((item) => item.label.name).join(', '),
-    formatDate(task.startDate),
-    formatDate(task.dueDate),
-    formatDate(task.completedAt),
-    task.storyPoints ?? '',
-    task.estimateMinutes ?? '',
-    task.spentMinutes ?? '',
-    task.commentCount,
-    formatDate(task.createdAt),
-    formatDate(task.updatedAt),
-    `${env.APP_URL.replace(/\/$/, '')}/tasks/${task.key}`,
-    task.descriptionText.replace(/\s+/g, ' ').slice(0, 2000),
-  ]);
-
-  return buildCsv(headers, rows);
-}

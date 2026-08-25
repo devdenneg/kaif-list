@@ -37,26 +37,3 @@ export function useDeleteSavedView(boardId: string) {
     },
   });
 }
-
-/**
- * Ссылка на выгрузку CSV.
- *
- * Скачивание идёт обычным переходом по ссылке, а не через fetch:
- * так браузер сам показывает прогресс и кладёт файл в «Загрузки».
- * Токен доступа при этом не нужен — запрос уходит с cookie сессии,
- * поэтому ссылку открываем в новой вкладке через программный клик.
- */
-export function buildExportUrl(boardId: string, filters: Record<string, unknown>): string {
-  const url = new URL(`/api/boards/${boardId}/export.csv`, window.location.origin);
-  for (const [key, value] of Object.entries(filters)) {
-    if (value === undefined || value === null || value === '') continue;
-    if (Array.isArray(value)) {
-      if (value.length > 0) url.searchParams.set(key, value.join(','));
-    } else if (typeof value === 'boolean') {
-      if (value) url.searchParams.set(key, 'true');
-    } else {
-      url.searchParams.set(key, String(value));
-    }
-  }
-  return url.toString();
-}

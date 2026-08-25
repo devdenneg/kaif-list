@@ -2,7 +2,6 @@ import * as React from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   BarChart3,
-  Download,
   Inbox,
   LayoutList,
   MoreVertical,
@@ -36,7 +35,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { FullScreenLoader } from '@/app/loader';
-import { buildExportUrl } from '@/api/views';
 import { KanbanBoard, type MoveRequest } from './kanban-board';
 import { SwimlaneBoard } from './swimlane-board';
 import { TaskActionsProvider } from './task-actions-context';
@@ -336,28 +334,6 @@ export function BoardPage(): React.ReactElement {
                   <DropdownMenuRadioItem value="priority">По приоритету</DropdownMenuRadioItem>
                   <DropdownMenuRadioItem value="type">По типу</DropdownMenuRadioItem>
                 </DropdownMenuRadioGroup>
-
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onSelect={() => {
-                    // Выгрузка идёт обычной ссылкой: браузер сам покажет прогресс
-                    // и положит файл в «Загрузки».
-                    window.location.href = buildExportUrl(board.id, {
-                      search: filters.search,
-                      assigneeIds: filters.assigneeIds,
-                      groupIds: filters.groupIds,
-                      labelIds: filters.labelIds,
-                      priorities: filters.priorities,
-                      types: filters.types,
-                      due: filters.due !== 'any' ? filters.due : undefined,
-                      unassigned: filters.unassigned,
-                      includeArchived: filters.includeArchived,
-                    });
-                  }}
-                >
-                  <Download />
-                  Выгрузить в CSV
-                </DropdownMenuItem>
 
                 {canManageBoard && (
                   <>

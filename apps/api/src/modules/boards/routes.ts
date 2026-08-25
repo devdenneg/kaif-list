@@ -24,7 +24,6 @@ import {
 import { z } from 'zod';
 import { createBoardInvite, listBoardInvites, revokeBoardInvite } from './invites.js';
 import { requireUser } from '../../plugins/auth.js';
-import { heavyRateLimit } from '../../plugins/security.js';
 import { assertCan, loadBoardContext } from '../../lib/rbac.js';
 import { columnKeySchema } from '@kaif/shared';
 import {
@@ -51,8 +50,7 @@ import {
   updateColumn,
   updateLabel,
 } from './service.js';
-import { createTask, exportBoardCsv, getBoardTasks, listBoardTasks } from '../tasks/service.js';
-import { csvFilename } from '../../lib/csv.js';
+import { createTask, getBoardTasks, listBoardTasks } from '../tasks/service.js';
 import {
   createSavedView,
   deleteSavedView,
@@ -370,25 +368,6 @@ export async function registerBoardRoutes(app: FastifyInstance): Promise<void> {
 
   // ── Выгрузка ─────────────────────────────────────────────────────────────
 
-  /**
-   * Экспорт задач в CSV с учётом текущих фильтров.
-   * Данные должны быть выносимы: это уважение к пользователю и страховка
-   * на случай, если сервис однажды понадобится заменить.
-   */
-  app.get('/:boardId/export.csv', heavyRateLimit, async (request, reply) => {
-    const user = requireUser(request);
-    const { boardId } = boardParams.parse(request.params);
-    const filters = taskFiltersSchema.parse(request.query ?? {});
-    const context = await loadBoardContext(user, boardId);
-
-    const csv = await exportBoardCsv(context, { ...filters, limit: 5000 });
-
-    return reply
-      .header('Content-Type', 'text/csv; charset=utf-8')
-      .header('Content-Disposition', `attachment; filename="${csvFilename(context.board.key)}"`)
-      .header('Cache-Control', 'no-store')
-      .send(csv);
-  });
 
   // ── Аналитика и активность ───────────────────────────────────────────────
 
