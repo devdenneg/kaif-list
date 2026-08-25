@@ -1,4 +1,4 @@
-import { ColumnKey } from '@kaif/shared';
+import { COLUMN_PIPELINE_RANK, ColumnKey } from '@kaif/shared';
 import type { Prisma } from '@prisma/client';
 
 /**
@@ -222,18 +222,17 @@ export async function recordBulkColumnTransition(
   }
 }
 
-const PIPELINE: ColumnKey[] = [
-  ColumnKey.TODO,
-  ColumnKey.ON_HOLD,
-  ColumnKey.IN_PROGRESS,
-  ColumnKey.QA,
-  ColumnKey.READY_TO_RELEASE,
-  ColumnKey.DONE,
-];
-
-/** Движение назад по конвейеру. Уход в паузу сюда не относится. */
+/**
+ * Движение назад по конвейеру.
+ *
+ * Порядок берём из общего COLUMN_PIPELINE_RANK, а не из своего списка:
+ * у «Пауза» там тот же ранг, что у «К выполнению», поэтому переход между
+ * ними возвратом не считается. Своя нумерация здесь расходилась
+ * с одиночным переносом — одно и то же движение считалось возвратом
+ * в массовой операции и не считалось в обычной.
+ */
 function isBackward(from: ColumnKey, to: ColumnKey): boolean {
-  return PIPELINE.indexOf(to) < PIPELINE.indexOf(from);
+  return COLUMN_PIPELINE_RANK[to] < COLUMN_PIPELINE_RANK[from];
 }
 
 /** Первый отрезок жизни задачи: она появилась в колонке, откуда её ещё не двигали. */

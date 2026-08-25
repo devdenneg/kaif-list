@@ -341,7 +341,7 @@ export function DashboardPage(): React.ReactElement {
 
           {/* ── 6. Распределения ── */}
           <div className="grid gap-4 lg:grid-cols-3">
-            <Panel title="По колонкам" subtitle="Все незакрытые задачи доски">
+            <Panel title="По колонкам" subtitle="Все задачи на доске, включая завершённые">
               <div className="space-y-2">
                 {analytics.byColumn.map((row) => (
                   <BarRow

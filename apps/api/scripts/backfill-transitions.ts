@@ -1,4 +1,4 @@
-import { ActivityType, ColumnKey } from '@kaif/shared';
+import { ActivityType, COLUMN_PIPELINE_RANK, ColumnKey } from '@kaif/shared';
 import { prisma } from '../src/lib/prisma.js';
 import { logger } from '../src/lib/logger.js';
 
@@ -199,7 +199,8 @@ function isBackward(from: ColumnKey | null, to: ColumnKey): boolean {
   if (!from) return false;
   // Уход в ON_HOLD — пауза, а не возврат: браком его считать нельзя.
   if (to === ColumnKey.ON_HOLD) return false;
-  return PIPELINE.indexOf(to) < PIPELINE.indexOf(from);
+  // Порядок — общий, иначе размеченная история разойдётся с живой.
+  return COLUMN_PIPELINE_RANK[to] < COLUMN_PIPELINE_RANK[from];
 }
 
 function asColumn(value: unknown): ColumnKey | null {

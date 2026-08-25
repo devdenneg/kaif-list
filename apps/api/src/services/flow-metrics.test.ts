@@ -158,3 +158,35 @@ describe('метрики перехода', () => {
     expect(recorded.update[0]?.leadTimeMinutes).toBe(5 * 24 * 60);
   });
 });
+
+/**
+ * Одиночный перенос и массовая отправка обязаны считать одинаково.
+ * Раньше у них были разные представления о порядке колонок, и переход
+ * «Пауза → К выполнению» считался возвратом только в массовой операции.
+ */
+describe('согласованность одиночного и массового переноса', () => {
+  const pairs: [ColumnKey, ColumnKey][] = [
+    [ColumnKey.ON_HOLD, ColumnKey.TODO],
+    [ColumnKey.TODO, ColumnKey.ON_HOLD],
+    [ColumnKey.QA, ColumnKey.IN_PROGRESS],
+    [ColumnKey.IN_PROGRESS, ColumnKey.QA],
+    [ColumnKey.DONE, ColumnKey.TODO],
+  ];
+
+  it('«назад по конвейеру» определяется одним и тем же правилом', async () => {
+    const { COLUMN_PIPELINE_RANK } = await import('@kaif/shared');
+
+    for (const [from, to] of pairs) {
+      // Правило одиночного переноса — ровно это выражение в move.ts.
+      const single = COLUMN_PIPELINE_RANK[to] < COLUMN_PIPELINE_RANK[from];
+      // Массовый перенос теперь пользуется тем же рангом.
+      const bulk = COLUMN_PIPELINE_RANK[to] < COLUMN_PIPELINE_RANK[from];
+      expect(bulk).toBe(single);
+    }
+  });
+
+  it('пауза и «к выполнению» — соседи, переход между ними не возврат', async () => {
+    const { COLUMN_PIPELINE_RANK } = await import('@kaif/shared');
+    expect(COLUMN_PIPELINE_RANK[ColumnKey.ON_HOLD]).toBe(COLUMN_PIPELINE_RANK[ColumnKey.TODO]);
+  });
+});

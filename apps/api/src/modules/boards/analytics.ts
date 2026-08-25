@@ -60,7 +60,7 @@ export async function boardAnalytics(
     byType,
     byColumn,
   ] = await Promise.all([
-    countAttention(boardId, now, staleBefore, weekAhead, openTasks),
+    countAttention(now, staleBefore, weekAhead, openTasks),
     prisma.task.findMany({
       where: { boardId, createdAt: { gte: since } },
       select: { createdAt: true },
@@ -164,7 +164,6 @@ type OpenTasksFilter = {
 };
 
 async function countAttention(
-  boardId: string,
   now: Date,
   staleBefore: Date,
   weekAhead: Date,
@@ -175,7 +174,9 @@ async function countAttention(
     prisma.task.count({ where: { ...openTasks, blockedByCount: { gt: 0 } } }),
     prisma.task.count({ where: { ...openTasks, assigneeId: null } }),
     prisma.task.count({ where: { ...openTasks, lastActivityAt: { lt: staleBefore } } }),
-    prisma.task.count({ where: { boardId, archivedAt: null, columnKey: ColumnKey.IN_PROGRESS } }),
+    // Остальные счётчики считают по живым задачам доски — и этот тоже,
+    // иначе «в работе» включит бэклог и разойдётся с колонкой на доске.
+    prisma.task.count({ where: { ...openTasks, columnKey: ColumnKey.IN_PROGRESS } }),
     prisma.task.count({ where: { ...openTasks, dueDate: { gte: now, lt: weekAhead } } }),
   ]);
   return { overdue, blocked, unassigned, stale, inProgress, dueThisWeek };
@@ -254,13 +255,10 @@ async function peopleStats(
   const [active, inProgress, qa, overdue, blocked, completed, reported, tested] = await Promise.all([
     groupCount({ ...openTasks, assigneeId: { in: userIds } }, 'assigneeId'),
     groupCount(
-      { boardId, archivedAt: null, columnKey: ColumnKey.IN_PROGRESS, assigneeId: { in: userIds } },
+      { ...openTasks, columnKey: ColumnKey.IN_PROGRESS, assigneeId: { in: userIds } },
       'assigneeId',
     ),
-    groupCount(
-      { boardId, archivedAt: null, columnKey: ColumnKey.QA, assigneeId: { in: userIds } },
-      'assigneeId',
-    ),
+    groupCount({ ...openTasks, columnKey: ColumnKey.QA, assigneeId: { in: userIds } }, 'assigneeId'),
     groupCount({ ...openTasks, assigneeId: { in: userIds }, dueDate: { lt: now } }, 'assigneeId'),
     groupCount(
       { ...openTasks, assigneeId: { in: userIds }, blockedByCount: { gt: 0 } },
