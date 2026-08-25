@@ -212,24 +212,25 @@ model User {
   sessions           Session[]
   loginTokens        LoginToken[]
   securityEvents     SecurityEvent[]
-  ownedBoards        Board[]            @relation("BoardOwner")
-  memberships        BoardMember[]      @relation("MemberUser")
-  membershipsAdded   BoardMember[]      @relation("MemberAddedBy")
+  ownedBoards        Board[]                @relation("BoardOwner")
+  memberships        BoardMember[]          @relation("MemberUser")
+  membershipsAdded   BoardMember[]          @relation("MemberAddedBy")
   favorites          BoardFavorite[]
-  reportedTasks      Task[]             @relation("TaskReporter")
-  assignedTasks      Task[]             @relation("TaskAssignee")
-  testingTasks       Task[]             @relation("TaskTester")
+  reportedTasks      Task[]                 @relation("TaskReporter")
+  assignedTasks      Task[]                 @relation("TaskAssignee")
+  testingTasks       Task[]                 @relation("TaskTester")
   participations     TaskParticipant[]
   comments           Comment[]
   attachments        Attachment[]
   activities         Activity[]
-  notifications      Notification[]     @relation("NotificationRecipient")
-  actedNotifications Notification[]     @relation("NotificationActor")
+  notifications      Notification[]         @relation("NotificationRecipient")
+  actedNotifications Notification[]         @relation("NotificationActor")
   checklistItems     ChecklistItem[]
   savedViews         SavedView[]
   commentReactions   CommentReaction[]
   groupMemberships   BoardGroupMember[]
-  createdInvites     BoardInvite[]      @relation("InviteCreatedBy")
+  createdInvites     BoardInvite[]          @relation("InviteCreatedBy")
+  columnTransitions  TaskColumnTransition[] @relation("TransitionActor")
 
   @@index([isActive])
   @@index([globalRole])
@@ -321,7 +322,7 @@ model Board {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  owner         User            @relation("BoardOwner", fields: [ownerId], references: [id])
+  owner         User                   @relation("BoardOwner", fields: [ownerId], references: [id])
   members       BoardMember[]
   groups        BoardGroup[]
   columns       BoardColumn[]
@@ -330,6 +331,7 @@ model Board {
   activities    Activity[]
   favorites     BoardFavorite[]
   invites       BoardInvite[]
+  transitions   TaskColumnTransition[]
   notifications Notification[]
   attachments   Attachment[]
   savedViews    SavedView[]
@@ -489,7 +491,28 @@ model Task {
   dueDate             DateTime?
   /// Сколько раз переносили дедлайн — полезная метрика дисциплины.
   dueDateChangedCount Int       @default(0)
+  /// Закрыта прямо сейчас. Обнуляется, если задачу вернули из DONE.
   completedAt         DateTime?
+
+  /// Метрики потока. Считаются в момент перехода между колонками, чтобы
+  /// отчёты были обычным SQL по полям, а не проигрыванием всей истории:
+  /// сервер на одном ядре не должен разворачивать ленту событий на каждый
+  /// показ дашборда.
+  ///
+  /// `firstCompletedAt` в отличие от `completedAt` не обнуляется никогда —
+  /// иначе пропускная способность за прошлые дни менялась бы задним числом.
+  firstInProgressAt  DateTime?
+  firstCompletedAt   DateTime?
+  /// Сколько раз задачу доставали обратно из DONE.
+  reopenCount        Int       @default(0)
+  /// Возвраты назад по конвейеру (тестировщик вернул в работу и подобное).
+  returnCount        Int       @default(0)
+  onHoldCount        Int       @default(0)
+  onHoldTotalMinutes Int       @default(0)
+  /// От взятия в работу до первого закрытия.
+  cycleTimeMinutes   Int?
+  /// От создания до первого закрытия.
+  leadTimeMinutes    Int?
 
   archivedAt     DateTime?
   lastActivityAt DateTime  @default(now())
@@ -508,10 +531,10 @@ model Task {
   /// Нормализованный текст для поиска (title + описание + ключ), в нижнем регистре.
   searchText String @default("")
 
-  board         Board             @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  reporter      User              @relation("TaskReporter", fields: [reporterId], references: [id])
-  assignee      User?             @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
-  tester        User?             @relation("TaskTester", fields: [testerId], references: [id], onDelete: SetNull)
+  board         Board                  @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  reporter      User                   @relation("TaskReporter", fields: [reporterId], references: [id])
+  assignee      User?                  @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  tester        User?                  @relation("TaskTester", fields: [testerId], references: [id], onDelete: SetNull)
   labels        TaskLabel[]
   participants  TaskParticipant[]
   comments      Comment[]
@@ -519,8 +542,9 @@ model Task {
   checklists    Checklist[]
   activities    Activity[]
   notifications Notification[]
-  linksFrom     TaskLink[]        @relation("LinkFrom")
-  linksTo       TaskLink[]        @relation("LinkTo")
+  linksFrom     TaskLink[]             @relation("LinkFrom")
+  linksTo       TaskLink[]             @relation("LinkTo")
+  transitions   TaskColumnTransition[]
 
   @@unique([boardId, number])
   @@index([boardId, isBacklog, archivedAt, columnKey, rank])
@@ -531,6 +555,39 @@ model Task {
   @@index([boardId, updatedAt])
   @@index([dueDate])
   @@index([completedAt])
+  @@index([boardId, firstCompletedAt])
+  @@index([boardId, returnCount])
+}
+
+/// Сколько задача пробыла в каждой колонке.
+///
+/// Открытая строка — та, у которой `leftAt` пуст: задача сейчас здесь.
+/// По этой таблице считаются время в колонке, узкие места и накопительная
+/// диаграмма потока одним `groupBy`, без выкачивания ленты активности.
+model TaskColumnTransition {
+  id              String     @id @default(cuid())
+  taskId          String
+  boardId         String
+  fromColumn      ColumnKey?
+  toColumn        ColumnKey
+  actorId         String?
+  /// Движение назад по конвейеру.
+  backward        Boolean    @default(false)
+  /// Уход в ON_HOLD: формально назад, но по смыслу пауза, а не возврат.
+  isPause         Boolean    @default(false)
+  reasonCode      String?
+  enteredAt       DateTime   @default(now())
+  leftAt          DateTime?
+  durationMinutes Int?
+
+  task  Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  actor User? @relation("TransitionActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([taskId, enteredAt])
+  @@index([boardId, toColumn, enteredAt])
+  @@index([boardId, enteredAt])
+  @@index([taskId, leftAt])
 }
 
 model TaskLabel {

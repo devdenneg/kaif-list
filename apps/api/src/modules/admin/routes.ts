@@ -13,7 +13,11 @@ import { requireUser } from '../../plugins/auth.js';
 import { prisma } from '../../lib/prisma.js';
 import { BadRequestError, ForbiddenError } from '../../lib/errors.js';
 import { mapPublicUser, mapTaskCard, publicUserSelect, taskCardSelect } from '../../lib/mappers.js';
-import { recordSecurityEvent, revokeAllSessions } from '../auth/service.js';
+import {
+  invalidateAccessTokens,
+  recordSecurityEvent,
+  revokeAllSessions,
+} from '../auth/service.js';
 import { requestMeta } from '../../lib/http.js';
 import { buildTaskWhere } from '../tasks/service.js';
 
@@ -112,8 +116,9 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     }
 
     await prisma.user.update({ where: { id: userId }, data: { globalRole: role } });
-    // Роль зашита в access-токен — форсируем перевыпуск.
-    await revokeAllSessions(userId);
+    // Роль зашита в access-токен — обесцениваем выданные токены. Сессии
+    // остаются живыми: человек не заметит ничего, кроме новых прав.
+    await invalidateAccessTokens(userId);
     await recordSecurityEvent(
       userId,
       SecurityEventType.GLOBAL_ROLE_CHANGED,

@@ -16,6 +16,7 @@ import { prisma } from '../../lib/prisma.js';
 import { BadRequestError, ConflictError, ReasonRequiredError } from '../../lib/errors.js';
 import { assertCanTask, type RequestUser, type TaskContext } from '../../lib/rbac.js';
 import { recordActivity } from '../../services/activity.js';
+import { recordColumnTransition } from '../../services/flow-metrics.js';
 import { dispatchNotification, taskRecipients } from '../../services/notify.js';
 import { ensureContributor, syncCoreParticipants } from '../../services/participants.js';
 import { publishRealtime } from '../../realtime/bridge.js';
@@ -145,6 +146,20 @@ export async function moveTask(
       });
     }
 
+    // История перемещений: по ней считаются время в колонке, возвраты
+    // и узкие места. Пишем здесь же, чтобы отрезок не потерялся при сбое.
+    await recordColumnTransition(tx, {
+      taskId: context.task.id,
+      boardId: context.board.id,
+      fromColumn: from,
+      toColumn: to,
+      actorId: user.id,
+      backward: isBackward,
+      isPause,
+      reasonCode: requirement.code ?? null,
+      at: now,
+    });
+
     await recordActivity(tx, {
       boardId: context.board.id,
       taskId: context.task.id,
@@ -162,6 +177,7 @@ export async function moveTask(
         toLabel: COLUMN_LABELS[to],
         reason: reason || null,
         backward: isBackward,
+        isPause,
       },
     });
   });

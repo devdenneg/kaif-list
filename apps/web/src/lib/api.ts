@@ -94,7 +94,32 @@ async function parseError(response: Response): Promise<ApiError> {
   }
 }
 
-/** Обновление пары токенов. Параллельные запросы ждут один и тот же промис. */
+/**
+ * Обновление пары токенов.
+ *
+ * Разлогинивать человека можно только тогда, когда сервер прямо сказал:
+ * сессии больше нет. Всё остальное — недоступный сервер при выкатке, 502 от
+ * прокси, лимит частоты, пропавшая сеть в метро — это временно, и кука цела.
+ * Раньше любой такой ответ отправлял человека на экран входа, хотя выходить
+ * он не собирался.
+ *
+ * Параллельные запросы ждут один и тот же промис.
+ */
+/** Сервер сказал прямо: сессии больше нет. Всё остальное — временные помехи. */
+export function isSessionLost(error: ApiError): boolean {
+  if (error.status !== 401 && error.status !== 403) return false;
+  return SESSION_LOST_CODES.has(error.code);
+}
+
+const SESSION_LOST_CODES = new Set([
+  'SESSION_NOT_FOUND',
+  'SESSION_EXPIRED',
+  'SESSION_REVOKED',
+  'TOKEN_REUSE',
+  'USER_INACTIVE',
+  'NO_REFRESH_TOKEN',
+]);
+
 export async function refreshSession(): Promise<boolean> {
   if (refreshPromise) return refreshPromise;
 
@@ -105,16 +130,28 @@ export async function refreshSession(): Promise<boolean> {
         credentials: 'include',
         headers: { 'content-type': 'application/json' },
       });
-      if (!response.ok) {
-        setAccessToken(null);
-        emitAuthChange(false);
-        return false;
+
+      if (response.ok) {
+        const data = (await response.json()) as { accessToken: string };
+        setAccessToken(data.accessToken);
+        emitAuthChange(true);
+        return true;
       }
-      const data = (await response.json()) as { accessToken: string };
-      setAccessToken(data.accessToken);
-      emitAuthChange(true);
-      return true;
+
+      // Сервер отказал по существу — сессии действительно нет.
+      if (response.status === 401 || response.status === 403) {
+        const error = await parseError(response);
+        if (SESSION_LOST_CODES.has(error.code)) {
+          setAccessToken(null);
+          emitAuthChange(false);
+          return false;
+        }
+      }
+
+      // 429, 5xx, что угодно ещё — сессия может быть жива, ждём следующей попытки.
+      return false;
     } catch {
+      // Сеть пропала. Это не повод считать человека вышедшим.
       return false;
     } finally {
       refreshPromise = null;

@@ -396,15 +396,43 @@ export async function issueSession(
 /**
  * Ротация refresh-токена с обнаружением повторного использования.
  *
- * Если пришёл токен, который уже был обменян, значит его кто-то украл
- * (или клиент сломан). В этом случае отзываем всю «семью» сессий и
- * предупреждаем пользователя в Telegram.
+ * Тонкое место: «токен уже обменян» — это не всегда кража. Ровно так же
+ * выглядят две вкладки, стартующие одновременно, и оборванный ответ
+ * (мобильная сеть моргнула, вкладку усыпили, контейнер перезапустился при
+ * выкатке) — в базе ротация зафиксирована, а до браузера новая кука не дошла.
+ *
+ * Поэтому:
+ *  - токен занимается атомарно, и при одновременных запросах выигрывает ровно
+ *    один; проигравший не считается вором;
+ *  - в течение короткого окна отсрочки повторное обращение со старым токеном
+ *    обслуживается как ретрай — человеку выдаётся рабочая пара;
+ *  - вся семья сессий гасится только если старый токен пришёл ПОЗЖЕ окна:
+ *    вот это уже подпись кражи;
+ *  - сессия, отозванная выходом или администратором, отвечает обычным 401
+ *    без тревожного письма в Telegram.
  */
+
+/** Сколько ретрай со старым токеном считается своим, а не кражей. */
+export const ROTATION_GRACE_MS = 60_000;
+/** Сколько ждём, пока параллельная ротация допишет замену. */
+const ROTATION_WAIT_MS = 2_000;
+const ROTATION_POLL_MS = 120;
+
+const RETRYABLE_REASONS = new Set(['ROTATED', 'ROTATING']);
+
 export async function rotateSession(
   refreshToken: string,
   meta: RequestMeta,
 ): Promise<IssuedSession> {
   const hash = sha256Hex(refreshToken);
+  const now = new Date();
+
+  // Занимаем токен одним запросом: две вкладки не могут выиграть обе.
+  const claim = await prisma.session.updateMany({
+    where: { refreshTokenHash: hash, revokedAt: null, expiresAt: { gt: now } },
+    data: { revokedAt: now, revokedReason: 'ROTATING', lastUsedAt: now },
+  });
+
   const session = await prisma.session.findUnique({
     where: { refreshTokenHash: hash },
     select: {
@@ -412,44 +440,169 @@ export async function rotateSession(
       userId: true,
       family: true,
       revokedAt: true,
+      revokedReason: true,
+      replacedById: true,
       expiresAt: true,
       provider: true,
     },
   });
-
   if (!session) throw new UnauthorizedError('Сессия не найдена', 'SESSION_NOT_FOUND');
 
-  if (session.revokedAt) {
-    await revokeFamily(session.family, 'REUSE_DETECTED');
-    await recordSecurityEvent(session.userId, SecurityEventType.TOKEN_REUSE_DETECTED, meta, {
-      family: session.family,
+  if (claim.count === 1) {
+    const issued = await issueSession(session.userId, meta, session.provider, session.family);
+    await prisma.session.update({
+      where: { id: session.id },
+      data: { revokedReason: 'ROTATED', replacedById: issued.sessionId },
     });
-    await notifySecurity(
-      session.userId,
-      'Обнаружена попытка входа с устаревшим токеном. Все сессии завершены — войдите заново.',
-    );
-    throw new UnauthorizedError('Сессия скомпрометирована, войдите заново', 'TOKEN_REUSE');
+    await markSessionRevoked(session.id, env.ACCESS_TOKEN_TTL_SECONDS + 60);
+    await recordSecurityEvent(session.userId, SecurityEventType.TOKEN_REFRESHED, meta);
+    return issued;
   }
 
-  if (session.expiresAt.getTime() < Date.now()) {
+  // Заняться не удалось. Разбираемся почему.
+  const verdict = classifyRotationFailure({
+    revokedAt: session.revokedAt,
+    revokedReason: session.revokedReason,
+    now,
+  });
+
+  if (verdict === 'expired') {
     throw new UnauthorizedError('Срок сессии истёк', 'SESSION_EXPIRED');
   }
 
-  const issued = await issueSession(session.userId, meta, session.provider, session.family);
+  if (verdict === 'revoked') {
+    // Выход, отзыв устройства, отключение учётной записи. Это ожидаемо:
+    // просим войти заново и не поднимаем тревогу.
+    throw new UnauthorizedError('Сессия завершена, войдите заново', 'SESSION_REVOKED');
+  }
 
-  await prisma.session.update({
-    where: { id: session.id },
-    data: {
-      revokedAt: new Date(),
-      revokedReason: 'ROTATED',
-      replacedById: issued.sessionId,
-      lastUsedAt: new Date(),
-    },
+  if (verdict === 'retry') {
+    const retried = await retryRotation(session.id, meta);
+    if (retried) {
+      await recordSecurityEvent(session.userId, SecurityEventType.TOKEN_REFRESHED, meta, {
+        retry: true,
+      });
+      return retried;
+    }
+  }
+
+  const revokedAgoMs = session.revokedAt ? now.getTime() - session.revokedAt.getTime() : 0;
+
+  // Старый токен принесли сильно позже — так выглядит именно кража.
+  await revokeFamily(session.family, 'REUSE_DETECTED');
+  await recordSecurityEvent(session.userId, SecurityEventType.TOKEN_REUSE_DETECTED, meta, {
+    family: session.family,
+    revokedAgoMs,
   });
-  await markSessionRevoked(session.id, env.ACCESS_TOKEN_TTL_SECONDS + 60);
-  await recordSecurityEvent(session.userId, SecurityEventType.TOKEN_REFRESHED, meta);
+  await notifySecurity(
+    session.userId,
+    'Обнаружена попытка входа с устаревшим токеном. Все сессии завершены — войдите заново.',
+  );
+  throw new UnauthorizedError('Сессия скомпрометирована, войдите заново', 'TOKEN_REUSE');
+}
 
-  return issued;
+/**
+ * Почему занять токен не удалось.
+ *
+ *  - `expired`  — срок сессии вышел, отзыва не было;
+ *  - `revoked`  — вышли сами или отозвал администратор, тревожить не нужно;
+ *  - `retry`    — токен только что обменяли: это вторая вкладка или повтор
+ *                 после потерянного ответа, человеку положена рабочая пара;
+ *  - `reuse`    — старый токен принесли много позже, так выглядит кража.
+ *
+ * Вынесено отдельно, потому что именно здесь решается, увидит человек доску
+ * или экран входа, — и это должно проверяться тестом, а не на живых людях.
+ */
+export function classifyRotationFailure(input: {
+  revokedAt: Date | null;
+  revokedReason: string | null;
+  now: Date;
+  graceMs?: number;
+}): 'expired' | 'revoked' | 'retry' | 'reuse' {
+  if (!input.revokedAt) return 'expired';
+  if (!RETRYABLE_REASONS.has(input.revokedReason ?? '')) return 'revoked';
+
+  const graceMs = input.graceMs ?? ROTATION_GRACE_MS;
+  const agoMs = input.now.getTime() - input.revokedAt.getTime();
+  return agoMs < graceMs ? 'retry' : 'reuse';
+}
+
+/**
+ * Обслуживание повторного обращения со старым токеном внутри окна отсрочки.
+ *
+ * Идём по цепочке замен до живой сессии и выдаём от неё новую пару. Если
+ * параллельная ротация ещё в процессе (замены пока нет), ждём её пару секунд —
+ * это дешевле, чем выбросить человека на экран входа.
+ */
+async function retryRotation(sessionId: string, meta: RequestMeta): Promise<IssuedSession | null> {
+  const deadline = Date.now() + ROTATION_WAIT_MS;
+
+  let currentId: string | null = sessionId;
+  let hops = 0;
+
+  while (currentId && hops < 5) {
+    const row: {
+      id: string;
+      userId: string;
+      family: string;
+      provider: AuthProvider;
+      revokedAt: Date | null;
+      revokedReason: string | null;
+      replacedById: string | null;
+      expiresAt: Date;
+    } | null = await prisma.session.findUnique({
+      where: { id: currentId },
+      select: {
+        id: true,
+        userId: true,
+        family: true,
+        provider: true,
+        revokedAt: true,
+        revokedReason: true,
+        replacedById: true,
+        expiresAt: true,
+      },
+    });
+    if (!row) return null;
+
+    if (!row.revokedAt) {
+      // Живая замена: занимаем её и выдаём пару, цепочка остаётся линейной.
+      const claimed = await prisma.session.updateMany({
+        where: { id: row.id, revokedAt: null, expiresAt: { gt: new Date() } },
+        data: { revokedAt: new Date(), revokedReason: 'ROTATING', lastUsedAt: new Date() },
+      });
+      if (claimed.count !== 1) {
+        // Кто-то успел раньше — идём дальше по цепочке.
+        hops += 1;
+        continue;
+      }
+      const issued = await issueSession(row.userId, meta, row.provider, row.family);
+      await prisma.session.update({
+        where: { id: row.id },
+        data: { revokedReason: 'ROTATED', replacedById: issued.sessionId },
+      });
+      await markSessionRevoked(row.id, env.ACCESS_TOKEN_TTL_SECONDS + 60);
+      return issued;
+    }
+
+    if (!RETRYABLE_REASONS.has(row.revokedReason ?? '')) return null;
+
+    if (!row.replacedById) {
+      // Параллельная ротация ещё пишет замену — подождём немного.
+      if (Date.now() > deadline) return null;
+      await sleep(ROTATION_POLL_MS);
+      continue;
+    }
+
+    currentId = row.replacedById;
+    hops += 1;
+  }
+
+  return null;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
@@ -512,6 +665,21 @@ export async function revokeSession(
 }
 
 /** Выход со всех устройств: инкремент версии токенов делает недействительными все JWT. */
+/**
+ * Обесценить выданные access-токены, не трогая сами сессии.
+ *
+ * Нужно, когда изменилось содержимое токена — например, глобальная роль.
+ * Клиент получит один отказ, молча обменяет refresh-куку и продолжит
+ * работать с новыми правами. Гасить при этом сессии нельзя: человек
+ * не делал ничего плохого, а выглядело бы это как взлом.
+ */
+export async function invalidateAccessTokens(userId: string): Promise<void> {
+  await prisma.user.update({
+    where: { id: userId },
+    data: { tokenVersion: { increment: 1 } },
+  });
+}
+
 export async function revokeAllSessions(userId: string): Promise<void> {
   const sessions = await prisma.session.findMany({
     where: { userId, revokedAt: null },
