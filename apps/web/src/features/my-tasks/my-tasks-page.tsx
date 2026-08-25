@@ -1,8 +1,18 @@
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, CalendarDays, CheckCircle2, ListTodo, PenLine, TestTube2 } from 'lucide-react';
+import {
+  AlertTriangle,
+  CalendarDays,
+  CheckCircle2,
+  ListTodo,
+  PenLine,
+  Search,
+  TestTube2,
+} from 'lucide-react';
 import { useMyTasks } from '@/api/tasks';
 import { useAuthStore } from '@/stores/auth';
+import { useDebounce } from '@/lib/hooks/use-debounce';
+import { Input } from '@/components/ui/input';
 import { EmptyState, Skeleton, Tabs, TabsList, TabsTrigger } from '@/components/ui/misc';
 import { TaskCard } from '@/features/board/task-card';
 
@@ -22,15 +32,27 @@ export function MyTasksPage(): React.ReactElement {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const [scope, setScope] = React.useState<Scope>('active');
-  const { data: tasks, isLoading } = useMyTasks(scope);
+  const [search, setSearch] = React.useState('');
+  const debounced = useDebounce(search, 250);
+  const { data: tasks, isLoading } = useMyTasks(scope, debounced);
 
   return (
     <div className="mx-auto w-full max-w-5xl p-4 sm:p-6">
-      <header className="mb-4">
-        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Мои задачи</h1>
-        <p className="text-sm text-muted-foreground">
-          По всем доскам, к которым у вас есть доступ
-        </p>
+      <header className="mb-4 flex flex-wrap items-end gap-3">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Мои задачи</h1>
+          <p className="text-sm text-muted-foreground">
+            По всем доскам, к которым у вас есть доступ
+          </p>
+        </div>
+
+        <Input
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Поиск по названию или ключу"
+          icon={<Search />}
+          className="w-full sm:w-72"
+        />
       </header>
 
       <Tabs value={scope} onValueChange={(value) => setScope(value as Scope)}>
@@ -53,8 +75,12 @@ export function MyTasksPage(): React.ReactElement {
       ) : (tasks ?? []).length === 0 ? (
         <EmptyState
           icon={<CheckCircle2 />}
-          title={emptyTitle(scope)}
-          description={emptyDescription(scope)}
+          title={debounced.trim().length >= 2 ? 'Ничего не нашли' : emptyTitle(scope)}
+          description={
+            debounced.trim().length >= 2
+              ? 'Попробуйте другой запрос или другую вкладку.'
+              : emptyDescription(scope)
+          }
         />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">

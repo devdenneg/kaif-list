@@ -145,6 +145,7 @@ export async function registerUserRoutes(app: FastifyInstance): Promise<void> {
     const query = z
       .object({
         scope: z.enum(['active', 'today', 'overdue', 'reported', 'testing', 'done']).default('active'),
+        search: z.string().trim().max(120).optional(),
         limit: z.coerce.number().int().min(1).max(200).default(100),
       })
       .parse(request.query ?? {});
@@ -157,6 +158,10 @@ export async function registerUserRoutes(app: FastifyInstance): Promise<void> {
     const base = {
       archivedAt: null,
       ...(boardIds === 'ALL' ? {} : { boardId: { in: boardIds } }),
+      // searchText уже содержит ключ, заголовок и описание в нижнем регистре.
+      ...(query.search && query.search.length >= 2
+        ? { searchText: { contains: query.search.toLowerCase() } }
+        : {}),
     };
 
     const where = (() => {

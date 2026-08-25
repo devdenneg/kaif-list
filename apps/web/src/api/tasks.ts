@@ -478,12 +478,18 @@ export function useBulkTaskAction(boardId: string) {
 
 export function useMyTasks(
   scope: 'active' | 'today' | 'overdue' | 'reported' | 'testing' | 'done',
+  search = '',
 ) {
+  const query = search.trim().length >= 2 ? search.trim() : undefined;
   return useQuery({
-    queryKey: queryKeys.myTasks(scope),
+    queryKey: [...queryKeys.myTasks(scope), query ?? ''],
     queryFn: () =>
       api
-        .get<{ items: TaskCardDto[] }>('/api/users/me/tasks', { scope })
+        .get<{ items: TaskCardDto[] }>('/api/users/me/tasks', {
+          scope,
+          ...(query ? { search: query } : {}),
+        })
         .then((response) => response.items),
+    placeholderData: (previous) => previous,
   });
 }
