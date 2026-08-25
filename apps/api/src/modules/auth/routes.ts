@@ -8,6 +8,7 @@ import {
   requestLoginCodeSchema,
   telegramMiniAppAuthSchema,
   telegramWidgetAuthSchema,
+  type LoginCodeDto,
 } from '@kaif/shared';
 import { env } from '../../config/env.js';
 import { authRateLimit } from '../../plugins/security.js';
@@ -58,13 +59,18 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   app.post('/telegram/login-code', authRateLimit, async (request, reply) => {
     const body = requestLoginCodeSchema.parse(request.body ?? {});
     const code = await createLoginCode(requestMeta(request, body.deviceLabel ?? null));
-    return reply.send({
+    // Тип проставлен намеренно: ответ уже расходился с контрактом —
+    // забытый verificationCode оставлял на экране пустую рамку, и сверять
+    // с ботом было нечего. Теперь такое не соберётся.
+    const payload: LoginCodeDto = {
       code: code.code,
+      verificationCode: code.verificationCode,
       deepLink: code.deepLink,
       botUsername: code.botUsername,
       expiresAt: code.expiresAt.toISOString(),
       pollIntervalMs: TTL.loginCodePollIntervalMs,
-    });
+    };
+    return reply.send(payload);
   });
 
   app.get<{ Params: { code: string } }>(
