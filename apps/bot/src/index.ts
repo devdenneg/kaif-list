@@ -38,12 +38,19 @@ async function main(): Promise<void> {
 
   registerHandlers(bot, env, api, state);
 
+  // Список в нативном меню Telegram. Первым — меню: с него удобно начинать,
+  // а команды помнить необязательно.
   await bot.api.setMyCommands([
-    { command: 'tasks', description: 'Мои активные задачи' },
+    { command: 'menu', description: 'Меню' },
+    { command: 'tasks', description: 'Мои задачи' },
     { command: 'today', description: 'Что горит сегодня' },
-    { command: 'testing', description: 'Задачи на моём тестировании' },
+    { command: 'overdue', description: 'Просроченное' },
+    { command: 'testing', description: 'На моём тестировании' },
+    { command: 'new', description: 'Создать задачу' },
+    { command: 'boards', description: 'Мои доски' },
+    { command: 'stats', description: 'Сводка по доске' },
+    { command: 'settings', description: 'Уведомления' },
     { command: 'me', description: 'Мой профиль' },
-    { command: 'settings', description: 'Настройки уведомлений' },
     { command: 'help', description: 'Справка' },
   ]);
 

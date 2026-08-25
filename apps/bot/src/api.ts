@@ -111,7 +111,11 @@ export class InternalApi {
     }>('GET', '/telegram/me', { query: { chatId } });
   }
 
-  tasks(chatId: string, scope: 'active' | 'today' | 'overdue' | 'testing', limit = 10) {
+  tasks(
+    chatId: string,
+    scope: 'active' | 'today' | 'overdue' | 'testing',
+    limit = 10,
+  ) {
     return this.request<{
       items: {
         id: string;
@@ -157,6 +161,57 @@ export class InternalApi {
 
   logout(chatId: string) {
     return this.request<{ success: boolean }>('POST', '/telegram/logout', { body: { chatId } });
+  }
+
+  /** Доски человека с ролью — из них строится меню. */
+  boards(chatId: string) {
+    return this.request<{
+      items: { id: string; key: string; name: string; role: string; myTasks: number }[];
+    }>('GET', '/telegram/boards', { query: { chatId } });
+  }
+
+  /** Сводка по доске: только для владельца и администраторов. */
+  boardStats(chatId: string, boardId: string, days: number) {
+    return this.request<{
+      board: { key: string; name: string };
+      days: number;
+      attention: {
+        overdue: number;
+        blocked: number;
+        unassigned: number;
+        stale: number;
+        inProgress: number;
+        dueThisWeek: number;
+      };
+      flow: {
+        created: { current: number; previous: number };
+        completed: { current: number; previous: number };
+        cycleTimeDays: { current: number; previous: number };
+        returned: { current: number; previous: number };
+        reopened: { current: number; previous: number };
+      };
+      cycleTime: { median: number; p90: number; sample: number };
+      people: {
+        user: { id: string; displayName: string };
+        active: number;
+        overdue: number;
+        completed: number;
+      }[];
+    }>('GET', '/telegram/board-stats', { query: { chatId, boardId, days } });
+  }
+
+  createTask(chatId: string, boardId: string, title: string) {
+    return this.request<{ task: { id: string; key: string; title: string } }>(
+      'POST',
+      '/telegram/task',
+      { body: { chatId, boardId, title } },
+    );
+  }
+
+  assignToMe(chatId: string, taskId: string) {
+    return this.request<{ task: { key: string; title: string } }>('POST', '/telegram/assign-me', {
+      body: { chatId, taskId },
+    });
   }
 
   task(chatId: string, taskId: string) {

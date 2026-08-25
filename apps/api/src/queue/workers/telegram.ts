@@ -152,33 +152,54 @@ function stripTags(value: string): string {
 }
 
 /** Кнопки быстрых действий прямо в уведомлении. */
+/**
+ * Кнопки под уведомлением.
+ *
+ * Смысл в том, чтобы закрыть событие не выходя из чата: самое вероятное
+ * действие первым, дальше — карточка задачи, где есть всё остальное.
+ * Больше трёх кнопок в ряд Telegram переносит, поэтому список короткий.
+ */
 function buildActions(
   type: string,
   taskId: string | null,
 ): { text: string; data: string }[] | undefined {
   if (!taskId) return undefined;
 
+  const open = { text: '🗂 Карточка', data: `t:${taskId}` };
+  const reply = { text: '💬 Ответить', data: `rp:${taskId}` };
+  const start = { text: '▶️ В работу', data: `mv:${taskId}:IN_PROGRESS` };
+
   switch (type) {
     case NotificationType.TASK_ASSIGNED_TO_YOU:
-      return [
-        { text: '▶️ В работу', data: `mv:${taskId}:IN_PROGRESS` },
-        { text: '💬 Ответить', data: `rp:${taskId}` },
-      ];
     case NotificationType.TASK_RETURNED:
     case NotificationType.TASK_PUT_ON_HOLD:
-      return [
-        { text: '▶️ В работу', data: `mv:${taskId}:IN_PROGRESS` },
-        { text: '💬 Ответить', data: `rp:${taskId}` },
-      ];
-    case NotificationType.COMMENT_ADDED:
-    case NotificationType.MENTIONED:
-      return [{ text: '💬 Ответить', data: `rp:${taskId}` }];
+      return [start, reply, open];
+
+    case NotificationType.TASK_UNBLOCKED:
+      // Ради этого уведомления всё и затевалось: блокер закрыт, можно брать.
+      return [start, open];
+
     case NotificationType.TASK_TESTER_ASSIGNED:
       return [
         { text: '✅ Принято', data: `mv:${taskId}:READY_TO_RELEASE` },
-        { text: '💬 Ответить', data: `rp:${taskId}` },
+        { text: '↩️ Вернуть', data: `mv:${taskId}:IN_PROGRESS` },
+        open,
       ];
+
+    case NotificationType.TASK_DUE_SOON:
+    case NotificationType.TASK_OVERDUE:
+      return [start, open];
+
+    case NotificationType.COMMENT_ADDED:
+    case NotificationType.MENTIONED:
+      return [reply, open];
+
+    case NotificationType.TASK_BLOCKED:
+    case NotificationType.TASK_STATUS_CHANGED:
+    case NotificationType.TASK_DUE_DATE_CHANGED:
+      return [open, reply];
+
     default:
-      return [{ text: '💬 Ответить', data: `rp:${taskId}` }];
+      return [reply, open];
   }
 }

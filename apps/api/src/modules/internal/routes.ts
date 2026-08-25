@@ -14,7 +14,8 @@ import { timingSafeEqual } from '../../lib/crypto.js';
 import { ForbiddenError, NotFoundError } from '../../lib/errors.js';
 import { prisma } from '../../lib/prisma.js';
 import { mapTaskCard, taskCardSelect } from '../../lib/mappers.js';
-import { loadTaskContext, type RequestUser } from '../../lib/rbac.js';
+import { assertCan, loadBoardContext, loadTaskContext, type RequestUser } from '../../lib/rbac.js';
+import { boardAnalytics } from '../boards/analytics.js';
 import {
   confirmLoginCode,
   describeLoginRequest,
@@ -24,7 +25,7 @@ import {
 import type { TelegramUserData } from '../../lib/telegram-auth.js';
 import { createComment } from '../comments/service.js';
 import { moveTask } from '../tasks/move.js';
-import { getTaskDetail } from '../tasks/service.js';
+import { createTask, getTaskDetail, updateTask } from '../tasks/service.js';
 
 /**
  * Служебный API для бота.
@@ -296,6 +297,129 @@ export async function registerInternalRoutes(app: FastifyInstance): Promise<void
     const user = await findUserByChat(chatId);
     await revokeAllSessions(user.id);
     return reply.send({ success: true });
+  });
+
+  /**
+   * Доски человека — для меню бота.
+   *
+   * Отдаём роль: по ней бот решает, показывать ли сводку по доске.
+   */
+  app.get('/telegram/boards', async (request, reply) => {
+    const { chatId } = z.object({ chatId: z.union([z.string(), z.number()]) }).parse(request.query);
+    const user = await findUserByChat(chatId);
+
+    const memberships = await prisma.boardMember.findMany({
+      where: { userId: user.id, board: { isArchived: false } },
+      orderBy: [{ board: { name: 'asc' } }],
+      take: 30,
+      select: {
+        role: true,
+        board: { select: { id: true, key: true, name: true } },
+      },
+    });
+
+    // Сколько задач на человеке в каждой доске — чтобы меню было полезным,
+    // а не просто списком названий.
+    const counts = await prisma.task.groupBy({
+      by: ['boardId'],
+      where: {
+        assigneeId: user.id,
+        archivedAt: null,
+        isBacklog: false,
+        columnKey: { not: ColumnKey.DONE },
+        boardId: { in: memberships.map((item) => item.board.id) },
+      },
+      _count: { _all: true },
+    });
+    const myTasks = new Map(counts.map((row) => [row.boardId, row._count._all]));
+
+    return reply.send({
+      items: memberships.map((item) => ({
+        id: item.board.id,
+        key: item.board.key,
+        name: item.board.name,
+        role: item.role,
+        myTasks: myTasks.get(item.board.id) ?? 0,
+      })),
+    });
+  });
+
+  /**
+   * Сводка по доске для владельца и администраторов.
+   *
+   * В боте нет графиков, поэтому отдаём готовые числа, а не ряды точек:
+   * что горит сейчас, что сделано за период и кто чем занят.
+   */
+  app.get('/telegram/board-stats', async (request, reply) => {
+    const { chatId, boardId, days } = z
+      .object({
+        chatId: z.union([z.string(), z.number()]),
+        boardId: z.string().min(1).max(40),
+        days: z.coerce.number().int().min(1).max(90).default(7),
+      })
+      .parse(request.query);
+
+    const user = await findUserByChat(chatId);
+    const requestUser = toRequestUser(user);
+    const context = await loadBoardContext(requestUser, boardId);
+    assertCan(requestUser, context, 'board.analytics.view');
+
+    const analytics = await boardAnalytics(context, days);
+
+    return reply.send({
+      board: { key: context.board.key, name: context.board.name },
+      days,
+      attention: analytics.attentionCounts,
+      flow: analytics.flow,
+      cycleTime: analytics.cycleTime,
+      people: analytics.people.slice(0, 8),
+    });
+  });
+
+  /** Создание задачи прямо из чата: увидел — записал. */
+  app.post('/telegram/task', async (request, reply) => {
+    const { chatId, boardId, title } = z
+      .object({
+        chatId: z.union([z.string(), z.number()]),
+        boardId: z.string().min(1).max(40),
+        title: z.string().trim().min(3).max(200),
+      })
+      .parse(request.body);
+
+    const user = await findUserByChat(chatId);
+    const requestUser = toRequestUser(user);
+    const context = await loadBoardContext(requestUser, boardId);
+
+    const task = await createTask(requestUser, context, {
+      title,
+      type: 'TASK',
+      priority: 'MEDIUM',
+      columnKey: ColumnKey.TODO,
+      isBacklog: false,
+      labelIds: [],
+      watcherIds: [],
+      attachmentIds: [],
+      checklists: [],
+    } as never);
+
+    return reply.send({ task: { id: task.id, key: task.key, title: task.title } });
+  });
+
+  /** Взять задачу на себя — самая частая кнопка под уведомлением. */
+  app.post('/telegram/assign-me', async (request, reply) => {
+    const { chatId, taskId } = z
+      .object({
+        chatId: z.union([z.string(), z.number()]),
+        taskId: z.string().min(1).max(40),
+      })
+      .parse(request.body);
+
+    const user = await findUserByChat(chatId);
+    const requestUser = toRequestUser(user);
+    const context = await loadTaskContext(requestUser, taskId);
+    const task = await updateTask(requestUser, context, { assigneeId: user.id } as never);
+
+    return reply.send({ task: { key: task.key, title: task.title } });
   });
 
   app.get('/telegram/task/:taskId', async (request, reply) => {

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { ChevronDown, ChevronRight, Minus } from 'lucide-react';
+import { ChevronDown, Minus } from 'lucide-react';
 import {
   COLUMN_ORDER,
   PRIORITY_LABELS,
@@ -14,6 +14,7 @@ import { UserAvatar } from '@/components/ui/avatar';
 import { KanbanBoard, type MoveRequest } from './kanban-board';
 import type { TaskDefaults } from './quick-add-task';
 import { TaskTypeIcon, PriorityIcon } from '@/features/task/task-visuals';
+import { cn } from '@/lib/utils';
 
 /**
  * Доска, разбитая на дорожки.
@@ -48,7 +49,10 @@ export function SwimlaneBoard({
   mobile?: boolean;
 }): React.ReactElement {
   const [collapsed, setCollapsed] = React.useState<string[]>([]);
-  const lanes = React.useMemo(() => buildLanes(board, columns, swimlane), [board, columns, swimlane]);
+  const lanes = React.useMemo(
+    () => buildLanes(board, columns, swimlane),
+    [board, columns, swimlane],
+  );
 
   if (lanes.length === 0) {
     return (
@@ -62,8 +66,10 @@ export function SwimlaneBoard({
     <div className="space-y-3">
       {lanes.map((lane) => {
         const isCollapsed = collapsed.includes(lane.id);
+        const contentId = `swimlane-${board.id}-${swimlane}-${lane.id}`;
+
         return (
-          <section key={lane.id}>
+          <section key={lane.id} data-state={isCollapsed ? 'closed' : 'open'}>
             <button
               type="button"
               onClick={() =>
@@ -73,13 +79,17 @@ export function SwimlaneBoard({
                     : [...current, lane.id],
                 )
               }
-              className="mb-2 flex w-full items-center gap-2 px-4 text-left"
+              className="group flex w-full items-center gap-2 rounded-lg px-4 py-1.5 text-left transition-colors duration-150 hover:bg-secondary/35 motion-reduce:transition-none"
+              aria-expanded={!isCollapsed}
+              aria-controls={contentId}
             >
-              {isCollapsed ? (
-                <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
-              )}
+              <ChevronDown
+                className={cn(
+                  'size-4 shrink-0 text-muted-foreground transition-transform duration-200 ease-out motion-reduce:transition-none',
+                  isCollapsed && '-rotate-90',
+                )}
+                aria-hidden
+              />
               {lane.icon}
               <span className="truncate text-sm font-semibold">{lane.title}</span>
               <span className="rounded bg-secondary px-1.5 py-0.5 text-[11px] text-muted-foreground">
@@ -88,19 +98,33 @@ export function SwimlaneBoard({
               <span className="ml-2 h-px flex-1 bg-border" aria-hidden />
             </button>
 
-            {!isCollapsed && (
-              <KanbanBoard
-                board={board}
-                columns={lane.columns}
-                onOpenTask={onOpenTask}
-                onMove={onMove}
-                canDrag={canDrag}
-                canCreate={canCreate}
-                taskDefaults={lane.defaults}
-                {...(timeZone ? { timeZone } : {})}
-                {...(mobile ? { mobile: true } : {})}
-              />
-            )}
+            <div
+              id={contentId}
+              className={cn(
+                'grid transition-[grid-template-rows,opacity,visibility] duration-200 ease-out motion-reduce:transition-none',
+                isCollapsed
+                  ? 'invisible grid-rows-[0fr] opacity-0'
+                  : 'visible grid-rows-[1fr] opacity-100',
+              )}
+              aria-hidden={isCollapsed}
+              inert={isCollapsed}
+            >
+              <div className="min-h-0 overflow-hidden">
+                <div className="pt-2">
+                  <KanbanBoard
+                    board={board}
+                    columns={lane.columns}
+                    onOpenTask={onOpenTask}
+                    onMove={onMove}
+                    canDrag={canDrag}
+                    canCreate={canCreate}
+                    taskDefaults={lane.defaults}
+                    {...(timeZone ? { timeZone } : {})}
+                    {...(mobile ? { mobile: true } : {})}
+                  />
+                </div>
+              </div>
+            </div>
           </section>
         );
       })}
@@ -133,7 +157,11 @@ const emptyColumns = (): BoardColumns => ({
   DONE: [],
 });
 
-function buildLanes(board: BoardDto, columns: BoardColumns, swimlane: Exclude<Swimlane, 'none'>): Lane[] {
+function buildLanes(
+  board: BoardDto,
+  columns: BoardColumns,
+  swimlane: Exclude<Swimlane, 'none'>,
+): Lane[] {
   const buckets = new Map<string, BoardColumns>();
   const ensure = (key: string): BoardColumns => {
     const existing = buckets.get(key);

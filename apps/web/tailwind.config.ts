@@ -82,13 +82,54 @@ export default {
           },
           to: { transform: 'translate(-50%, -50%) scale(1)', opacity: '1' },
         },
-        'slide-in-right': {
-          from: { transform: 'translateX(100%)' },
-          to: { transform: 'translateX(0)' },
+        'dialog-out': {
+          from: { transform: 'translate(-50%, -50%) scale(1)', opacity: '1' },
+          to: {
+            transform: 'translate(-50%, calc(-50% + 6px)) scale(0.98)',
+            opacity: '0',
+          },
         },
-        'slide-in-bottom': {
+        'overlay-in': { from: { opacity: '0' }, to: { opacity: '1' } },
+        'overlay-out': { from: { opacity: '1' }, to: { opacity: '0' } },
+        'floating-in': {
+          from: {
+            transform:
+              'translate3d(var(--kaif-floating-x, 0), var(--kaif-floating-y, -4px), 0) scale(0.98)',
+            opacity: '0',
+          },
+          to: { transform: 'translate3d(0, 0, 0) scale(1)', opacity: '1' },
+        },
+        'floating-out': {
+          from: { transform: 'translate3d(0, 0, 0) scale(1)', opacity: '1' },
+          to: {
+            transform:
+              'translate3d(var(--kaif-floating-x, 0), var(--kaif-floating-y, -4px), 0) scale(0.98)',
+            opacity: '0',
+          },
+        },
+        'sheet-in-right': {
+          from: { transform: 'translateX(100%)', opacity: '0.92' },
+          to: { transform: 'translateX(0)', opacity: '1' },
+        },
+        'sheet-out-right': {
+          from: { transform: 'translateX(0)', opacity: '1' },
+          to: { transform: 'translateX(100%)', opacity: '0.92' },
+        },
+        'sheet-in-left': {
+          from: { transform: 'translateX(-100%)', opacity: '0.92' },
+          to: { transform: 'translateX(0)', opacity: '1' },
+        },
+        'sheet-out-left': {
+          from: { transform: 'translateX(0)', opacity: '1' },
+          to: { transform: 'translateX(-100%)', opacity: '0.92' },
+        },
+        'sheet-in-bottom': {
           from: { transform: 'translateY(100%)' },
           to: { transform: 'translateY(0)' },
+        },
+        'sheet-out-bottom': {
+          from: { transform: 'translateY(0)' },
+          to: { transform: 'translateY(100%)' },
         },
         'pulse-danger': {
           '0%, 100%': { boxShadow: '0 0 0 0 hsl(var(--destructive) / 0.45)' },
@@ -101,9 +142,18 @@ export default {
       animation: {
         'fade-in': 'fade-in 150ms ease-out',
         'slide-up': 'slide-up 180ms cubic-bezier(0.16, 1, 0.3, 1)',
-        'dialog-in': 'dialog-in 180ms cubic-bezier(0.16, 1, 0.3, 1)',
-        'slide-in-right': 'slide-in-right 220ms cubic-bezier(0.16, 1, 0.3, 1)',
-        'slide-in-bottom': 'slide-in-bottom 260ms cubic-bezier(0.16, 1, 0.3, 1)',
+        'dialog-in': 'dialog-in 180ms cubic-bezier(0.16, 1, 0.3, 1) both',
+        'dialog-out': 'dialog-out 140ms cubic-bezier(0.4, 0, 1, 1) both',
+        'overlay-in': 'overlay-in 180ms ease-out both',
+        'overlay-out': 'overlay-out 140ms ease-in both',
+        'floating-in': 'floating-in 160ms cubic-bezier(0.16, 1, 0.3, 1) both',
+        'floating-out': 'floating-out 140ms cubic-bezier(0.4, 0, 1, 1) both',
+        'sheet-in-right': 'sheet-in-right 200ms cubic-bezier(0.16, 1, 0.3, 1) both',
+        'sheet-out-right': 'sheet-out-right 160ms cubic-bezier(0.4, 0, 1, 1) both',
+        'sheet-in-left': 'sheet-in-left 200ms cubic-bezier(0.16, 1, 0.3, 1) both',
+        'sheet-out-left': 'sheet-out-left 160ms cubic-bezier(0.4, 0, 1, 1) both',
+        'sheet-in-bottom': 'sheet-in-bottom 220ms cubic-bezier(0.16, 1, 0.3, 1) both',
+        'sheet-out-bottom': 'sheet-out-bottom 180ms cubic-bezier(0.4, 0, 1, 1) both',
         'pulse-danger': 'pulse-danger 2s ease-in-out infinite',
       },
       boxShadow: {

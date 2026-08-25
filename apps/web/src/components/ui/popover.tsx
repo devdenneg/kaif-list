@@ -18,8 +18,9 @@ export const PopoverContent = React.forwardRef<
       sideOffset={sideOffset}
       collisionPadding={12}
       className={cn(
-        'z-50 w-72 rounded-lg border border-border bg-popover p-3 text-popover-foreground shadow-popover outline-none',
-        'data-[state=open]:animate-slide-up',
+        'z-50 w-72 origin-[var(--radix-popover-content-transform-origin)] rounded-lg border border-border bg-popover p-3 text-popover-foreground shadow-popover outline-none',
+        '[--kaif-floating-x:0px] [--kaif-floating-y:-4px] data-[side=left]:[--kaif-floating-x:4px] data-[side=left]:[--kaif-floating-y:0px] data-[side=right]:[--kaif-floating-x:-4px] data-[side=right]:[--kaif-floating-y:0px] data-[side=top]:[--kaif-floating-y:4px]',
+        'data-[state=open]:animate-floating-in data-[state=closed]:animate-floating-out',
         className,
       )}
       {...props}

@@ -64,7 +64,7 @@ export function QuickAddTask({
   };
 
   return (
-    <div className="rounded-lg border border-primary/40 bg-card p-2 shadow-card">
+    <div className="animate-slide-up rounded-lg border border-primary/40 bg-card p-2 shadow-card motion-reduce:animate-none">
       <Textarea
         ref={inputRef}
         value={title}

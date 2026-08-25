@@ -263,7 +263,12 @@ function GroupRow({
           >
             <Users />
             Состав
-            <ChevronDown className={cn('transition-transform', expanded && 'rotate-180')} />
+            <ChevronDown
+              className={cn(
+                'transition-transform duration-200 motion-reduce:transition-none',
+                expanded && 'rotate-180',
+              )}
+            />
           </Button>
           <Button
             variant="ghost"
@@ -277,71 +282,83 @@ function GroupRow({
         </div>
       </div>
 
-      {expanded && (
-        <div className="border-t border-border p-2">
-          <div className="mb-2 flex flex-wrap items-center gap-1.5">
-            {LABEL_COLORS.map((item) => (
-              <button
-                key={item}
-                type="button"
-                onClick={() =>
-                  updateGroup.mutate(
-                    { groupId: group.id, color: item },
-                    { onError: (error) => toast.error('Не удалось изменить цвет', error) },
-                  )
-                }
-                className="flex size-10 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/25 focus-visible:ring-offset-0"
-                aria-label={`Цвет ${item}`}
-                aria-pressed={group.color === item}
-              >
-                <span
-                  className={cn(
-                    'size-5 rounded-full transition-transform',
-                    group.color === item && 'ring-2 ring-ring ring-offset-2 ring-offset-background',
-                  )}
-                  style={{ backgroundColor: item }}
-                  aria-hidden
-                />
-              </button>
-            ))}
-
-            <span className="w-full text-right text-[11px] text-muted-foreground xs:ml-auto xs:w-auto">
-              выбрано: {group.members.length} из {board.members.length}
-            </span>
-          </div>
-
-          {/* Поиск появляется, когда список перестаёт читаться глазами. */}
-          {board.members.length > 8 && (
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Найти человека"
-              icon={<Search />}
-              className="mb-1"
-            />
-          )}
-
-          <div className="scrollbar-thin max-h-56 space-y-0.5 overflow-y-auto">
-            {visibleMembers.length === 0 ? (
-              <p className="py-3 text-center text-xs text-muted-foreground">Никого не нашли</p>
-            ) : (
-              visibleMembers.map((member) => (
-                <label
-                  key={member.userId}
-                  className="flex min-h-10 cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-secondary"
+      <div
+        className={cn(
+          'grid transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none',
+          expanded
+            ? 'grid-rows-[1fr] opacity-100'
+            : 'pointer-events-none grid-rows-[0fr] opacity-0',
+        )}
+        aria-hidden={!expanded}
+        inert={!expanded}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div className="border-t border-border p-2">
+            <div className="mb-2 flex flex-wrap items-center gap-1.5">
+              {LABEL_COLORS.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() =>
+                    updateGroup.mutate(
+                      { groupId: group.id, color: item },
+                      { onError: (error) => toast.error('Не удалось изменить цвет', error) },
+                    )
+                  }
+                  className="flex size-10 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/25 focus-visible:ring-offset-0"
+                  aria-label={`Цвет ${item}`}
+                  aria-pressed={group.color === item}
                 >
-                  <Checkbox
-                    checked={memberIds.has(member.userId)}
-                    onCheckedChange={() => toggleMember(member.userId)}
+                  <span
+                    className={cn(
+                      'size-5 rounded-full transition-transform',
+                      group.color === item &&
+                        'ring-2 ring-ring ring-offset-2 ring-offset-background',
+                    )}
+                    style={{ backgroundColor: item }}
+                    aria-hidden
                   />
-                  <UserAvatar user={member.user} size="xs" />
-                  <span className="min-w-0 flex-1 truncate">{member.user.displayName}</span>
-                </label>
-              ))
+                </button>
+              ))}
+
+              <span className="w-full text-right text-[11px] text-muted-foreground xs:ml-auto xs:w-auto">
+                выбрано: {group.members.length} из {board.members.length}
+              </span>
+            </div>
+
+            {/* Поиск появляется, когда список перестаёт читаться глазами. */}
+            {board.members.length > 8 && (
+              <Input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Найти человека"
+                icon={<Search />}
+                className="mb-1"
+              />
             )}
+
+            <div className="scrollbar-thin max-h-56 space-y-0.5 overflow-y-auto">
+              {visibleMembers.length === 0 ? (
+                <p className="py-3 text-center text-xs text-muted-foreground">Никого не нашли</p>
+              ) : (
+                visibleMembers.map((member) => (
+                  <label
+                    key={member.userId}
+                    className="flex min-h-10 cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-secondary"
+                  >
+                    <Checkbox
+                      checked={memberIds.has(member.userId)}
+                      onCheckedChange={() => toggleMember(member.userId)}
+                    />
+                    <UserAvatar user={member.user} size="xs" />
+                    <span className="min-w-0 flex-1 truncate">{member.user.displayName}</span>
+                  </label>
+                ))
+              )}
+            </div>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

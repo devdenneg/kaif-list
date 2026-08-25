@@ -10,7 +10,8 @@ import { logger } from './logger.js';
  */
 
 export interface PendingAction {
-  kind: 'comment' | 'move-reason';
+  kind: 'comment' | 'move-reason' | 'new-task';
+  /** Для комментария и переноса — задача, для новой задачи — доска. */
   taskId: string;
   taskKey?: string;
   toColumn?: string;

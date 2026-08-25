@@ -34,23 +34,23 @@ export const SheetContent = React.forwardRef<
 
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-sm data-[state=open]:animate-fade-in" />
+      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-sm data-[state=open]:animate-overlay-in data-[state=closed]:animate-overlay-out" />
       <DialogPrimitive.Content
         ref={setContentRef}
         className={cn(
           'fixed z-50 flex flex-col bg-card shadow-popover',
           side === 'right' &&
             cn(
-              'inset-y-0 right-0 w-full border-l border-border pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)] data-[state=open]:animate-slide-in-right sm:pl-0',
+              'inset-y-0 right-0 w-full border-l border-border pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)] data-[state=open]:animate-sheet-in-right data-[state=closed]:animate-sheet-out-right sm:pl-0',
               width,
             ),
           side === 'left' &&
             cn(
-              'inset-y-0 left-0 w-full border-r border-border pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)] data-[state=open]:animate-slide-in-right sm:pr-0',
+              'inset-y-0 left-0 w-full border-r border-border pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)] data-[state=open]:animate-sheet-in-left data-[state=closed]:animate-sheet-out-left sm:pr-0',
               width,
             ),
           side === 'bottom' &&
-            'inset-x-0 bottom-0 max-h-[90dvh] rounded-t-2xl border-t border-border pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] data-[state=open]:animate-slide-in-bottom',
+            'inset-x-0 bottom-0 max-h-[90dvh] rounded-t-2xl border-t border-border pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] data-[state=open]:animate-sheet-in-bottom data-[state=closed]:animate-sheet-out-bottom',
           className,
         )}
         {...props}

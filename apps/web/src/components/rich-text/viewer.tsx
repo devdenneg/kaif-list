@@ -18,14 +18,31 @@ interface ViewerProps {
   collapsible?: boolean;
 }
 
-export function RichTextViewer({ doc, className, collapsible }: ViewerProps): React.ReactElement | null {
+const COLLAPSED_HEIGHT = 340;
+
+export function RichTextViewer({
+  doc,
+  className,
+  collapsible,
+}: ViewerProps): React.ReactElement | null {
   const [expanded, setExpanded] = React.useState(false);
   const contentRef = React.useRef<HTMLDivElement>(null);
   const [overflows, setOverflows] = React.useState(false);
+  const [contentHeight, setContentHeight] = React.useState(COLLAPSED_HEIGHT);
 
-  React.useEffect(() => {
-    if (!collapsible || !contentRef.current) return;
-    setOverflows(contentRef.current.scrollHeight > 340);
+  React.useLayoutEffect(() => {
+    const content = contentRef.current;
+    if (!collapsible || !content) return;
+
+    const measure = (): void => {
+      const nextHeight = content.scrollHeight;
+      setContentHeight(nextHeight);
+      setOverflows(nextHeight > COLLAPSED_HEIGHT);
+    };
+
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
   }, [collapsible, doc]);
 
   if (!doc || !doc.content || doc.content.length === 0) return null;
@@ -36,9 +53,16 @@ export function RichTextViewer({ doc, className, collapsible }: ViewerProps): Re
         ref={contentRef}
         className={cn(
           'prose-kaif break-words',
-          collapsible && !expanded && overflows && 'max-h-[340px] overflow-hidden',
+          collapsible &&
+            overflows &&
+            'overflow-hidden transition-[max-height] duration-200 ease-out motion-reduce:transition-none',
           className,
         )}
+        style={
+          collapsible && overflows
+            ? { maxHeight: expanded ? `${contentHeight}px` : `${COLLAPSED_HEIGHT}px` }
+            : undefined
+        }
       >
         {doc.content.map((node, index) => (
           <NodeRenderer key={index} node={node} />
@@ -48,7 +72,7 @@ export function RichTextViewer({ doc, className, collapsible }: ViewerProps): Re
       {collapsible && overflows && (
         <>
           {!expanded && (
-            <div className="pointer-events-none absolute inset-x-0 bottom-8 h-16 bg-gradient-to-t from-card to-transparent" />
+            <div className="pointer-events-none absolute inset-x-0 bottom-8 h-16 animate-fade-in bg-gradient-to-t from-card to-transparent motion-reduce:animate-none" />
           )}
           <button
             type="button"
@@ -96,7 +120,12 @@ function NodeRenderer({ node }: { node: RichTextNode }): React.ReactElement | nu
       return (
         <li>
           <label>
-            <input type="checkbox" checked={node.attrs?.checked === true} readOnly className="size-3.5" />
+            <input
+              type="checkbox"
+              checked={node.attrs?.checked === true}
+              readOnly
+              className="size-3.5"
+            />
           </label>
           <div className={cn(node.attrs?.checked === true && 'text-muted-foreground line-through')}>
             {children}

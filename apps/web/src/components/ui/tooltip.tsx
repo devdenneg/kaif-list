@@ -16,8 +16,9 @@ export const TooltipContent = React.forwardRef<
       sideOffset={sideOffset}
       collisionPadding={8}
       className={cn(
-        'z-50 max-w-xs rounded-md bg-foreground px-2.5 py-1.5 text-xs font-medium text-background shadow-popover',
-        'data-[state=delayed-open]:animate-fade-in',
+        'z-50 max-w-xs origin-[var(--radix-tooltip-content-transform-origin)] rounded-md bg-foreground px-2.5 py-1.5 text-xs font-medium text-background shadow-popover',
+        '[--kaif-floating-x:0px] [--kaif-floating-y:-4px] data-[side=left]:[--kaif-floating-x:4px] data-[side=left]:[--kaif-floating-y:0px] data-[side=right]:[--kaif-floating-x:-4px] data-[side=right]:[--kaif-floating-y:0px] data-[side=top]:[--kaif-floating-y:4px]',
+        'data-[state=delayed-open]:animate-floating-in data-[state=instant-open]:animate-floating-in data-[state=closed]:animate-floating-out',
         className,
       )}
       {...props}

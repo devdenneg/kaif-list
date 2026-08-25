@@ -225,6 +225,10 @@ POST /api/tasks/clx123/move
 |---|---|---|
 | POST | `/telegram/link` | `/start`: привязка аккаунта и подтверждение кода входа |
 | GET | `/telegram/me` | Профиль по `chatId` |
+| GET | `/telegram/boards` | Доски человека с ролью и числом задач на нём |
+| GET | `/telegram/board-stats` | Сводка по доске (владелец и админы) |
+| POST | `/telegram/task` | Создать задачу из чата |
+| POST | `/telegram/assign-me` | Взять задачу на себя |
 | GET | `/telegram/tasks` | Задачи для `/tasks`, `/today`, `/testing` |
 | GET | `/telegram/task/:taskId` | Задача целиком |
 | POST | `/telegram/comment` | Комментарий из чата |

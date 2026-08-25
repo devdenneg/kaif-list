@@ -457,8 +457,7 @@ export function TaskDetail({
                           { type, targetTaskKey: key },
                           {
                             onSuccess: () => setLinkOpen(false),
-                            onError: (error: unknown) =>
-                              toast.error('Не удалось связать', error),
+                            onError: (error: unknown) => toast.error('Не удалось связать', error),
                           },
                         )
                       }
@@ -494,14 +493,14 @@ export function TaskDetail({
         </div>
 
         {/* ── Свойства ── */}
-        <aside className="order-first w-full shrink-0 space-y-4 lg:order-none lg:w-80">
+        <aside className="order-first w-full shrink-0 lg:order-none lg:w-80">
           <div className="overflow-hidden rounded-xl border border-border bg-surface">
             <button
               type="button"
               className="flex min-h-14 w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-secondary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/30 focus-visible:ring-offset-0 lg:hidden"
               onClick={() => setMobileDetailsOpen((open) => !open)}
               aria-expanded={mobileDetailsOpen}
-              aria-controls="task-mobile-properties"
+              aria-controls="task-mobile-properties task-mobile-secondary-properties"
             >
               <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-secondary text-muted-foreground">
                 <SlidersHorizontal className="size-[18px]" aria-hidden />
@@ -515,7 +514,10 @@ export function TaskDetail({
               </span>
               <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary/70 text-muted-foreground">
                 <ChevronDown
-                  className={cn('size-4 transition-transform', mobileDetailsOpen && 'rotate-180')}
+                  className={cn(
+                    'size-4 transition-transform duration-200 ease-out motion-reduce:transition-none',
+                    mobileDetailsOpen && 'rotate-180',
+                  )}
                   aria-hidden
                 />
               </span>
@@ -524,60 +526,74 @@ export function TaskDetail({
             <div
               id="task-mobile-properties"
               className={cn(
-                'border-t border-border p-3 lg:block lg:border-t-0',
-                !mobileDetailsOpen && 'hidden lg:block',
+                'grid transition-[grid-template-rows,opacity,visibility] duration-200 ease-out motion-reduce:transition-none lg:visible lg:grid-rows-[1fr] lg:opacity-100',
+                mobileDetailsOpen
+                  ? 'visible grid-rows-[1fr] opacity-100'
+                  : 'invisible grid-rows-[0fr] opacity-0',
               )}
             >
-              <TaskProperties
-                task={task}
-                board={board}
-                onMoveColumn={(column) => changeColumn(column as ColumnKey)}
-                movePending={taskMovePending}
-              />
+              <div className="min-h-0 overflow-hidden">
+                <div className="border-t border-border p-3 lg:border-t-0">
+                  <TaskProperties
+                    task={task}
+                    board={board}
+                    onMoveColumn={(column) => changeColumn(column as ColumnKey)}
+                    movePending={taskMovePending}
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
           <div
+            id="task-mobile-secondary-properties"
             className={cn(
-              'rounded-xl border border-border bg-surface p-3',
-              !mobileDetailsOpen && 'hidden lg:block',
+              'grid transition-[grid-template-rows,opacity,visibility] duration-200 ease-out motion-reduce:transition-none lg:visible lg:grid-rows-[1fr] lg:opacity-100',
+              mobileDetailsOpen
+                ? 'visible grid-rows-[1fr] opacity-100'
+                : 'invisible grid-rows-[0fr] opacity-0',
             )}
           >
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Участники
-            </p>
+            <div className="min-h-0 overflow-hidden">
+              <div className="pt-4">
+                <div className="rounded-xl border border-border bg-surface p-3">
+                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Участники
+                  </p>
 
-            {/* Показываем роли явно: по одним аватарам непонятно,
-                  кто автор, кто тестирует, а кто просто зашёл в обсуждение. */}
-            <ul className="space-y-1.5">
-              {task.participants.map((participant) => (
-                <li key={participant.user.id} className="flex items-center gap-2 text-sm">
-                  <UserAvatar user={participant.user} size="sm" />
-                  <span className="min-w-0 flex-1 truncate">{participant.user.displayName}</span>
-                  <span className="shrink-0 text-[11px] text-muted-foreground">
-                    {participant.roles.map((role) => PARTICIPANT_ROLE_LABELS[role]).join(', ')}
-                  </span>
-                </li>
-              ))}
-            </ul>
+                  {/* Показываем роли явно: по одним аватарам непонятно,
+                    кто автор, кто тестирует, а кто просто зашёл в обсуждение. */}
+                  <ul className="space-y-1.5">
+                    {task.participants.map((participant) => (
+                      <li key={participant.user.id} className="flex items-center gap-2 text-sm">
+                        <UserAvatar user={participant.user} size="sm" />
+                        <span className="min-w-0 flex-1 truncate">
+                          {participant.user.displayName}
+                        </span>
+                        <span className="shrink-0 text-[11px] text-muted-foreground">
+                          {participant.roles
+                            .map((role) => PARTICIPANT_ROLE_LABELS[role])
+                            .join(', ')}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
 
-            <div className="mt-3 space-y-1 border-t border-border pt-2 text-xs text-muted-foreground">
-              <p>Создана {formatRelative(task.createdAt)}</p>
-              <p>Обновлена {formatRelative(task.updatedAt)}</p>
-              {task.completedAt && <p>Завершена {formatRelative(task.completedAt)}</p>}
+                  <div className="mt-3 space-y-1 border-t border-border pt-2 text-xs text-muted-foreground">
+                    <p>Создана {formatRelative(task.createdAt)}</p>
+                    <p>Обновлена {formatRelative(task.updatedAt)}</p>
+                    {task.completedAt && <p>Завершена {formatRelative(task.completedAt)}</p>}
+                  </div>
+                </div>
+
+                {currentUser?.globalRole === 'SUPERADMIN' && (
+                  <p className="px-1 pt-4 text-[11px] text-muted-foreground">
+                    Вы видите эту задачу как администратор.
+                  </p>
+                )}
+              </div>
             </div>
           </div>
-
-          {currentUser?.globalRole === 'SUPERADMIN' && (
-            <p
-              className={cn(
-                'px-1 text-[11px] text-muted-foreground',
-                !mobileDetailsOpen && 'hidden lg:block',
-              )}
-            >
-              Вы видите эту задачу как администратор.
-            </p>
-          )}
         </aside>
       </div>
 

@@ -28,7 +28,14 @@ export function Lightbox({
   onIndexChange: (index: number) => void;
   onClose: () => void;
 }): React.ReactElement | null {
-  const current = index !== null ? images[index] : undefined;
+  // Последний кадр остаётся смонтированным на время exit-анимации Radix.
+  const [lastIndex, setLastIndex] = React.useState<number | null>(index);
+  React.useLayoutEffect(() => {
+    if (index !== null) setLastIndex(index);
+  }, [index]);
+
+  const visibleIndex = index ?? lastIndex;
+  const current = visibleIndex !== null ? images[visibleIndex] : undefined;
 
   React.useEffect(() => {
     if (index === null) return;
@@ -40,14 +47,14 @@ export function Lightbox({
     return () => window.removeEventListener('keydown', handler);
   }, [index, images.length, onIndexChange]);
 
-  if (index === null || !current) return null;
+  if (visibleIndex === null || !current) return null;
 
   return (
-    <DialogPrimitive.Root open onOpenChange={(open) => !open && onClose()}>
+    <DialogPrimitive.Root open={index !== null} onOpenChange={(open) => !open && onClose()}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-[60] bg-slate-950/85 backdrop-blur-sm data-[state=open]:animate-fade-in" />
+        <DialogPrimitive.Overlay className="fixed inset-0 z-[60] bg-slate-950/85 backdrop-blur-sm data-[state=open]:animate-overlay-in data-[state=closed]:animate-overlay-out" />
         <DialogPrimitive.Content
-          className="fixed inset-0 z-[60] flex flex-col pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)] outline-none"
+          className="fixed inset-0 z-[60] flex flex-col pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)] outline-none data-[state=open]:animate-overlay-in data-[state=closed]:animate-overlay-out"
           aria-describedby={undefined}
         >
           <DialogPrimitive.Title className="sr-only">{current.filename}</DialogPrimitive.Title>
@@ -60,7 +67,7 @@ export function Lightbox({
                   <span className="shrink-0">{formatBytes(current.size)}</span>
                 )}
                 <span className="shrink-0">
-                  {index + 1} из {images.length}
+                  {visibleIndex + 1} из {images.length}
                 </span>
               </div>
             </div>
@@ -84,20 +91,21 @@ export function Lightbox({
 
           <div className="relative flex min-h-0 flex-1 items-center justify-center px-2 pb-2 sm:px-4 sm:pb-4">
             <img
+              key={current.id}
               src={current.url}
               alt={current.filename}
-              className="max-h-full max-w-full rounded-lg object-contain"
+              className="max-h-full max-w-full animate-fade-in rounded-lg object-contain motion-reduce:animate-none"
             />
 
             <NavButton
               side="left"
-              disabled={index === 0}
-              onClick={() => onIndexChange(index - 1)}
+              disabled={visibleIndex === 0}
+              onClick={() => onIndexChange(visibleIndex - 1)}
             />
             <NavButton
               side="right"
-              disabled={index === images.length - 1}
-              onClick={() => onIndexChange(index + 1)}
+              disabled={visibleIndex === images.length - 1}
+              onClick={() => onIndexChange(visibleIndex + 1)}
             />
           </div>
         </DialogPrimitive.Content>

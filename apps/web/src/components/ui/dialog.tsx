@@ -24,7 +24,7 @@ export const DialogOverlay = React.forwardRef<
     ref={ref}
     className={cn(
       'fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-sm',
-      'data-[state=open]:animate-fade-in',
+      'data-[state=open]:animate-overlay-in data-[state=closed]:animate-overlay-out',
       className,
     )}
     {...props}
@@ -75,13 +75,11 @@ export const DialogContent = React.forwardRef<
         className={cn(
           'fixed z-50 flex flex-col bg-card text-card-foreground shadow-popover',
           asSheet
-            ? 'inset-x-0 bottom-0 max-h-[94dvh] rounded-t-2xl border-t border-border pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] data-[state=open]:animate-slide-in-bottom'
+            ? 'inset-x-0 bottom-0 max-h-[94dvh] rounded-t-2xl border-t border-border pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] data-[state=open]:animate-sheet-in-bottom data-[state=closed]:animate-sheet-out-bottom'
             : cn(
                 'left-1/2 top-1/2 max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border',
                 sizeClasses[size],
-                forceDialog
-                  ? 'data-[state=open]:animate-fade-in sm:data-[state=open]:animate-dialog-in'
-                  : 'data-[state=open]:animate-dialog-in',
+                'data-[state=open]:animate-dialog-in data-[state=closed]:animate-dialog-out',
               ),
           className,
         )}

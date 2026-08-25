@@ -63,33 +63,47 @@ export function RouteError(): React.ReactElement {
             aria-expanded={expanded}
           >
             <ChevronDown
-              className={cn('size-3.5 transition-transform', expanded && 'rotate-180')}
+              className={cn(
+                'size-3.5 transition-transform duration-200 motion-reduce:transition-none',
+                expanded && 'rotate-180',
+              )}
             />
             Технические подробности
             <span className="ml-auto font-mono">{details.code}</span>
           </button>
 
-          {expanded && (
-            <div className="border-t border-border p-3">
-              <pre className="scrollbar-thin max-h-56 overflow-auto whitespace-pre-wrap break-words rounded bg-muted p-2 text-[11px] leading-relaxed text-muted-foreground">
-                {details.technical}
-              </pre>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="mt-2"
-                onClick={() => {
-                  void navigator.clipboard
-                    .writeText(details.technical)
-                    .then(() => toast.success('Скопировано', 'Отправьте это администратору'))
-                    .catch(() => toast.error('Не удалось скопировать'));
-                }}
-              >
-                <Copy />
-                Скопировать
-              </Button>
+          <div
+            className={cn(
+              'grid transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none',
+              expanded
+                ? 'grid-rows-[1fr] opacity-100'
+                : 'pointer-events-none grid-rows-[0fr] opacity-0',
+            )}
+            aria-hidden={!expanded}
+            inert={!expanded}
+          >
+            <div className="min-h-0 overflow-hidden">
+              <div className="border-t border-border p-3">
+                <pre className="scrollbar-thin max-h-56 overflow-auto whitespace-pre-wrap break-words rounded bg-muted p-2 text-[11px] leading-relaxed text-muted-foreground">
+                  {details.technical}
+                </pre>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="mt-2"
+                  onClick={() => {
+                    void navigator.clipboard
+                      .writeText(details.technical)
+                      .then(() => toast.success('Скопировано', 'Отправьте это администратору'))
+                      .catch(() => toast.error('Не удалось скопировать'));
+                  }}
+                >
+                  <Copy />
+                  Скопировать
+                </Button>
+              </div>
             </div>
-          )}
+          </div>
         </div>
       </div>
     </div>
@@ -125,7 +139,9 @@ function describeError(error: unknown): ErrorDetails {
 
   // Самая частая ошибка в проде: вкладка открыта со старой версией,
   // а файлы новой сборки лежат под другими именами.
-  if (/dynamically imported module|Importing a module script failed|ChunkLoadError/i.test(message)) {
+  if (
+    /dynamically imported module|Importing a module script failed|ChunkLoadError/i.test(message)
+  ) {
     return {
       title: 'Вышла новая версия',
       description:
