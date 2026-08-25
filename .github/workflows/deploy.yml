@@ -1,0 +1,163 @@
+name: Deploy
+
+# Пуш в main собирает образы и выкатывает их на сервер.
+# Сборка идёт здесь, а не на VPS: у него 1 vCPU и 1 ГБ памяти —
+# фронтенд там просто не соберётся, да и деплой занимал бы минуты.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/${{ github.repository }}
+
+jobs:
+  # ── Проверки: падаем до сборки, а не после ──
+  check:
+    name: Проверки
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Установка зависимостей
+        run: npm ci
+
+      - name: Генерация Prisma-клиента
+        run: npx prisma generate --schema apps/api/prisma/schema.prisma
+
+      - name: Сборка общего пакета
+        run: npm run build -w @kaif/shared
+
+      - name: Проверка типов
+        run: npm run typecheck
+
+      - name: Тесты
+        run: npm test
+
+  # ── Сборка образов ──
+  build:
+    name: Сборка образов
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Вход в GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Три образа собираются из одного Dockerfile разными целями.
+      # Слой с зависимостями общий, поэтому кеш переиспользуется.
+      - name: API
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/Dockerfile
+          target: api
+          push: true
+          tags: |
+            ${{ env.IMAGE_PREFIX }}-api:${{ github.sha }}
+            ${{ env.IMAGE_PREFIX }}-api:latest
+          cache-from: type=gha,scope=shared
+          cache-to: type=gha,scope=shared,mode=max
+
+      - name: Бот
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/Dockerfile
+          target: bot
+          push: true
+          tags: |
+            ${{ env.IMAGE_PREFIX }}-bot:${{ github.sha }}
+            ${{ env.IMAGE_PREFIX }}-bot:latest
+          cache-from: type=gha,scope=shared
+          cache-to: type=gha,scope=shared,mode=max
+
+      - name: Веб
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/Dockerfile
+          target: web
+          push: true
+          tags: |
+            ${{ env.IMAGE_PREFIX }}-web:${{ github.sha }}
+            ${{ env.IMAGE_PREFIX }}-web:latest
+          cache-from: type=gha,scope=shared
+          cache-to: type=gha,scope=shared,mode=max
+
+  # ── Выкатка ──
+  deploy:
+    name: Выкатка на сервер
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: production
+      url: https://45.130.127.31.sslip.io
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Подготовка SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # Фиксируем ключ хоста: без этого подключение уязвимо к подмене.
+          ssh-keyscan -p "${{ secrets.VPS_SSH_PORT || 22 }}" -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Доставка compose-файла
+        run: |
+          scp -i ~/.ssh/deploy_key -P "${{ secrets.VPS_SSH_PORT || 22 }}" \
+            deploy/docker-compose.deploy.yml \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/opt/kaif-board/docker-compose.yml"
+
+      - name: Запуск новой версии
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "${{ secrets.VPS_SSH_PORT || 22 }}" \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            "IMAGE_API='${{ env.IMAGE_PREFIX }}-api:${{ github.sha }}' \
+             IMAGE_BOT='${{ env.IMAGE_PREFIX }}-bot:${{ github.sha }}' \
+             IMAGE_WEB='${{ env.IMAGE_PREFIX }}-web:${{ github.sha }}' \
+             GHCR_USER='${{ github.actor }}' \
+             GHCR_TOKEN='${{ secrets.GITHUB_TOKEN }}' \
+             bash -s" < deploy/remote-deploy.sh
+
+      - name: Проверка, что сервис отвечает
+        run: |
+          echo "Ждём, пока сервис поднимется…"
+          for attempt in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 https://45.130.127.31.sslip.io/healthz || echo 000)
+            if [ "$code" = "200" ]; then
+              echo "✓ Сервис отвечает: https://45.130.127.31.sslip.io"
+              exit 0
+            fi
+            echo "  попытка $attempt: код $code"
+            sleep 10
+          done
+          echo "✗ Сервис не ответил за 5 минут"
+          exit 1

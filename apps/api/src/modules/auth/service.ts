@@ -179,7 +179,7 @@ export async function upsertTelegramUser(data: TelegramUserData, chatId?: bigint
   const existing = await prisma.user.findUnique({ where: { telegramId: data.telegramId } });
 
   if (!existing) {
-    const isSuperAdmin = env.superAdminTelegramIds.includes(data.telegramId);
+    const isSuperAdmin = await shouldBecomeSuperAdmin(data.telegramId);
     let avatarUrl: string | null = null;
     if (data.photoUrl) {
       const stored = await downloadAndStoreAvatar(data.photoUrl);
@@ -227,6 +227,33 @@ export async function upsertTelegramUser(data: TelegramUserData, chatId?: bigint
         : {}),
     },
   });
+}
+
+/**
+ * Кому выдать права администратора при первом входе.
+ *
+ * Обычный путь — перечислить Telegram ID в `SUPERADMIN_TELEGRAM_IDS`.
+ * Но при первом запуске системы этих ID ещё неоткуда взять, а без
+ * администратора доска бесполезна: некому раздать роли и посмотреть аудит.
+ *
+ * Поэтому есть подстраховка: если в базе нет ни одного администратора,
+ * им становится первый вошедший. Это безопасно ровно до того момента,
+ * пока адрес знает только тот, кто разворачивал систему, — поэтому
+ * событие пишется в журнал безопасности.
+ */
+async function shouldBecomeSuperAdmin(telegramId: bigint): Promise<boolean> {
+  if (env.superAdminTelegramIds.includes(telegramId)) return true;
+
+  const existingAdmins = await prisma.user.count({
+    where: { globalRole: GlobalRole.SUPERADMIN },
+  });
+  if (existingAdmins > 0) return false;
+
+  logger.warn(
+    { telegramId: telegramId.toString() },
+    'Администраторов нет — первый вошедший получает права администратора',
+  );
+  return true;
 }
 
 // ──────────────────────────────── Сессии ────────────────────────────────────

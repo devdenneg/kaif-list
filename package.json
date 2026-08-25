@@ -24,7 +24,9 @@
     "db:seed": "npm run db:seed -w @kaif/api",
     "db:studio": "npm run db:studio -w @kaif/api",
     "infra:up": "docker compose up -d",
-    "infra:down": "docker compose down"
+    "infra:down": "docker compose down",
+    "dev:tunnel": "bash scripts/prod-tunnel.sh",
+    "dev:web:local": "VITE_API_PROXY=http://127.0.0.1:4000 npm run dev -w @kaif/web"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

@@ -1,0 +1,165 @@
+# Продакшен-развёртывание на VPS.
+#
+# Отличие от docker-compose.prod.yml: образы не собираются на сервере,
+# а забираются готовыми из GHCR. На машине с 1 vCPU и 1 ГБ памяти сборка
+# фронтенда просто не поместится в память, да и деплой занимал бы минуты
+# вместо секунд.
+#
+# Лимиты памяти выставлены осознанно: без них один разросшийся процесс
+# утаскивает за собой весь сервер, включая базу.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    # Настройки под маленькую машину: по умолчанию Postgres рассчитывает
+    # на куда больший объём памяти, чем у нас есть.
+    command: >
+      postgres
+      -c shared_buffers=96MB
+      -c effective_cache_size=256MB
+      -c work_mem=2MB
+      -c maintenance_work_mem=32MB
+      -c max_connections=40
+      -c wal_compression=on
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    ports:
+      # Только петлевой интерфейс: снаружи порт закрыт, доступ —
+      # через SSH-туннель для локальной разработки.
+      - '127.0.0.1:5432:5432'
+    deploy:
+      resources:
+        limits:
+          memory: 280M
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 64mb
+      --maxmemory-policy noeviction
+      --save 900 1
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    ports:
+      - '127.0.0.1:6379:6379'
+    deploy:
+      resources:
+        limits:
+          memory: 110M
+    logging: *logging
+
+  api:
+    image: ${IMAGE_API}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public&connection_limit=10&pool_timeout=20
+      REDIS_URL: redis://redis:6379
+      STORAGE_DIR: /data/storage
+      # Ограничиваем кучу Node: иначе сборщик мусора тянет до последнего,
+      # а на этой машине «последнее» — это OOM всей системы.
+      NODE_OPTIONS: --max-old-space-size=256
+    volumes:
+      - storage-data:/data/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    expose:
+      - '4000'
+    command: >
+      sh -c "npx prisma migrate deploy --schema apps/api/prisma/schema.prisma &&
+             node apps/api/dist/index.js"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:4000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 400M
+    logging: *logging
+
+  bot:
+    image: ${IMAGE_BOT}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Бот ходит в API по внутренней сети, минуя интернет и TLS.
+      API_URL: http://api:4000
+      REDIS_URL: redis://redis:6379
+      NODE_OPTIONS: --max-old-space-size=96
+    depends_on:
+      api:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    expose:
+      - '4100'
+    deploy:
+      resources:
+        limits:
+          memory: 150M
+    logging: *logging
+
+  web:
+    image: ${IMAGE_WEB}
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+      PORT: '4000'
+      BOT_PORT: '4100'
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - api
+      - bot
+    deploy:
+      resources:
+        limits:
+          memory: 96M
+    logging: *logging
+
+volumes:
+  postgres-data:
+  redis-data:
+  storage-data:
+  caddy-data:
+  caddy-config:
