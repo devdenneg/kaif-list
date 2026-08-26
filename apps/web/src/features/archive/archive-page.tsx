@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { EmptyState, Skeleton } from '@/components/ui/misc';
 import { UserAvatar } from '@/components/ui/avatar';
 import { Tooltip } from '@/components/ui/tooltip';
-import { FullScreenLoader } from '@/app/loader';
+import { BoardGate } from '@/features/board/board-gate';
 import { PriorityIcon, TaskTypeIcon } from '@/features/task/task-visuals';
 import { TaskDialog } from '@/features/task/task-dialog';
 
@@ -28,7 +28,7 @@ import { TaskDialog } from '@/features/task/task-dialog';
 export function ArchivePage(): React.ReactElement {
   const { boardKey } = useParams<{ boardKey: string }>();
   const user = useAuthStore((state) => state.user);
-  const { data: board, isLoading } = useBoard(boardKey);
+  const { data: board, isLoading, error, refetch } = useBoard(boardKey);
 
   const [search, setSearch] = React.useState('');
   const debounced = useDebounce(search, 300);
@@ -43,8 +43,9 @@ export function ArchivePage(): React.ReactElement {
   } = useArchivedTasks(board?.id, debounced);
   const restore = useArchiveTaskById(board?.id ?? '');
 
-  if (isLoading) return <FullScreenLoader inline />;
-  if (!board) return <EmptyState title="Доска не найдена" />;
+  if (isLoading || !board) {
+    return <BoardGate loading={isLoading} error={error} onRetry={() => void refetch()} />;
+  }
 
   const accessContext = user
     ? { globalRole: user.globalRole, boardRole: board.myRole, boardArchived: board.isArchived }

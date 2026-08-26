@@ -31,7 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { FullScreenLoader } from '@/app/loader';
+import { BoardGate } from '@/features/board/board-gate';
 import { cn } from '@/lib/utils';
 import {
   AttentionList,
@@ -63,7 +63,7 @@ export function DashboardPage(): React.ReactElement {
   const { boardKey } = useParams<{ boardKey: string }>();
   const [days, setDays] = React.useState(30);
   const user = useAuthStore((state) => state.user);
-  const { data: board, isLoading } = useBoard(boardKey);
+  const { data: board, isLoading, error, refetch } = useBoard(boardKey);
 
   const canSee =
     user && board
@@ -82,8 +82,9 @@ export function DashboardPage(): React.ReactElement {
     days,
   );
 
-  if (isLoading) return <FullScreenLoader inline />;
-  if (!board) return <EmptyState title="Доска не найдена" />;
+  if (isLoading || !board) {
+    return <BoardGate loading={isLoading} error={error} onRetry={() => void refetch()} />;
+  }
 
   if (!canSee) {
     return (

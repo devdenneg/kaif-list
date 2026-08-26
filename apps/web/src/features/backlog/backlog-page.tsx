@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { UserAvatar } from '@/components/ui/avatar';
-import { FullScreenLoader } from '@/app/loader';
+import { BoardGate } from '@/features/board/board-gate';
 import { TaskCard } from '@/features/board/task-card';
 import { TaskActionsProvider } from '@/features/board/task-actions-context';
 import { useBoardRealtime } from '@/features/board/use-board-realtime';
@@ -44,7 +44,7 @@ import { TaskDialog } from '@/features/task/task-dialog';
 export function BacklogPage(): React.ReactElement {
   const { boardKey } = useParams<{ boardKey: string }>();
   const user = useAuthStore((state) => state.user);
-  const { data: board, isLoading } = useBoard(boardKey);
+  const { data: board, isLoading, error, refetch } = useBoard(boardKey);
   // Бэклог живёт по тем же событиям, что и доска: задачи уезжают в работу
   // и возвращаются обратно, пока экран открыт.
   useBoardRealtime(board?.id);
@@ -65,8 +65,9 @@ export function BacklogPage(): React.ReactElement {
 
   const bulkAction = useBulkTaskAction(board?.id ?? '');
 
-  if (isLoading) return <FullScreenLoader inline />;
-  if (!board) return <EmptyState title="Доска не найдена" />;
+  if (isLoading || !board) {
+    return <BoardGate loading={isLoading} error={error} onRetry={() => void refetch()} />;
+  }
 
   const accessContext = user
     ? { globalRole: user.globalRole, boardRole: board.myRole, boardArchived: board.isArchived }

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import {
   Archive,
   BarChart3,
@@ -24,7 +24,7 @@ import { ApiError } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Skeleton, EmptyState } from '@/components/ui/misc';
+import { Skeleton } from '@/components/ui/misc';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,7 +32,6 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { FullScreenLoader } from '@/app/loader';
 import { KanbanBoard, type MoveRequest } from './kanban-board';
 import { SwimlaneBoard } from './swimlane-board';
 import { TaskActionsProvider } from './task-actions-context';
@@ -41,6 +40,7 @@ import { BoardQuickFilters } from './board-quick-filters';
 import { PeopleBar } from './people-bar';
 import { MobileColumnTabs } from './mobile-column-tabs';
 import { BoardSettingsDialog } from './board-settings-dialog';
+import { BoardGate } from './board-gate';
 import { useBoardRealtime } from './use-board-realtime';
 import { TaskDialog } from '@/features/task/task-dialog';
 import { CreateTaskDialog } from '@/features/task/create-task-dialog';
@@ -173,14 +173,13 @@ function BoardNavigation({
 
 export function BoardPage(): React.ReactElement {
   const { boardKey } = useParams<{ boardKey: string }>();
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const compactLayout = useIsTablet();
 
   const user = useAuthStore((state) => state.user);
   const setLastBoardId = useUiStore((state) => state.setLastBoardId);
 
-  const { data: board, isLoading, error } = useBoard(boardKey);
+  const { data: board, isLoading, isFetching, error, refetch } = useBoard(boardKey);
   const swimlane = useBoardSwimlane(board?.id ?? '');
   const setSwimlane = useUiStore((state) => state.setSwimlane);
   const filters = useBoardFilters(board?.id ?? '');
@@ -317,21 +316,14 @@ export function BoardPage(): React.ReactElement {
     [moveTask, taskMovePending],
   );
 
-  if (isLoading) return <FullScreenLoader inline />;
-
-  if (error || !board) {
+  if (isLoading || !board) {
     return (
-      <div className="p-6">
-        <EmptyState
-          title="Доска не найдена"
-          description="Возможно, её удалили или у вас больше нет доступа."
-          action={
-            <Button variant="primary" onClick={() => navigate('/boards')}>
-              К списку досок
-            </Button>
-          }
-        />
-      </div>
+      <BoardGate
+        loading={isLoading}
+        error={error}
+        onRetry={() => void refetch()}
+        retrying={isFetching}
+      />
     );
   }
 

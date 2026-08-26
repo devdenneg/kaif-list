@@ -17,8 +17,8 @@ import { useAuthStore } from '@/stores/auth';
 import { Button } from '@/components/ui/button';
 import { UserAvatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { EmptyState, Progress, Skeleton } from '@/components/ui/misc';
-import { FullScreenLoader } from '@/app/loader';
+import { Progress, Skeleton } from '@/components/ui/misc';
+import { BoardGate } from '@/features/board/board-gate';
 import { MemberPanel } from '@/features/board/member-panel';
 import { useBoardRealtime } from '@/features/board/use-board-realtime';
 import { GroupPickerMenu, MemberGroupChips } from '@/features/board/group-picker';
@@ -33,7 +33,7 @@ import { cn } from '@/lib/utils';
 export function PeoplePage(): React.ReactElement {
   const { boardKey } = useParams<{ boardKey: string }>();
   const user = useAuthStore((state) => state.user);
-  const { data: board, isLoading } = useBoard(boardKey);
+  const { data: board, isLoading, error, refetch } = useBoard(boardKey);
   // Право считаем до запроса: наблюдателю разбор работы коллег не положен.
   const canSeeStats =
     user && board
@@ -57,8 +57,9 @@ export function PeoplePage(): React.ReactElement {
   const [addMemberOpen, setAddMemberOpen] = React.useState(false);
   const [createTaskFor, setCreateTaskFor] = React.useState<string | null>(null);
 
-  if (isLoading) return <FullScreenLoader inline />;
-  if (!board) return <EmptyState title="Доска не найдена" />;
+  if (isLoading || !board) {
+    return <BoardGate loading={isLoading} error={error} onRetry={() => void refetch()} />;
+  }
 
   const accessContext = user
     ? { globalRole: user.globalRole, boardRole: board.myRole, boardArchived: board.isArchived }

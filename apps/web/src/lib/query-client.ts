@@ -14,12 +14,17 @@ export const queryClient = new QueryClient({
       refetchOnWindowFocus: false,
       refetchOnReconnect: true,
       retry: (failureCount, error) => {
-        // Ошибки прав и валидации повторять бессмысленно.
         if (error instanceof ApiError) {
-          if (error.status >= 400 && error.status < 500) return false;
+          // «Нет такого» и «нельзя» повторять бессмысленно.
+          if (error.status === 404 || error.status === 403 || error.status === 422) return false;
+          // Валидация тоже не изменится от повтора.
+          if (error.status === 400) return false;
+          // А вот истёкший токен, лимит частоты и обрыв связи — временные:
+          // именно из-за них экран показывал «доска не найдена» на ровном месте.
         }
         return failureCount < 2;
       },
+      retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 5000),
     },
     mutations: {
       retry: false,
