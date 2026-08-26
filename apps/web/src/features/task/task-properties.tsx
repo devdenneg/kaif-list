@@ -1,14 +1,5 @@
 import * as React from 'react';
-import {
-  Bell,
-  BellOff,
-  CalendarClock,
-  Clock,
-  Gauge,
-  Tag,
-  UserCheck,
-  UserCog,
-} from 'lucide-react';
+import { Bell, BellOff, CalendarClock, Clock, Gauge, Tag, UserCheck, UserCog } from 'lucide-react';
 import {
   COLUMN_LABELS,
   COLUMN_ORDER,
@@ -271,7 +262,6 @@ export function TaskProperties({
         </Field>
       </PropertySection>
 
-
       <Button
         variant={task.watching ? 'secondary' : 'outline'}
         size="sm"
@@ -319,18 +309,18 @@ function Field({
   return (
     <div
       className={cn(
-        'grid min-h-12 py-1.5',
+        'grid min-h-12',
         layout === 'stacked'
           ? 'grid-cols-1 gap-1.5 py-2.5'
-          : 'grid-cols-[6.75rem_minmax(0,1fr)] gap-2',
-        layout === 'row' && (align === 'start' ? 'items-start' : 'items-center'),
+          : 'grid-cols-1 gap-1.5 py-2.5 sm:grid-cols-[6.75rem_minmax(0,1fr)] sm:gap-2 sm:py-1.5',
+        layout === 'row' && (align === 'start' ? 'sm:items-start' : 'sm:items-center'),
       )}
     >
       <div
         id={labelId}
         className={cn(
           'flex min-w-0 items-center gap-1.5 text-xs font-medium text-muted-foreground [&_svg]:size-4 [&_svg]:shrink-0',
-          layout === 'row' && align === 'start' && 'pt-2.5',
+          layout === 'row' && align === 'start' && 'sm:pt-2.5',
         )}
       >
         {icon}
@@ -369,4 +359,3 @@ function PropertySection({
     </section>
   );
 }
-

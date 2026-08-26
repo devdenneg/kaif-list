@@ -35,6 +35,7 @@ export function CommandPalette(): React.ReactElement {
   const debounced = useDebounce(query, 220);
   const { data, isFetching } = useSearch(debounced);
   const [activeIndex, setActiveIndex] = React.useState(0);
+  const itemRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
 
   const items = React.useMemo(() => {
     const result: {
@@ -142,7 +143,14 @@ export function CommandPalette(): React.ReactElement {
     return result;
   }, [data, debounced, navigate, recent]);
 
-  React.useEffect(() => setActiveIndex(0), [items.length]);
+  React.useEffect(() => {
+    setActiveIndex(0);
+    itemRefs.current[0]?.scrollIntoView({ block: 'nearest' });
+  }, [items]);
+
+  React.useEffect(() => {
+    itemRefs.current[activeIndex]?.scrollIntoView({ block: 'nearest' });
+  }, [activeIndex]);
 
   React.useEffect(() => {
     if (open) {
@@ -165,11 +173,11 @@ export function CommandPalette(): React.ReactElement {
       <DialogContent
         size="md"
         hideClose
-        className="overflow-hidden p-0 max-sm:top-[calc(env(safe-area-inset-top)+0.75rem)] max-sm:max-h-[calc(100dvh-1.5rem)] max-sm:w-[calc(100vw-1.5rem)] max-sm:translate-y-0"
+        className="h-72 overflow-hidden p-0 max-sm:max-h-[calc(100dvh-1.5rem)] max-sm:w-[calc(100vw-1.5rem)]"
         forceDialog
       >
         <DialogTitle className="sr-only">Поиск задач, досок и людей</DialogTitle>
-        <div className="flex min-h-14 items-center gap-3 border-b border-border px-4 transition-colors focus-within:bg-secondary/20">
+        <div className="flex min-h-14 shrink-0 items-center gap-3 border-b border-border px-4 transition-colors focus-within:bg-secondary/20">
           <Search className="size-5 shrink-0 text-muted-foreground" aria-hidden />
           <input
             value={query}
@@ -205,15 +213,18 @@ export function CommandPalette(): React.ReactElement {
           )}
         </div>
 
-        <div className="scrollbar-thin max-h-[calc(100dvh-8.5rem)] overflow-y-auto p-1.5 sm:max-h-80">
+        <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto p-1.5">
           {items.length === 0 ? (
-            <p className="px-3 py-10 text-center text-sm text-muted-foreground">
+            <p className="flex h-full items-center justify-center px-3 py-10 text-center text-sm text-muted-foreground">
               {debounced.length < 2 ? 'Введите минимум 2 символа' : 'Ничего не найдено'}
             </p>
           ) : (
             items.map((item, index) => (
               <button
                 key={item.id}
+                ref={(node) => {
+                  itemRefs.current[index] = node;
+                }}
                 type="button"
                 onMouseEnter={() => setActiveIndex(index)}
                 onClick={() => select(index)}
@@ -239,7 +250,7 @@ export function CommandPalette(): React.ReactElement {
           )}
         </div>
 
-        <div className="hidden items-center gap-3 border-t border-border px-4 py-2 text-[11px] text-muted-foreground sm:flex">
+        <div className="hidden shrink-0 items-center gap-3 border-t border-border px-4 py-2 text-[11px] text-muted-foreground sm:flex">
           <span>↑↓ — выбор</span>
           <span>↵ — открыть</span>
           <span>Esc — закрыть</span>

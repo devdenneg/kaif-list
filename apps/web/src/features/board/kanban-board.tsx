@@ -69,6 +69,7 @@ export function KanbanBoard({
   const [local, setLocal] = React.useState<BoardColumns>(columns);
   const [activeTask, setActiveTask] = React.useState<TaskCardDto | null>(null);
   const draggingRef = React.useRef(false);
+  const scrollContainerRef = React.useRef<HTMLDivElement | null>(null);
 
   // Пока карточку держат, внешние обновления не применяем. После отпускания
   // сохраняем локальный порядок до следующего реального изменения кеша —
@@ -77,6 +78,13 @@ export function KanbanBoard({
     if (draggingRef.current) return;
     setLocal(columns);
   }, [columns]);
+
+  // При смене мобильной и десктопной раскладки старый scrollLeft относится
+  // уже к другой ширине колонок. Сбрасываем его, чтобы доска не открывалась
+  // посередине пустого пространства после поворота iPad.
+  React.useLayoutEffect(() => {
+    scrollContainerRef.current?.scrollTo({ left: 0, behavior: 'auto' });
+  }, [mobile]);
 
   const sensors = useSensors(
     // Небольшой сдвиг мышью, иначе обычный клик по карточке считался бы перетаскиванием.
@@ -221,9 +229,10 @@ export function KanbanBoard({
       }}
     >
       <div
+        ref={scrollContainerRef}
         className={
           mobile
-            ? 'snap-columns flex h-full min-h-0 w-full min-w-0 max-w-full flex-1 items-start gap-3 overflow-x-auto overscroll-x-contain pb-4 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))]'
+            ? 'snap-columns flex h-full min-h-0 w-full min-w-0 max-w-full flex-1 items-stretch overflow-x-auto overscroll-x-contain'
             : 'scrollbar-thin flex h-full min-h-0 w-full min-w-0 max-w-full flex-1 items-start gap-3 overflow-x-auto overscroll-x-contain px-4 pb-4'
         }
       >

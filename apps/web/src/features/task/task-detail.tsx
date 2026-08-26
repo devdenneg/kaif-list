@@ -5,7 +5,7 @@ import {
   Archive,
   ArchiveRestore,
   Check,
-  ChevronDown,
+  ChevronRight,
   Copy,
   CopyPlus,
   MoreHorizontal,
@@ -18,6 +18,7 @@ import {
 import {
   COLUMN_LABELS,
   PARTICIPANT_ROLE_LABELS,
+  PRIORITY_LABELS,
   type ColumnKey,
   type PresenceUser,
   type RichTextDoc,
@@ -42,6 +43,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { UserAvatar } from '@/components/ui/avatar';
 import { Tooltip } from '@/components/ui/tooltip';
+import { Sheet, SheetBody, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/misc';
 import {
   DropdownMenu,
@@ -68,8 +70,8 @@ import { MoveReasonDialog, type ReasonRequest } from './move-reason-dialog';
  * Карточка задачи целиком.
  *
  * Слева — содержание (описание, чек-листы, файлы, обсуждение),
- * справа — свойства. На узком экране правая колонка уезжает наверх,
- * потому что статус и исполнитель важнее описания при беглом просмотре.
+ * справа — свойства. На узком экране вместо длинной колонки показываем
+ * короткую сводку, а редактирование полей открываем в нижней панели.
  */
 export function TaskDetail({
   task,
@@ -185,9 +187,9 @@ export function TaskDetail({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {/* ── Заголовок ── */}
-      <header className="flex shrink-0 items-start gap-2 border-b border-border px-4 py-3">
+      <header className="flex shrink-0 items-start gap-2 border-b border-border px-3 py-3 sm:px-4">
         <div className="min-w-0 flex-1">
-          <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <div className="mb-1.5 flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground sm:text-xs">
             <TaskTypeIcon type={task.type} />
             <Link
               to={`/boards/${task.board.key}`}
@@ -195,10 +197,12 @@ export function TaskDetail({
             >
               {task.key}
             </Link>
-            <span>·</span>
-            <span className="truncate">{task.board.name}</span>
-            <span>·</span>
-            <span>{COLUMN_LABELS[task.columnKey]}</span>
+            <span aria-hidden>·</span>
+            <span className="min-w-0 truncate">{task.board.name}</span>
+            <span className="hidden sm:inline" aria-hidden>
+              ·
+            </span>
+            <span className="hidden shrink-0 sm:inline">{COLUMN_LABELS[task.columnKey]}</span>
             {task.isBacklog && (
               <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px]">Бэклог</span>
             )}
@@ -231,7 +235,7 @@ export function TaskDetail({
           ) : (
             <h1
               className={cn(
-                'text-lg font-semibold leading-tight',
+                'break-words text-lg font-semibold leading-snug sm:leading-tight',
                 task.permissions.canUpdate &&
                   'cursor-text rounded px-1 -mx-1 hover:bg-secondary/60',
               )}
@@ -266,7 +270,12 @@ export function TaskDetail({
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label="Действия с задачей">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="size-10 sm:size-9"
+                aria-label="Действия с задачей"
+              >
                 <MoreHorizontal />
               </Button>
             </DropdownMenuTrigger>
@@ -335,7 +344,13 @@ export function TaskDetail({
           </DropdownMenu>
 
           {onClose && (
-            <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Закрыть">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="size-10 sm:size-9"
+              onClick={onClose}
+              aria-label="Закрыть"
+            >
               <X />
             </Button>
           )}
@@ -343,8 +358,8 @@ export function TaskDetail({
       </header>
 
       {/* ── Содержимое ── */}
-      <div className="scrollbar-thin flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-3 py-3 sm:p-4 lg:flex-row lg:justify-center lg:gap-5 lg:p-5">
-        <div className="min-w-0 flex-1 space-y-4 lg:max-w-[52rem]">
+      <div className="scrollbar-thin flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-2.5 py-3 sm:gap-4 sm:p-4 lg:flex-row lg:justify-center lg:gap-5 lg:p-5">
+        <div className="min-w-0 flex-1 space-y-3 sm:space-y-4 lg:max-w-[52rem]">
           {/* Пока держит блокер, браться за задачу бессмысленно —
               говорим об этом первым делом, до описания. */}
           <BlockedBanner task={task} />
@@ -402,7 +417,7 @@ export function TaskDetail({
                   </div>
                 </div>
               ) : task.description ? (
-                <RichTextViewer doc={task.description} collapsible className="px-3 py-2" />
+                <RichTextViewer doc={task.description} collapsible className="py-1" />
               ) : (
                 <button
                   type="button"
@@ -518,108 +533,71 @@ export function TaskDetail({
 
         {/* ── Свойства ── */}
         <aside className="order-first w-full shrink-0 lg:order-none lg:w-80">
-          <div className="glass-panel overflow-hidden rounded-xl border border-border">
-            <button
-              type="button"
-              className="flex min-h-14 w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-secondary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/30 focus-visible:ring-offset-0 lg:hidden"
-              onClick={() => setMobileDetailsOpen((open) => !open)}
-              aria-expanded={mobileDetailsOpen}
-              aria-controls="task-mobile-properties task-mobile-secondary-properties"
-            >
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-secondary text-muted-foreground">
-                <SlidersHorizontal className="size-[18px]" aria-hidden />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-medium">Свойства</span>
-                <span className="block truncate text-xs text-muted-foreground">
-                  {COLUMN_LABELS[task.columnKey]} ·{' '}
-                  {task.assignee?.displayName ?? 'без исполнителя'}
-                </span>
-              </span>
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary/70 text-muted-foreground">
-                <ChevronDown
-                  className={cn(
-                    'size-4 transition-transform duration-200 ease-out motion-reduce:transition-none',
-                    mobileDetailsOpen && 'rotate-180',
-                  )}
-                  aria-hidden
-                />
-              </span>
-            </button>
-
-            <div
-              id="task-mobile-properties"
-              className={cn(
-                'grid transition-[grid-template-rows,opacity,visibility] duration-200 ease-out motion-reduce:transition-none lg:visible lg:grid-rows-[1fr] lg:opacity-100',
-                mobileDetailsOpen
-                  ? 'visible grid-rows-[1fr] opacity-100'
-                  : 'invisible grid-rows-[0fr] opacity-0',
-              )}
-            >
-              <div className="min-h-0 overflow-hidden">
-                <div className="border-t border-border p-3 lg:border-t-0">
-                  <TaskProperties
-                    task={task}
-                    board={board}
-                    onMoveColumn={(column) => changeColumn(column as ColumnKey)}
-                    movePending={taskMovePending}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div
-            id="task-mobile-secondary-properties"
-            className={cn(
-              'grid transition-[grid-template-rows,opacity,visibility] duration-200 ease-out motion-reduce:transition-none lg:visible lg:grid-rows-[1fr] lg:opacity-100',
-              mobileDetailsOpen
-                ? 'visible grid-rows-[1fr] opacity-100'
-                : 'invisible grid-rows-[0fr] opacity-0',
-            )}
+          <button
+            type="button"
+            className="glass-panel flex min-h-16 w-full items-center gap-3 rounded-xl border border-border px-3 py-2.5 text-left transition-colors hover:bg-secondary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/35 lg:hidden"
+            onClick={() => setMobileDetailsOpen(true)}
+            aria-haspopup="dialog"
           >
-            <div className="min-h-0 overflow-hidden">
-              <div className="pt-4">
-                <div className="glass-card rounded-xl border border-border p-3">
-                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Участники
-                  </p>
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-secondary text-muted-foreground">
+              <SlidersHorizontal className="size-[18px]" aria-hidden />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold">Статус и свойства</span>
+              <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                {COLUMN_LABELS[task.columnKey]} · {task.assignee?.displayName ?? 'не назначена'}
+              </span>
+            </span>
+            {task.assignee ? (
+              <UserAvatar user={task.assignee} size="sm" />
+            ) : (
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-xs text-muted-foreground">
+                ?
+              </span>
+            )}
+            <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+          </button>
 
-                  {/* Показываем роли явно: по одним аватарам непонятно,
-                    кто автор, кто тестирует, а кто просто зашёл в обсуждение. */}
-                  <ul className="space-y-1.5">
-                    {task.participants.map((participant) => (
-                      <li key={participant.user.id} className="flex items-center gap-2 text-sm">
-                        <UserAvatar user={participant.user} size="sm" />
-                        <span className="min-w-0 flex-1 truncate">
-                          {participant.user.displayName}
-                        </span>
-                        <span className="shrink-0 text-[11px] text-muted-foreground">
-                          {participant.roles
-                            .map((role) => PARTICIPANT_ROLE_LABELS[role])
-                            .join(', ')}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  <div className="mt-3 space-y-1 border-t border-border pt-2 text-xs text-muted-foreground">
-                    <p>Создана {formatRelative(task.createdAt)}</p>
-                    <p>Обновлена {formatRelative(task.updatedAt)}</p>
-                    {task.completedAt && <p>Завершена {formatRelative(task.completedAt)}</p>}
-                  </div>
-                </div>
-
-                {currentUser?.globalRole === 'SUPERADMIN' && (
-                  <p className="px-1 pt-4 text-[11px] text-muted-foreground">
-                    Вы видите эту задачу как администратор.
-                  </p>
-                )}
-              </div>
+          <div className="hidden lg:block">
+            <div className="glass-panel rounded-xl border border-border p-3">
+              <TaskProperties
+                task={task}
+                board={board}
+                onMoveColumn={(column) => changeColumn(column as ColumnKey)}
+                movePending={taskMovePending}
+              />
             </div>
+            <TaskParticipants
+              task={task}
+              showAdminNotice={currentUser?.globalRole === 'SUPERADMIN'}
+              className="pt-4"
+            />
           </div>
         </aside>
       </div>
+
+      <Sheet open={mobileDetailsOpen} onOpenChange={setMobileDetailsOpen}>
+        <SheetContent side="bottom" className="h-[min(88dvh,46rem)]">
+          <SheetHeader className="pb-3">
+            <SheetTitle className="text-base font-semibold">Свойства задачи</SheetTitle>
+            <p className="mt-1 truncate pr-2 text-xs text-muted-foreground">
+              {task.key} · {COLUMN_LABELS[task.columnKey]} · {PRIORITY_LABELS[task.priority]}
+            </p>
+          </SheetHeader>
+          <SheetBody className="min-h-0 space-y-4 px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:px-5">
+            <TaskProperties
+              task={task}
+              board={board}
+              onMoveColumn={(column) => changeColumn(column as ColumnKey)}
+              movePending={taskMovePending}
+            />
+            <TaskParticipants
+              task={task}
+              showAdminNotice={currentUser?.globalRole === 'SUPERADMIN'}
+            />
+          </SheetBody>
+        </SheetContent>
+      </Sheet>
 
       <ConfirmDialog
         open={confirmDelete}
@@ -655,6 +633,58 @@ export function TaskDetail({
           if (pendingColumn) changeColumn(pendingColumn, reason);
         }}
       />
+    </div>
+  );
+}
+
+/** Люди и служебные даты одинаковы в десктопной колонке и мобильной панели. */
+function TaskParticipants({
+  task,
+  showAdminNotice,
+  className,
+}: {
+  task: TaskDetailDto;
+  showAdminNotice: boolean;
+  className?: string;
+}): React.ReactElement {
+  return (
+    <div className={className}>
+      <div className="glass-card rounded-xl border border-border p-3">
+        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Участники
+        </p>
+
+        {/* Показываем роли явно: по одним аватарам непонятно,
+          кто автор, кто тестирует, а кто просто зашёл в обсуждение. */}
+        <ul className="space-y-1.5">
+          {task.participants.map((participant) => (
+            <li key={participant.user.id} className="flex items-center gap-2 text-sm">
+              <UserAvatar user={participant.user} size="sm" />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate">{participant.user.displayName}</span>
+                <span className="block truncate text-[11px] text-muted-foreground sm:hidden">
+                  {participant.roles.map((role) => PARTICIPANT_ROLE_LABELS[role]).join(', ')}
+                </span>
+              </span>
+              <span className="hidden max-w-[9rem] shrink-0 truncate text-right text-[11px] text-muted-foreground sm:block">
+                {participant.roles.map((role) => PARTICIPANT_ROLE_LABELS[role]).join(', ')}
+              </span>
+            </li>
+          ))}
+        </ul>
+
+        <div className="mt-3 space-y-1 border-t border-border pt-2 text-xs text-muted-foreground">
+          <p>Создана {formatRelative(task.createdAt)}</p>
+          <p>Обновлена {formatRelative(task.updatedAt)}</p>
+          {task.completedAt && <p>Завершена {formatRelative(task.completedAt)}</p>}
+        </div>
+      </div>
+
+      {showAdminNotice && (
+        <p className="px-1 pt-4 text-[11px] text-muted-foreground">
+          Вы видите эту задачу как администратор.
+        </p>
+      )}
     </div>
   );
 }

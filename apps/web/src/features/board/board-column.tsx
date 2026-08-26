@@ -146,15 +146,19 @@ export function BoardColumn({
   return (
     <div
       id={`column-${columnKey}`}
+      role={mobile ? 'tabpanel' : undefined}
+      aria-labelledby={mobile ? `mobile-column-tab-${columnKey}` : undefined}
       className={cn(
         'snap-column h-full max-h-full shrink-0 self-start overflow-hidden rounded-xl transition-[width] duration-200 ease-out motion-reduce:transition-none',
-        mobile ? 'w-[calc(100%-1.5rem)] max-w-sm' : 'w-72 xl:w-80',
+        mobile
+          ? 'w-full basis-full pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))]'
+          : 'w-72 xl:w-80',
       )}
     >
       <section
         className={cn(
           'glass-column flex min-h-0 max-h-full w-full animate-fade-in flex-col overflow-hidden rounded-xl border transition-colors motion-reduce:animate-none',
-          !mobile && 'min-w-72 xl:min-w-80',
+          mobile ? 'h-full' : 'min-w-72 xl:min-w-80',
           isOver ? 'border-primary/60 bg-accent/30' : 'border-border',
         )}
         aria-label={`Колонка ${name}`}
