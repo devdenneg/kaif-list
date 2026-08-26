@@ -2,6 +2,7 @@ import * as React from 'react';
 import {
   ArrowRightLeft,
   CalendarClock,
+  MessageSquareText,
   MoreHorizontal,
   Pencil,
   Reply,
@@ -9,6 +10,7 @@ import {
   SmilePlus,
   Trash2,
   UserCog,
+  X,
 } from 'lucide-react';
 import {
   COLUMN_LABELS,
@@ -133,7 +135,7 @@ export function TaskComments({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {isLoading ? (
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, index) => (
@@ -141,9 +143,17 @@ export function TaskComments({
           ))}
         </div>
       ) : (comments ?? []).length === 0 ? (
-        <p className="py-6 text-center text-sm text-muted-foreground">
-          Обсуждения пока нет. Начните — это полезнее, чем кажется.
-        </p>
+        <div className="flex items-start gap-3 rounded-lg bg-background/25 px-3 py-3">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-secondary text-muted-foreground">
+            <MessageSquareText className="size-4" aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm font-medium">Комментариев пока нет</p>
+            <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
+              Оставьте первый комментарий или упомяните коллегу через @.
+            </p>
+          </div>
+        </div>
       ) : (
         <div className="space-y-3">
           {(comments ?? []).map((comment) => (
@@ -160,7 +170,7 @@ export function TaskComments({
 
               {/* Ответы — с отступом и линией слева: видно, к чему они. */}
               {comment.replies.length > 0 && (
-                <div className="ml-5 space-y-2 border-l border-border pl-3 sm:ml-9">
+                <div className="ml-3 space-y-2 border-l border-border pl-3 sm:ml-9">
                   {comment.replies.map((reply) => (
                     <CommentItem
                       key={reply.id}
@@ -168,8 +178,7 @@ export function TaskComments({
                       taskId={task.id}
                       members={members}
                       canDelete={
-                        reply.author?.id === currentUser?.id ||
-                        task.permissions.canModerateComments
+                        reply.author?.id === currentUser?.id || task.permissions.canModerateComments
                       }
                       onReply={() => setReplyTo(comment)}
                     />
@@ -181,23 +190,25 @@ export function TaskComments({
         </div>
       )}
 
-      {typingUsers.length > 0 && (
-        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <span className="flex gap-0.5">
-            {[0, 1, 2].map((index) => (
-              <span
-                key={index}
-                className="size-1 animate-bounce rounded-full bg-muted-foreground"
-                style={{ animationDelay: `${index * 120}ms` }}
-              />
-            ))}
-          </span>
-          {typingUsers.join(', ')} печатает…
-        </p>
-      )}
+      <div className="min-h-5" aria-live="polite">
+        {typingUsers.length > 0 && (
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className="flex gap-0.5" aria-hidden>
+              {[0, 1, 2].map((index) => (
+                <span
+                  key={index}
+                  className="size-1 animate-bounce rounded-full bg-muted-foreground motion-reduce:animate-none"
+                  style={{ animationDelay: `${index * 120}ms` }}
+                />
+              ))}
+            </span>
+            {typingUsers.join(', ')} печатает…
+          </p>
+        )}
+      </div>
 
       {task.permissions.canComment && (
-        <div className="sticky bottom-0 space-y-2 bg-card pt-2">
+        <div className="sticky bottom-0 z-10 space-y-2 border-t border-border bg-surface/95 pb-[max(0.25rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-sm">
           {replyTo && (
             <div className="flex items-center gap-2 rounded-md bg-secondary px-2 py-1.5 text-xs">
               <Reply className="size-3.5 text-muted-foreground" />
@@ -208,10 +219,10 @@ export function TaskComments({
               <button
                 type="button"
                 onClick={() => setReplyTo(null)}
-                className="shrink-0 rounded-md text-muted-foreground hover:text-foreground [@media(pointer:coarse)]:flex [@media(pointer:coarse)]:size-10 [@media(pointer:coarse)]:items-center [@media(pointer:coarse)]:justify-center"
+                className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-background/60 hover:text-foreground [@media(pointer:coarse)]:size-10"
                 aria-label="Отменить ответ"
               >
-                ×
+                <X className="size-4" />
               </button>
             </div>
           )}
@@ -227,21 +238,23 @@ export function TaskComments({
                   setIsEmpty(empty);
                   if (!empty) notifyTyping();
                 }}
-                placeholder="Написать комментарий… (@ — упомянуть, Enter — отправить)"
+                placeholder="Напишите комментарий…"
                 users={members}
-                minHeight="72px"
+                minHeight="64px"
+                className="bg-background/60 shadow-none"
                 toolbar={false}
                 uploadTarget={{ taskId: task.id, boardId: task.boardId }}
                 onSubmit={() => void submit()}
               />
-              <div className="mt-2 flex items-center justify-between">
-                <span className="text-[11px] text-muted-foreground">
-                  Enter — отправить, Shift+Enter — перенос строки · картинку можно вставить из буфера
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+                <span className="hidden text-[11px] text-muted-foreground sm:inline [@media(pointer:coarse)]:hidden">
+                  Enter — отправить, Shift+Enter — перенос строки · картинку можно вставить из
+                  буфера
                 </span>
                 <Button
                   size="sm"
                   variant="primary"
-                  className="[@media(pointer:coarse)]:min-h-11"
+                  className="w-full sm:ml-auto sm:w-auto [@media(pointer:coarse)]:min-h-11"
                   onClick={() => void submit()}
                   disabled={isEmpty}
                   loading={createComment.isPending}
@@ -295,7 +308,7 @@ function CommentItem({
     <div className="group flex gap-2.5">
       <UserAvatar user={comment.author} size="md" className="mt-0.5 shrink-0" />
 
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 sm:max-w-[75ch]">
         <div className="flex items-center gap-2">
           <span className="truncate text-sm font-medium">
             {comment.author?.displayName ?? 'Система'}
@@ -474,7 +487,7 @@ function SystemComment({ comment }: { comment: CommentDto }): React.ReactElement
   return (
     <div
       className={cn(
-        'rounded-lg border px-3 py-2',
+        'max-w-[75ch] rounded-lg border px-3 py-2',
         isReturn || isHold ? 'border-warning/40 bg-warning/10' : 'border-border bg-secondary/40',
       )}
     >

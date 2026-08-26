@@ -88,34 +88,45 @@ function LinkRow({
   return (
     <li
       className={cn(
-        'group flex min-h-9 items-center gap-2 rounded-md border px-2 py-1 text-xs transition-colors',
+        'group flex min-h-10 items-start gap-2 rounded-md border px-2 py-2 text-xs transition-colors',
         blocking
           ? 'border-destructive/40 bg-destructive/5'
           : 'border-transparent hover:border-border hover:bg-secondary/50',
       )}
     >
       {blocking ? (
-        <Ban className="size-3.5 shrink-0 text-destructive" aria-label="мешает продолжить" />
+        <Ban className="mt-0.5 size-3.5 shrink-0 text-destructive" aria-label="мешает продолжить" />
       ) : done ? (
-        <CheckCircle2 className="size-3.5 shrink-0 text-success" aria-label="закрыта" />
+        <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-success" aria-label="закрыта" />
       ) : (
-        <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+        <ChevronRight className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" aria-hidden />
       )}
 
-      <Link
-        to={`/tasks/${link.task.key}`}
-        className={cn(
-          'min-w-0 flex-1 truncate font-medium hover:underline',
-          done ? 'text-muted-foreground line-through' : 'text-foreground',
-        )}
-      >
-        <span className="font-mono text-[11px] text-muted-foreground">{link.task.key}</span>{' '}
-        {link.task.title}
-      </Link>
+      <div className="min-w-0 flex-1">
+        <Link
+          to={`/tasks/${link.task.key}`}
+          className={cn(
+            'line-clamp-2 font-medium leading-4 hover:underline',
+            done ? 'text-muted-foreground line-through' : 'text-foreground',
+          )}
+        >
+          <span className="font-mono text-[11px] text-muted-foreground">{link.task.key}</span>{' '}
+          {link.task.title}
+        </Link>
+
+        <span
+          className={cn(
+            'mt-1 inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium sm:hidden',
+            done ? 'bg-success/15 text-success' : 'bg-secondary text-muted-foreground',
+          )}
+        >
+          {link.task.isArchived ? 'в архиве' : COLUMN_LABELS[link.task.columnKey]}
+        </span>
+      </div>
 
       <span
         className={cn(
-          'shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium',
+          'hidden shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium sm:inline-flex',
           done ? 'bg-success/15 text-success' : 'bg-secondary text-muted-foreground',
         )}
       >
@@ -158,19 +169,21 @@ export function TaskLinksSection({
   if (task.links.length === 0 && !canManage) return null;
 
   return (
-    <section className="space-y-2">
-      <div className="flex items-center gap-2">
+    <section className="space-y-2.5">
+      <div className="flex min-h-9 items-center gap-2">
         <Link2 className="size-4 text-muted-foreground" />
         <h3 className="text-sm font-semibold">Связи</h3>
         {task.links.length > 0 && (
-          <span className="text-xs text-muted-foreground">{task.links.length}</span>
+          <span className="rounded-md bg-secondary px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground">
+            {task.links.length}
+          </span>
         )}
-        <div className="ml-auto">{onAdd}</div>
+        <div className="ml-auto -mr-2">{onAdd}</div>
       </div>
 
       {task.links.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-border px-3 py-3 text-center text-xs text-muted-foreground">
-          Связей нет. Свяжите с тем, что мешает или зависит от этой задачи.
+        <p className="rounded-lg bg-background/25 px-3 py-2.5 text-left text-sm leading-5 text-muted-foreground">
+          Связей пока нет. Добавьте блокер или зависимую задачу, если они есть.
         </p>
       ) : (
         <TaskLinks task={task} onDelete={onDelete} canManage={canManage} />
@@ -198,13 +211,18 @@ export function BlockedBanner({ task }: { task: TaskDetailDto }): React.ReactEle
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
       <Ban className="size-4 shrink-0" aria-hidden />
       <span className="font-medium">
-        {blockers.length === 1 ? 'Задача заблокирована' : `Задачу держат ${blockers.length} блокера`}
+        {blockers.length === 1
+          ? 'Задача заблокирована'
+          : `Задачу держат ${blockers.length} блокера`}
       </span>
       <span className="opacity-80">·</span>
       {blockers.map((link, index) => (
         <React.Fragment key={link.id}>
           {index > 0 && <span className="opacity-60">,</span>}
-          <Link to={`/tasks/${link.task.key}`} className="font-mono underline-offset-2 hover:underline">
+          <Link
+            to={`/tasks/${link.task.key}`}
+            className="font-mono underline-offset-2 hover:underline"
+          >
             {link.task.key}
           </Link>
         </React.Fragment>

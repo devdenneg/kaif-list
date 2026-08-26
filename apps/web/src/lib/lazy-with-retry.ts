@@ -9,10 +9,19 @@ import * as React from 'react';
  * Пользователь при этом не сделал ничего плохого и не понимает, что делать.
  *
  * Поэтому: одна повторная попытка (вдруг сеть моргнула), затем одна
- * перезагрузка страницы, чтобы подтянуть новую версию. Повторная
- * перезагрузка не допускается — иначе при настоящей поломке вкладка
- * уйдёт в вечный цикл.
+ * перезагрузка — уже с очисткой кеша, иначе Safari отдаст ту же самую
+ * страницу со ссылками на исчезнувшие файлы, и всё повторится.
+ *
+ * Защита от вечного цикла двойная: пометка на конкретную страницу и общий
+ * потолок перезагрузок за сессию. Одной пометки мало — цикл может гулять
+ * по разным страницам.
  */
+
+const MARK_PREFIX = 'kaif:chunk-reload:';
+const BUDGET_KEY = 'kaif:chunk-reload-budget';
+/** Больше двух перезагрузок подряд не помогают: дело не в кеше. */
+const MAX_RELOADS = 2;
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function lazyWithRetry<T extends React.ComponentType<any>>(
   name: string,
@@ -20,19 +29,24 @@ export function lazyWithRetry<T extends React.ComponentType<any>>(
 ): React.LazyExoticComponent<T> {
   return React.lazy(async () => {
     try {
-      return await factory();
+      const loaded = await factory();
+      // Страница открылась — значит, если её когда-то перезагружали из-за
+      // пропавшего файла, пометку можно снять. Именно здесь, а не при
+      // старте приложения: иначе пометка стирается ещё до попытки
+      // загрузить страницу и перестаёт защищать от цикла.
+      clearMark(name);
+      return loaded;
     } catch (firstError) {
       await new Promise((resolve) => setTimeout(resolve, 400));
 
       try {
-        return await factory();
+        const loaded = await factory();
+        clearMark(name);
+        return loaded;
       } catch (secondError) {
-        const key = `kaif:chunk-reload:${name}`;
-        const alreadyReloaded = safeSessionGet(key);
-
-        if (!alreadyReloaded) {
-          safeSessionSet(key, '1');
-          window.location.reload();
+        if (canReload(name)) {
+          markReloaded(name);
+          await hardReload();
           // Страница уже перезагружается — компонент рендерить незачем.
           return new Promise<{ default: T }>(() => undefined);
         }
@@ -44,7 +58,54 @@ export function lazyWithRetry<T extends React.ComponentType<any>>(
   });
 }
 
-function safeSessionGet(key: string): string | null {
+function canReload(name: string): boolean {
+  if (safeGet(`${MARK_PREFIX}${name}`)) return false;
+  return spentReloads() < MAX_RELOADS;
+}
+
+function markReloaded(name: string): void {
+  safeSet(`${MARK_PREFIX}${name}`, '1');
+  safeSet(BUDGET_KEY, String(spentReloads() + 1));
+}
+
+function spentReloads(): number {
+  const raw = Number(safeGet(BUDGET_KEY));
+  return Number.isFinite(raw) && raw > 0 ? raw : 0;
+}
+
+function clearMark(name: string): void {
+  try {
+    sessionStorage.removeItem(`${MARK_PREFIX}${name}`);
+  } catch {
+    // Приватный режим — переживём без защиты от повторной перезагрузки.
+  }
+}
+
+/**
+ * Перезагрузка, которая действительно приносит новую версию.
+ *
+ * Обычный reload в Safari отдаёт ту же страницу из кеша, вместе со ссылками
+ * на файлы, которых на сервере уже нет, — и вкладка уходит в цикл. Поэтому
+ * сначала убираем сервис-воркер и его кеш, потом идём по адресу заново.
+ */
+async function hardReload(): Promise<void> {
+  try {
+    if ('serviceWorker' in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.map((registration) => registration.unregister()));
+    }
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((key) => caches.delete(key)));
+    }
+  } catch {
+    // Не получилось прибраться — всё равно перезагружаемся.
+  }
+
+  window.location.reload();
+}
+
+function safeGet(key: string): string | null {
   try {
     return sessionStorage.getItem(key);
   } catch {
@@ -52,20 +113,9 @@ function safeSessionGet(key: string): string | null {
   }
 }
 
-function safeSessionSet(key: string, value: string): void {
+function safeSet(key: string, value: string): void {
   try {
     sessionStorage.setItem(key, value);
-  } catch {
-    // Приватный режим — переживём без защиты от повторной перезагрузки.
-  }
-}
-
-/** Успешная загрузка страницы снимает пометку о перезагрузке. */
-export function clearChunkReloadMarks(): void {
-  try {
-    for (const key of Object.keys(sessionStorage)) {
-      if (key.startsWith('kaif:chunk-reload:')) sessionStorage.removeItem(key);
-    }
   } catch {
     // см. выше
   }

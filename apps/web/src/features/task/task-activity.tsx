@@ -22,13 +22,28 @@ export function TaskActivity({ taskId }: { taskId: string }): React.ReactElement
   }
 
   if (!items || items.length === 0) {
-    return <p className="py-6 text-center text-sm text-muted-foreground">История пуста</p>;
+    return (
+      <div className="flex items-start gap-3 rounded-lg bg-background/25 px-3 py-3">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-secondary text-muted-foreground">
+          <History className="size-4" aria-hidden />
+        </span>
+        <div>
+          <p className="text-sm font-medium">История пока пуста</p>
+          <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
+            Здесь появятся изменения статуса, сроков и участников.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <ol className="space-y-2">
+    <ol className="space-y-1">
       {items.map((item) => (
-        <li key={item.id} className="flex items-start gap-2.5 text-sm">
+        <li
+          key={item.id}
+          className="flex items-start gap-2.5 rounded-lg px-2 py-2 text-sm transition-colors hover:bg-secondary/35"
+        >
           <UserAvatar user={item.actor} size="sm" className="mt-0.5 shrink-0" />
           <div className="min-w-0 flex-1">
             <p className="leading-snug">
@@ -36,10 +51,11 @@ export function TaskActivity({ taskId }: { taskId: string }): React.ReactElement
               <span className="text-muted-foreground">{describeActivity(item)}</span>
             </p>
             <Tooltip content={formatFullDateTime(item.createdAt)}>
-              <span className="text-xs text-muted-foreground">{formatRelative(item.createdAt)}</span>
+              <time dateTime={item.createdAt} className="text-xs text-muted-foreground">
+                {formatRelative(item.createdAt)}
+              </time>
             </Tooltip>
           </div>
-          <History className="mt-1 size-3.5 shrink-0 text-muted-foreground/50" />
         </li>
       ))}
     </ol>

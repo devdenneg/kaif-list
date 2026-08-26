@@ -70,18 +70,20 @@ export function TaskAttachments({
   const files = task.attachments.filter((attachment) => !attachment.isImage);
 
   return (
-    <section className="space-y-3">
-      <div className="flex items-center gap-2">
+    <section className="space-y-2.5">
+      <div className="flex min-h-9 items-center gap-2">
         <Paperclip className="size-4 text-muted-foreground" />
         <h3 className="text-sm font-semibold">Вложения</h3>
         {task.attachments.length > 0 && (
-          <span className="text-xs text-muted-foreground">{task.attachments.length}</span>
+          <span className="rounded-md bg-secondary px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground">
+            {task.attachments.length}
+          </span>
         )}
         {editable && (
           <Button
             variant="ghost"
             size="sm"
-            className="ml-auto [@media(pointer:coarse)]:min-h-11"
+            className="ml-auto -mr-2 [@media(pointer:coarse)]:min-h-11"
             onClick={() => inputRef.current?.click()}
             loading={uploading}
           >
@@ -104,26 +106,30 @@ export function TaskAttachments({
             void upload(event.dataTransfer.files);
           }}
           className={cn(
-            'rounded-lg border border-dashed p-4 text-center text-xs transition-colors',
+            'rounded-lg border border-dashed px-3 py-2.5 text-center text-xs transition-colors [@media(pointer:coarse)]:hidden',
             dragOver
               ? 'border-primary bg-accent/40 text-accent-foreground'
               : 'border-border text-muted-foreground',
           )}
         >
-          Перетащите файлы сюда или{' '}
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            className="rounded-md font-medium text-primary hover:underline [@media(pointer:coarse)]:inline-flex [@media(pointer:coarse)]:min-h-10 [@media(pointer:coarse)]:items-center [@media(pointer:coarse)]:px-1"
-          >
-            выберите на устройстве
-          </button>
-          <p className="mt-1 opacity-70">до 25 МБ · картинки, документы, архивы, видео</p>
+          <div className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5">
+            <span>Перетащите файлы сюда или</span>
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              className="rounded-md font-medium text-primary hover:underline"
+            >
+              выберите на устройстве
+            </button>
+            <span className="w-full text-[11px] opacity-70 sm:w-auto">
+              · до 25 МБ · изображения, документы, архивы и видео
+            </span>
+          </div>
         </div>
       )}
 
       {images.length > 0 && (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(8.5rem,10rem))] gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fill,minmax(8.5rem,10rem))]">
           {images.map((attachment, index) => (
             <figure
               key={attachment.id}
@@ -156,17 +162,17 @@ export function TaskAttachments({
               <button
                 type="button"
                 onClick={() => setLightboxIndex(index)}
-                className="block w-full"
+                className="block w-full focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                 aria-label={`Открыть ${attachment.filename}`}
               >
                 <img
                   src={attachment.thumbnailUrl ?? attachment.url}
                   alt={attachment.filename}
-                  className="aspect-video w-full object-cover transition-transform group-hover:scale-105"
+                  className="aspect-video w-full object-cover transition-transform group-hover:scale-105 motion-reduce:transform-none"
                   loading="lazy"
                 />
               </button>
-              <figcaption className="truncate px-2 py-1.5 text-[10px] leading-4 text-muted-foreground">
+              <figcaption className="truncate px-2 py-1.5 text-xs leading-4 text-muted-foreground">
                 {attachment.filename}
               </figcaption>
             </figure>

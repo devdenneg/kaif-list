@@ -11,7 +11,6 @@ import { onAuthChange } from '@/lib/api';
 import { connectSocket, disconnectSocket, getSocket } from '@/lib/socket';
 import { SOCKET_EVENTS } from '@kaif/shared';
 import { AppErrorBoundary } from '@/app/error-boundary';
-import { clearChunkReloadMarks } from '@/lib/lazy-with-retry';
 import { OfflineBanner } from '@/app/offline-banner';
 
 export function App(): React.ReactElement {
@@ -23,9 +22,6 @@ export function App(): React.ReactElement {
   // Восстанавливаем сессию по refresh-cookie до первого рендера страниц.
   React.useEffect(() => {
     void bootstrap();
-    // Приложение поднялось — значит, прошлая перезагрузка из-за
-    // недостающего файла сборки помогла и пометку можно снять.
-    clearChunkReloadMarks();
   }, [bootstrap]);
 
   React.useEffect(() => {

@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
+  AlignLeft,
   Archive,
   ArchiveRestore,
   Check,
@@ -342,151 +343,176 @@ export function TaskDetail({
       </header>
 
       {/* ── Содержимое ── */}
-      <div className="scrollbar-thin flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 lg:flex-row">
-        <div className="min-w-0 flex-1 space-y-5">
+      <div className="scrollbar-thin flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-3 py-3 sm:p-4 lg:flex-row lg:justify-center lg:gap-5 lg:p-5">
+        <div className="min-w-0 flex-1 space-y-4 lg:max-w-[52rem]">
           {/* Пока держит блокер, браться за задачу бессмысленно —
               говорим об этом первым делом, до описания. */}
           <BlockedBanner task={task} />
 
-          {/* Описание */}
-          <section>
-            <div className="mb-1.5 flex items-center gap-2">
-              <h3 className="text-sm font-semibold">Описание</h3>
-              {task.permissions.canUpdate && !editingDescription && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="ml-auto"
-                  onClick={() => setEditingDescription(true)}
+          <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface/40">
+            {/* Описание */}
+            <section className="p-4 sm:p-5">
+              <div className="mb-3 flex min-h-9 items-center gap-2">
+                <AlignLeft className="size-4 text-muted-foreground" aria-hidden />
+                <h3 className="text-sm font-semibold">Описание</h3>
+                {task.permissions.canUpdate && !editingDescription && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="ml-auto -mr-2"
+                    onClick={() => setEditingDescription(true)}
+                  >
+                    <Pencil />
+                    Изменить
+                  </Button>
+                )}
+              </div>
+
+              {editingDescription ? (
+                <div className="space-y-3">
+                  <RichTextEditor
+                    value={description}
+                    onChange={(value) => setDescription(value)}
+                    users={members}
+                    placeholder="Опишите задачу: что нужно сделать, как проверить результат…"
+                    minHeight="160px"
+                    uploadTarget={{ taskId: task.id, boardId: task.boardId }}
+                    attachments={task.attachments}
+                    autoFocus
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      onClick={saveDescription}
+                      loading={updateTask.isPending}
+                    >
+                      Сохранить
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setDescription(task.description);
+                        setEditingDescription(false);
+                      }}
+                    >
+                      Отмена
+                    </Button>
+                  </div>
+                </div>
+              ) : task.description ? (
+                <div className="max-w-[75ch]">
+                  <RichTextViewer doc={task.description} collapsible />
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => task.permissions.canUpdate && setEditingDescription(true)}
+                  disabled={!task.permissions.canUpdate}
+                  className="w-full rounded-lg border border-dashed border-border bg-background/25 px-3 py-3 text-left transition-colors hover:bg-secondary/45 focus-visible:ring-[3px] focus-visible:ring-ring/25 disabled:cursor-default disabled:hover:bg-background/25"
                 >
-                  <Pencil />
-                  Изменить
-                </Button>
+                  <span className="block text-sm font-medium text-foreground/90">
+                    Описание не добавлено
+                  </span>
+                  <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
+                    {task.permissions.canUpdate
+                      ? 'Укажите ожидаемый результат и как его проверить.'
+                      : 'Здесь пока нет дополнительного контекста.'}
+                  </span>
+                </button>
               )}
+            </section>
+
+            <div className="p-4 sm:p-5">
+              <TaskChecklists task={task} editable={task.permissions.canUpdate} />
             </div>
 
-            {editingDescription ? (
-              <div className="space-y-2">
-                <RichTextEditor
-                  value={description}
-                  onChange={(value) => setDescription(value)}
-                  users={members}
-                  placeholder="Опишите задачу: что нужно сделать, как проверить результат…"
-                  minHeight="160px"
-                  uploadTarget={{ taskId: task.id, boardId: task.boardId }}
-                  attachments={task.attachments}
-                  autoFocus
+            <div className="p-4 sm:p-5">
+              <TaskAttachments
+                task={task}
+                editable={task.permissions.canAttach}
+                {...(task.permissions.canUpdate
+                  ? { onInsertIntoDescription: insertIntoDescription }
+                  : {})}
+              />
+            </div>
+
+            {/* Связи — важный блок: что мешает и что ждёт нас. Читается вместе
+                с описанием, поэтому стоит здесь, а не только в боковой панели. */}
+            {(task.links.length > 0 || task.permissions.canManageLinks) && (
+              <div className="p-4 sm:p-5">
+                <TaskLinksSection
+                  task={task}
+                  canManage={task.permissions.canManageLinks}
+                  onDelete={(linkId) =>
+                    deleteLink.mutate(linkId, {
+                      onError: (error: unknown) => toast.error('Не удалось убрать связь', error),
+                    })
+                  }
+                  onAdd={
+                    task.permissions.canManageLinks ? (
+                      <Popover open={linkOpen} onOpenChange={setLinkOpen}>
+                        <PopoverTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <Plus />
+                            Связать
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" className="w-80 p-2">
+                          <TaskLinkPicker
+                            task={task}
+                            loading={createLink.isPending}
+                            onSubmit={(type, key) =>
+                              createLink.mutate(
+                                { type, targetTaskKey: key },
+                                {
+                                  onSuccess: () => setLinkOpen(false),
+                                  onError: (error: unknown) =>
+                                    toast.error('Не удалось связать', error),
+                                },
+                              )
+                            }
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    ) : null
+                  }
                 />
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    onClick={saveDescription}
-                    loading={updateTask.isPending}
-                  >
-                    Сохранить
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      setDescription(task.description);
-                      setEditingDescription(false);
-                    }}
-                  >
-                    Отмена
-                  </Button>
-                </div>
               </div>
-            ) : task.description ? (
-              <div
-                className={cn(
-                  'rounded-lg border border-transparent p-2 -m-2',
-                  task.permissions.canUpdate && 'cursor-text hover:border-border',
-                )}
-                onClick={() => task.permissions.canUpdate && setEditingDescription(true)}
-              >
-                <RichTextViewer doc={task.description} collapsible />
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => task.permissions.canUpdate && setEditingDescription(true)}
-                disabled={!task.permissions.canUpdate}
-                className="w-full rounded-lg border border-dashed border-border px-3 py-4 text-left text-sm text-muted-foreground hover:bg-secondary/50 disabled:cursor-default"
-              >
-                Описания нет. Хорошее описание экономит часы переписки.
-              </button>
             )}
-          </section>
-
-          <TaskChecklists task={task} editable={task.permissions.canUpdate} />
-          <TaskAttachments
-            task={task}
-            editable={task.permissions.canAttach}
-            {...(task.permissions.canUpdate
-              ? { onInsertIntoDescription: insertIntoDescription }
-              : {})}
-          />
-
-          {/* Связи — важный блок: что мешает и что ждёт нас. Читается вместе
-              с описанием, поэтому стоит здесь, а не только в боковой панели. */}
-          <TaskLinksSection
-            task={task}
-            canManage={task.permissions.canManageLinks}
-            onDelete={(linkId) =>
-              deleteLink.mutate(linkId, {
-                onError: (error: unknown) => toast.error('Не удалось убрать связь', error),
-              })
-            }
-            onAdd={
-              task.permissions.canManageLinks ? (
-                <Popover open={linkOpen} onOpenChange={setLinkOpen}>
-                  <PopoverTrigger asChild>
-                    <Button variant="ghost" size="sm">
-                      <Plus />
-                      Связать
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent align="end" className="w-80 p-2">
-                    <TaskLinkPicker
-                      task={task}
-                      loading={createLink.isPending}
-                      onSubmit={(type, key) =>
-                        createLink.mutate(
-                          { type, targetTaskKey: key },
-                          {
-                            onSuccess: () => setLinkOpen(false),
-                            onError: (error: unknown) => toast.error('Не удалось связать', error),
-                          },
-                        )
-                      }
-                    />
-                  </PopoverContent>
-                </Popover>
-              ) : null
-            }
-          />
+          </div>
 
           {/* Обсуждение и история */}
-          <Tabs defaultValue="comments">
-            <TabsList>
-              <TabsTrigger value="comments">
-                Обсуждение
-                {task.commentCount > 0 && (
-                  <span className="rounded bg-background/60 px-1 text-[10px]">
-                    {task.commentCount}
-                  </span>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="history">История</TabsTrigger>
-            </TabsList>
+          <Tabs
+            defaultValue="comments"
+            className="overflow-hidden rounded-xl border border-border bg-surface/40"
+          >
+            <div className="flex flex-col gap-2 border-b border-border px-3 py-2.5 sm:flex-row sm:items-center sm:px-4">
+              <h3 className="text-sm font-semibold">Активность</h3>
+              <TabsList
+                className="h-10 w-full rounded-lg bg-secondary/70 p-1 sm:ml-auto sm:w-auto"
+                aria-label="Активность задачи"
+              >
+                <TabsTrigger value="comments" className="min-w-0 flex-1 sm:flex-none">
+                  Обсуждение
+                  {task.commentCount > 0 && (
+                    <span className="min-w-5 rounded-full bg-background/70 px-1.5 text-[10px] tabular-nums">
+                      {task.commentCount}
+                    </span>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="history" className="min-w-0 flex-1 sm:flex-none">
+                  История
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
-            <TabsContent value="comments" className="mt-3">
+            <TabsContent value="comments" className="m-0 p-3 sm:p-4">
               <TaskComments task={task} members={members} />
             </TabsContent>
 
-            <TabsContent value="history" className="mt-3">
+            <TabsContent value="history" className="m-0 p-3 sm:p-4">
               <TaskActivity taskId={task.id} />
             </TabsContent>
           </Tabs>

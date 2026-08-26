@@ -146,14 +146,14 @@ export function BoardColumn({
   return (
     <div
       className={cn(
-        'snap-column shrink-0 self-start overflow-hidden rounded-xl transition-[width] duration-200 ease-out motion-reduce:transition-none',
+        'snap-column h-full max-h-full shrink-0 self-start overflow-hidden rounded-xl transition-[width] duration-200 ease-out motion-reduce:transition-none',
         mobile ? 'w-[86vw] max-w-sm' : 'w-72 xl:w-80',
       )}
     >
       <section
         id={`column-${columnKey}`}
         className={cn(
-          'flex max-h-full w-full animate-fade-in flex-col overflow-hidden rounded-xl border bg-surface transition-colors motion-reduce:animate-none',
+          'flex min-h-0 max-h-full w-full animate-fade-in flex-col overflow-hidden rounded-xl border bg-surface transition-colors motion-reduce:animate-none',
           !mobile && 'min-w-72 xl:min-w-80',
           isOver ? 'border-primary/60 bg-accent/30' : 'border-border',
         )}
@@ -218,7 +218,7 @@ export function BoardColumn({
         <div
           ref={setNodeRef}
           className={cn(
-            'scrollbar-thin flex min-h-0 flex-1 touch-manipulation flex-col gap-2 overflow-y-auto overscroll-y-contain p-2 pb-4 scroll-pb-4 transition-[min-height]',
+            'scrollbar-thin flex min-h-0 flex-1 touch-manipulation flex-col gap-2 overflow-y-auto p-2 pb-4 scroll-pb-4 transition-[min-height]',
             tasks.length === 0 && 'min-h-36',
             tasks.length === 0 && isDragging && 'min-h-64',
           )}
