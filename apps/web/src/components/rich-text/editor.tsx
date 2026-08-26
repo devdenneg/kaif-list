@@ -232,7 +232,7 @@ export function RichTextEditor({
   return (
     <div
       className={cn(
-        'overflow-hidden rounded-xl border border-input bg-surface shadow-sm transition-[border-color,box-shadow] focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/20',
+        'overflow-hidden rounded-xl border border-input bg-surface shadow-sm transition-[border-color,box-shadow] focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/20 dark:border-white/10 dark:bg-surface/55 dark:shadow-[inset_0_1px_0_hsl(0_0%_100%/0.035)]',
         !editable && 'border-transparent bg-transparent shadow-none',
         className,
       )}
@@ -243,7 +243,7 @@ export function RichTextEditor({
           editor={editor}
           shouldShow={({ editor: instance }) => instance.isActive('image')}
           tippyOptions={{ duration: 120, placement: 'top' }}
-          className="flex items-center gap-0.5 rounded-lg border border-border bg-popover p-1 shadow-card"
+          className="glass-floating flex items-center gap-0.5 rounded-lg border border-border p-1 shadow-card"
         >
           {IMAGE_WIDTHS.map((width) => (
             <button

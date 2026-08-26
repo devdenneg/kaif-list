@@ -38,7 +38,7 @@ export const SheetContent = React.forwardRef<
       <DialogPrimitive.Content
         ref={setContentRef}
         className={cn(
-          'fixed z-50 flex flex-col bg-card shadow-popover',
+          'glass-modal fixed z-50 flex flex-col shadow-popover',
           side === 'right' &&
             cn(
               'inset-y-0 right-0 w-full border-l border-border pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)] data-[state=open]:animate-sheet-in-right data-[state=closed]:animate-sheet-out-right sm:pl-0',

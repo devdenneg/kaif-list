@@ -157,10 +157,10 @@ export default {
         'pulse-danger': 'pulse-danger 2s ease-in-out infinite',
       },
       boxShadow: {
-        card: '0 1px 2px hsl(var(--shadow) / 0.06), 0 1px 3px hsl(var(--shadow) / 0.1)',
-        'card-hover': '0 4px 12px hsl(var(--shadow) / 0.12), 0 2px 4px hsl(var(--shadow) / 0.08)',
+        card: 'var(--shadow-card)',
+        'card-hover': 'var(--shadow-card-hover)',
         dragging: '0 12px 32px hsl(var(--shadow) / 0.22)',
-        popover: '0 8px 30px hsl(var(--shadow) / 0.16)',
+        popover: 'var(--shadow-popover)',
       },
       screens: {
         xs: '420px',

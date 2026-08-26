@@ -155,7 +155,7 @@ export function BoardQuickFilters({ board }: { board: BoardDto }): React.ReactEl
               'inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/25 md:h-8',
               active
                 ? 'text-accent-foreground'
-                : 'border-border bg-surface text-muted-foreground hover:bg-secondary',
+                : 'border-border bg-surface text-muted-foreground hover:bg-secondary dark:border-white/10 dark:bg-surface/50',
             )}
             style={
               active ? { borderColor: group.color, backgroundColor: `${group.color}1f` } : undefined
@@ -335,7 +335,7 @@ function Chip({
             : tone === 'warning'
               ? 'border-warning bg-warning/10 text-warning'
               : 'border-primary bg-accent text-accent-foreground'
-          : 'border-border bg-surface text-muted-foreground hover:bg-secondary',
+          : 'border-border bg-surface text-muted-foreground hover:bg-secondary dark:border-white/10 dark:bg-surface/50',
       )}
     >
       {icon}

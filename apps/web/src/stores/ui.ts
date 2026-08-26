@@ -145,6 +145,13 @@ export function applyTheme(theme: Theme): void {
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
   const dark = theme === 'dark' || (theme === 'system' && prefersDark);
   root.classList.toggle('dark', dark);
+
+  // Цвет системной панели браузера обязан следовать выбранной теме приложения,
+  // а не только настройке ОС — особенно это заметно в установленной PWA.
+  document
+    .querySelector<HTMLMetaElement>('meta[name="theme-color"]')
+    ?.setAttribute('content', dark ? '#0d1216' : '#f7f8fa');
+
   try {
     localStorage.setItem(
       'kaif-theme',

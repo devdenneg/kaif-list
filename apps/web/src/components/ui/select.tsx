@@ -23,6 +23,7 @@ export const SelectTrigger = React.forwardRef<
       aria-required={(props['aria-required'] ?? formField?.required) || undefined}
       className={cn(
         'flex h-10 w-full items-center justify-between gap-2 rounded-lg border border-input bg-surface px-3 py-2 text-sm shadow-sm transition-[border-color,box-shadow,background-color]',
+        'dark:border-white/10 dark:bg-surface/55 dark:shadow-[inset_0_1px_0_hsl(0_0%_100%/0.035)]',
         'placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-[3px] focus:ring-ring/20',
         'disabled:cursor-not-allowed disabled:opacity-50 [&>span]:min-w-0 [&>span]:flex-1 [&>span]:line-clamp-1 [&>span]:text-left',
         className,
@@ -47,7 +48,7 @@ export const SelectContent = React.forwardRef<
       position={position}
       sideOffset={sideOffset}
       className={cn(
-        'relative z-50 max-h-72 min-w-[8rem] origin-[var(--radix-select-content-transform-origin)] overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-popover',
+        'glass-floating relative z-50 max-h-72 min-w-[8rem] origin-[var(--radix-select-content-transform-origin)] overflow-hidden rounded-lg border border-border text-popover-foreground shadow-popover',
         '[--kaif-floating-x:0px] [--kaif-floating-y:-4px] data-[side=left]:[--kaif-floating-x:4px] data-[side=left]:[--kaif-floating-y:0px] data-[side=right]:[--kaif-floating-x:-4px] data-[side=right]:[--kaif-floating-y:0px] data-[side=top]:[--kaif-floating-y:4px]',
         'data-[state=open]:animate-floating-in data-[state=closed]:animate-floating-out',
         className,

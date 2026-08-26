@@ -73,7 +73,7 @@ export const DialogContent = React.forwardRef<
       <DialogPrimitive.Content
         ref={setContentRef}
         className={cn(
-          'fixed z-50 flex flex-col bg-card text-card-foreground shadow-popover',
+          'glass-modal fixed z-50 flex flex-col text-card-foreground shadow-popover',
           asSheet
             ? 'inset-x-0 bottom-0 max-h-[94dvh] rounded-t-2xl border-t border-border pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] data-[state=open]:animate-sheet-in-bottom data-[state=closed]:animate-sheet-out-bottom'
             : cn(

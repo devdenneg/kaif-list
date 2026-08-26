@@ -270,8 +270,8 @@ export function DashboardPage(): React.ReactElement {
                   <AreaChart data={analytics.throughput}>
                     <defs>
                       <linearGradient id="created" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.35} />
-                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.35} />
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                       </linearGradient>
                       <linearGradient id="done" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#22c55e" stopOpacity={0.35} />
@@ -303,7 +303,7 @@ export function DashboardPage(): React.ReactElement {
                       type="monotone"
                       dataKey="created"
                       name="Создано"
-                      stroke="#6366f1"
+                      stroke="hsl(var(--primary))"
                       fill="url(#created)"
                     />
                     <Area

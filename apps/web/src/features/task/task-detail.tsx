@@ -349,7 +349,7 @@ export function TaskDetail({
               говорим об этом первым делом, до описания. */}
           <BlockedBanner task={task} />
 
-          <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface/40">
+          <div className="glass-card divide-y divide-border overflow-hidden rounded-xl border border-border">
             {/* Описание */}
             <section className="p-4 sm:p-5">
               <div className="mb-3 flex min-h-9 items-center gap-2">
@@ -484,7 +484,7 @@ export function TaskDetail({
           {/* Обсуждение и история */}
           <Tabs
             defaultValue="comments"
-            className="overflow-hidden rounded-xl border border-border bg-surface/40"
+            className="glass-card overflow-hidden rounded-xl border border-border"
           >
             <div className="flex flex-col gap-2 border-b border-border px-3 py-2.5 sm:flex-row sm:items-center sm:px-4">
               <h3 className="text-sm font-semibold">Активность</h3>
@@ -518,7 +518,7 @@ export function TaskDetail({
 
         {/* ── Свойства ── */}
         <aside className="order-first w-full shrink-0 lg:order-none lg:w-80">
-          <div className="overflow-hidden rounded-xl border border-border bg-surface">
+          <div className="glass-panel overflow-hidden rounded-xl border border-border">
             <button
               type="button"
               className="flex min-h-14 w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-secondary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/30 focus-visible:ring-offset-0 lg:hidden"
@@ -580,7 +580,7 @@ export function TaskDetail({
           >
             <div className="min-h-0 overflow-hidden">
               <div className="pt-4">
-                <div className="rounded-xl border border-border bg-surface p-3">
+                <div className="glass-card rounded-xl border border-border p-3">
                   <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     Участники
                   </p>

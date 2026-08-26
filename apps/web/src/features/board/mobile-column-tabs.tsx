@@ -90,15 +90,15 @@ export function MobileColumnTabs({ columns }: { columns: BoardColumns }): React.
             className={cn(
               'flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-medium transition-colors',
               active === key
-                ? 'border-primary bg-primary text-primary-foreground'
-                : 'border-border bg-surface text-muted-foreground',
+                ? 'border-primary/45 bg-primary/10 text-primary shadow-[inset_0_1px_0_hsl(var(--primary)/0.12)]'
+                : 'border-border bg-surface text-muted-foreground dark:border-white/10 dark:bg-surface/55',
             )}
           >
             {COLUMN_SHORT_LABELS[key]}
             <span
               className={cn(
                 'rounded-full px-1.5 text-[10px]',
-                active === key ? 'bg-primary-foreground/20' : 'bg-secondary',
+                active === key ? 'bg-primary/15 text-primary' : 'bg-secondary',
               )}
             >
               {count}

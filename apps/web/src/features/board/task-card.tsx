@@ -60,7 +60,7 @@ export const TaskCard = React.memo(function TaskCard({
       tabIndex={0}
       aria-label={`${task.key}: ${task.title}`}
       className={cn(
-        'group relative select-none rounded-lg border bg-card p-2.5 text-left shadow-card transition-all',
+        'glass-card group relative select-none rounded-lg border p-2.5 text-left shadow-card transition-all',
         'hover:border-primary/40 hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         accent || 'border-border',
         isDragging && 'opacity-40',

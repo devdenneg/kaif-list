@@ -107,7 +107,7 @@ export function BoardColumn({
             type="button"
             onClick={onToggleCollapse}
             className={cn(
-              'group relative flex h-28 w-full animate-fade-in flex-col items-center gap-1.5 overflow-hidden rounded-xl border bg-surface px-1.5 py-2 motion-reduce:animate-none',
+              'glass-column group relative flex h-28 w-full animate-fade-in flex-col items-center gap-1.5 overflow-hidden rounded-xl border px-1.5 py-2 motion-reduce:animate-none',
               'text-muted-foreground transition-[border-color,background-color,box-shadow] hover:border-primary/35 hover:bg-secondary/45',
               'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/25 focus-visible:ring-offset-0',
               overLimit ? 'border-destructive/60' : 'border-border',
@@ -153,7 +153,7 @@ export function BoardColumn({
     >
       <section
         className={cn(
-          'flex min-h-0 max-h-full w-full animate-fade-in flex-col overflow-hidden rounded-xl border bg-surface transition-colors motion-reduce:animate-none',
+          'glass-column flex min-h-0 max-h-full w-full animate-fade-in flex-col overflow-hidden rounded-xl border transition-colors motion-reduce:animate-none',
           !mobile && 'min-w-72 xl:min-w-80',
           isOver ? 'border-primary/60 bg-accent/30' : 'border-border',
         )}

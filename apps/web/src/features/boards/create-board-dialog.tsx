@@ -33,7 +33,7 @@ export function CreateBoardDialog({
   const [key, setKey] = React.useState('');
   const [keyTouched, setKeyTouched] = React.useState(false);
   const [description, setDescription] = React.useState('');
-  const [color, setColor] = React.useState<string>(BOARD_COLORS[0] ?? '#6366f1');
+  const [color, setColor] = React.useState<string>(BOARD_COLORS[0] ?? '#14b8a6');
   const [groups, setGroups] = React.useState<string[]>([]);
   const [groupDraft, setGroupDraft] = React.useState('');
   const [errors, setErrors] = React.useState<Record<string, string>>({});
@@ -47,7 +47,7 @@ export function CreateBoardDialog({
       setGroups([]);
       setGroupDraft('');
       setErrors({});
-      setColor(BOARD_COLORS[Math.floor(Math.random() * BOARD_COLORS.length)] ?? '#6366f1');
+      setColor(BOARD_COLORS[Math.floor(Math.random() * BOARD_COLORS.length)] ?? '#14b8a6');
     }
   }, [open]);
 

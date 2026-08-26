@@ -331,7 +331,7 @@ export function BoardPage(): React.ReactElement {
     <div className="flex h-full min-h-0 w-full max-w-full flex-col overflow-hidden">
       {/* ── Шапка доски ── */}
       <div
-        className="scrollbar-thin shrink-0 snap-y snap-proximity overflow-x-clip overflow-y-auto overscroll-y-contain border-b border-border bg-surface/85 backdrop-blur-sm"
+        className="glass-panel scrollbar-thin shrink-0 snap-y snap-proximity overflow-x-clip overflow-y-auto overscroll-y-contain border-b border-border"
         style={{
           maxHeight: compactLayout ? MOBILE_HEADER_MAX_HEIGHT : DESKTOP_HEADER_MAX_HEIGHT,
         }}

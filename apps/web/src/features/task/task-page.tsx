@@ -58,7 +58,7 @@ export function TaskPage(): React.ReactElement {
         </Button>
       </div>
       <div className="flex min-h-0 flex-1 flex-col px-3 pb-3 pt-2 sm:px-4 sm:pb-4">
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-card">
+        <div className="glass-panel flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border shadow-card">
           <TaskDetail task={task} viewers={viewers} />
         </div>
       </div>

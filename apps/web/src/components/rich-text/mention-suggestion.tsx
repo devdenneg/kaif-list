@@ -51,14 +51,14 @@ const MentionList = React.forwardRef<MentionListRef, MentionListProps>((props, r
 
   if (props.items.length === 0) {
     return (
-      <div className="rounded-lg border border-border bg-popover px-3 py-2 text-sm text-muted-foreground shadow-popover">
+      <div className="glass-floating rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground shadow-popover">
         Никого не найдено
       </div>
     );
   }
 
   return (
-    <div className="scrollbar-thin max-h-64 w-64 overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-popover">
+    <div className="glass-floating scrollbar-thin max-h-64 w-64 overflow-y-auto rounded-lg border border-border p-1 shadow-popover">
       {props.items.map((item, index) => (
         <button
           key={item.id}

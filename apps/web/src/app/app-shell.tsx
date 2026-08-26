@@ -60,7 +60,7 @@ export function AppShell({ children }: { children: React.ReactNode }): React.Rea
   });
 
   return (
-    <div className="flex h-dvh w-full max-w-full overflow-hidden bg-background">
+    <div className="app-shell flex h-dvh w-full max-w-full overflow-hidden">
       {!compactNavigation && (
         <Sidebar collapsed={collapsed} onCreateBoard={() => setCreateBoardOpen(true)} />
       )}
@@ -108,7 +108,7 @@ function Sidebar({
       id="app-sidebar"
       aria-label="Боковая навигация"
       className={cn(
-        'z-20 flex h-full flex-none flex-col overflow-hidden border-r border-border bg-surface pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]',
+        'glass-panel z-20 flex h-full flex-none flex-col overflow-hidden border-r border-border pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]',
         'transition-[width,min-width,max-width,flex-basis] duration-200 ease-out motion-reduce:transition-none',
         collapsed
           ? 'w-16 min-w-[4rem] max-w-[4rem] basis-[4rem]'
@@ -368,7 +368,7 @@ function TopBar({ onCreateBoard }: { onCreateBoard: () => void }): React.ReactEl
   const compactNavigation = useIsTablet();
 
   return (
-    <header className="sticky top-0 z-30 flex h-[calc(3.5rem+env(safe-area-inset-top))] shrink-0 items-center gap-2 border-b border-border bg-surface/85 pb-0 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pt-[env(safe-area-inset-top)] backdrop-blur-md lg:px-4 lg:pt-[env(safe-area-inset-top)]">
+    <header className="glass-panel sticky top-0 z-30 flex h-[calc(3.5rem+env(safe-area-inset-top))] shrink-0 items-center gap-2 border-b border-border pb-0 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pt-[env(safe-area-inset-top)] lg:px-4 lg:pt-[env(safe-area-inset-top)]">
       {compactNavigation && (
         <Link
           to="/boards"
@@ -385,7 +385,7 @@ function TopBar({ onCreateBoard }: { onCreateBoard: () => void }): React.ReactEl
         type="button"
         onClick={() => setCommandPaletteOpen(true)}
         className={cn(
-          'flex h-10 min-w-0 flex-1 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm text-muted-foreground',
+          'flex h-10 min-w-0 flex-1 items-center gap-2 rounded-md border border-input bg-background/70 px-3 text-sm text-muted-foreground backdrop-blur-sm dark:border-white/10 dark:bg-surface/45',
           'transition-colors hover:border-ring/60 hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:max-w-md',
         )}
         aria-label="Открыть поиск"
@@ -499,7 +499,7 @@ function MobileNav({ onCreateBoard }: { onCreateBoard: () => void }): React.Reac
   return (
     <nav
       aria-label="Мобильная навигация"
-      className="fixed inset-x-0 bottom-0 z-40 h-[calc(4.25rem+env(safe-area-inset-bottom))] border-t border-border/80 bg-surface/95 pb-[env(safe-area-inset-bottom)] pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] shadow-[0_-10px_28px_hsl(var(--shadow)/0.08)] backdrop-blur-xl supports-[backdrop-filter]:bg-surface/80"
+      className="glass-panel fixed inset-x-0 bottom-0 z-40 h-[calc(4.25rem+env(safe-area-inset-bottom))] border-t border-border/80 pb-[env(safe-area-inset-bottom)] pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] shadow-[0_-10px_28px_hsl(var(--shadow)/0.12)]"
     >
       <div className="mx-auto flex h-[4.25rem] w-full max-w-lg items-stretch gap-0.5">
         {firstItems.map(renderItem)}

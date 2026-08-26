@@ -6,8 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5"
     />
-    <meta name="theme-color" content="#6366f1" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#111827" media="(prefers-color-scheme: dark)" />
+    <meta id="theme-color" name="theme-color" content="#f7f8fa" />
     <meta name="description" content="Корпоративная доска задач с авторизацией через Telegram" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -27,8 +26,13 @@
         try {
           var stored = localStorage.getItem('kaif-theme');
           var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-          if (stored === 'dark' || (stored !== 'light' && prefersDark)) {
+          var dark = stored === 'dark' || (stored !== 'light' && prefersDark);
+          if (dark) {
             document.documentElement.classList.add('dark');
+          }
+          var themeColor = document.getElementById('theme-color');
+          if (themeColor) {
+            themeColor.setAttribute('content', dark ? '#0d1216' : '#f7f8fa');
           }
         } catch (error) {
           /* приватный режим — просто оставляем светлую тему */

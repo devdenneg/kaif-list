@@ -72,15 +72,15 @@ export const LABEL_COLORS: readonly string[] = [
 ];
 
 export const BOARD_COLORS: readonly string[] = [
-  '#6366f1',
-  '#8b5cf6',
-  '#ec4899',
-  '#f43f5e',
-  '#f97316',
-  '#eab308',
-  '#22c55e',
   '#14b8a6',
+  '#06b6d4',
   '#0ea5e9',
+  '#22c55e',
+  '#84cc16',
+  '#f59e0b',
+  '#f97316',
+  '#f43f5e',
+  '#ec4899',
   '#64748b',
 ];
 

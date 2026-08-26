@@ -110,15 +110,15 @@ export function BoardSettingsDialog({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
           size="lg"
-          className="max-h-[calc(100dvh-env(safe-area-inset-top)-0.75rem)] sm:max-h-[calc(100dvh-2rem)]"
+          className="h-[94dvh] max-h-[calc(100dvh-env(safe-area-inset-top)-0.75rem)] sm:h-[min(44rem,calc(100dvh-2rem))] sm:max-h-[calc(100dvh-2rem)]"
         >
           <DialogHeader>
             <DialogTitle>Настройки доски</DialogTitle>
           </DialogHeader>
 
-          <DialogBody>
+          <DialogBody className="min-h-0">
             <Tabs defaultValue="general">
-              <TabsList className="scrollbar-thin mb-4 h-auto w-full max-w-full justify-start overflow-x-auto p-1">
+              <TabsList className="scrollbar-thin sticky top-0 z-10 mb-4 h-auto w-full max-w-full justify-start overflow-x-auto p-1 shadow-sm">
                 <TabsTrigger value="general" className="shrink-0 [&_svg]:!size-5">
                   <Palette />
                   Общее

@@ -4,8 +4,8 @@
   "description": "Корпоративная доска задач",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f5f7fa",
-  "theme_color": "#6366f1",
+  "background_color": "#0d1216",
+  "theme_color": "#0d1216",
   "orientation": "any",
   "lang": "ru",
   "icons": [

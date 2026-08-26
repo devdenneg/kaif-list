@@ -10,7 +10,7 @@ export const DropdownMenuSub = DropdownMenuPrimitive.Sub;
 export const DropdownMenuRadioGroup = DropdownMenuPrimitive.RadioGroup;
 
 const contentClasses =
-  'z-50 min-w-[11rem] origin-[var(--radix-dropdown-menu-content-transform-origin)] overflow-hidden rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-popover [--kaif-floating-x:0px] [--kaif-floating-y:-4px] data-[side=left]:[--kaif-floating-x:4px] data-[side=left]:[--kaif-floating-y:0px] data-[side=right]:[--kaif-floating-x:-4px] data-[side=right]:[--kaif-floating-y:0px] data-[side=top]:[--kaif-floating-y:4px] data-[state=open]:animate-floating-in data-[state=closed]:animate-floating-out';
+  'glass-floating z-50 min-w-[11rem] origin-[var(--radix-dropdown-menu-content-transform-origin)] overflow-hidden rounded-lg border border-border p-1 text-popover-foreground shadow-popover [--kaif-floating-x:0px] [--kaif-floating-y:-4px] data-[side=left]:[--kaif-floating-x:4px] data-[side=left]:[--kaif-floating-y:0px] data-[side=right]:[--kaif-floating-x:-4px] data-[side=right]:[--kaif-floating-y:0px] data-[side=top]:[--kaif-floating-y:4px] data-[state=open]:animate-floating-in data-[state=closed]:animate-floating-out';
 
 export const DropdownMenuContent = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Content>,

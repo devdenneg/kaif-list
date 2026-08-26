@@ -69,11 +69,18 @@ export function BoardFilters({ board }: { board: BoardDto }): React.ReactElement
 
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant={activeCount > 0 ? 'primary' : 'outline'} size="sm">
+          <Button
+            variant="outline"
+            size="sm"
+            className={cn(
+              activeCount > 0 &&
+                'border-primary/40 bg-primary/10 text-primary shadow-[inset_0_1px_0_hsl(var(--primary)/0.12)] hover:bg-primary/15 dark:bg-primary/10 dark:hover:bg-primary/15',
+            )}
+          >
             <Filter />
             Фильтры
             {activeCount > 0 && (
-              <span className="rounded bg-primary-foreground/20 px-1 text-[10px] font-semibold">
+              <span className="rounded bg-primary/15 px-1 text-[10px] font-semibold text-primary">
                 {activeCount}
               </span>
             )}

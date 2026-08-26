@@ -16,7 +16,7 @@ export function BoardCard({ board }: { board: BoardSummaryDto }): React.ReactEle
   return (
     <Link
       to={`/boards/${board.key}`}
-      className="group relative flex flex-col gap-3 rounded-xl border border-border bg-card p-4 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-card-hover"
+      className="glass-card group relative flex flex-col gap-3 rounded-xl border border-border p-4 shadow-card transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-card-hover"
     >
       <span
         className="absolute inset-x-0 top-0 h-1 rounded-t-xl"
