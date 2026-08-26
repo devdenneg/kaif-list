@@ -97,7 +97,7 @@ export function BoardQuickFilters({ board }: { board: BoardDto }): React.ReactEl
   });
 
   return (
-    <div className="scrollbar-thin -mx-3 flex touch-pan-x flex-nowrap items-center gap-1.5 overflow-x-auto px-3 pb-2 md:mx-0 md:px-0 md:pb-1 xl:flex-wrap xl:overflow-visible xl:pb-0">
+    <div className="scrollbar-thin flex w-full min-w-0 max-w-full touch-pan-x flex-nowrap items-center gap-1.5 overflow-x-auto overscroll-x-contain pb-2 md:pb-1 xl:flex-wrap xl:overflow-visible xl:pb-0">
       <Chip active={mineActive} onClick={toggleMine} icon={<User />}>
         На мне
       </Chip>

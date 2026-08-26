@@ -223,8 +223,8 @@ export function KanbanBoard({
       <div
         className={
           mobile
-            ? 'snap-columns flex h-full min-h-0 flex-1 items-start gap-3 overflow-x-auto px-3 pb-4'
-            : 'scrollbar-thin flex h-full min-h-0 flex-1 items-start gap-3 overflow-x-auto px-4 pb-4'
+            ? 'snap-columns flex h-full min-h-0 w-full min-w-0 max-w-full flex-1 items-start gap-3 overflow-x-auto overscroll-x-contain pb-4 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))]'
+            : 'scrollbar-thin flex h-full min-h-0 w-full min-w-0 max-w-full flex-1 items-start gap-3 overflow-x-auto overscroll-x-contain px-4 pb-4'
         }
       >
         {COLUMN_ORDER.map((columnKey) => {

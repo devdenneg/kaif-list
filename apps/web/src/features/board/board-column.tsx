@@ -145,13 +145,13 @@ export function BoardColumn({
 
   return (
     <div
+      id={`column-${columnKey}`}
       className={cn(
         'snap-column h-full max-h-full shrink-0 self-start overflow-hidden rounded-xl transition-[width] duration-200 ease-out motion-reduce:transition-none',
-        mobile ? 'w-[86vw] max-w-sm' : 'w-72 xl:w-80',
+        mobile ? 'w-[calc(100%-1.5rem)] max-w-sm' : 'w-72 xl:w-80',
       )}
     >
       <section
-        id={`column-${columnKey}`}
         className={cn(
           'flex min-h-0 max-h-full w-full animate-fade-in flex-col overflow-hidden rounded-xl border bg-surface transition-colors motion-reduce:animate-none',
           !mobile && 'min-w-72 xl:min-w-80',

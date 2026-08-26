@@ -95,10 +95,15 @@ export function PeopleBar({
       : 'Без исполнителя';
 
   return (
-    <div className={cn('min-w-0', compact ? 'space-y-1.5' : 'flex items-center gap-1.5')}>
+    <div
+      className={cn(
+        'min-w-0 max-w-full overflow-hidden',
+        compact ? 'space-y-1.5' : 'flex items-center gap-1.5',
+      )}
+    >
       <div
         className={cn(
-          'scrollbar-thin flex min-w-0 items-center overflow-x-auto',
+          'scrollbar-thin flex min-w-0 max-w-full items-center overflow-x-auto overscroll-x-contain',
           compact ? 'w-full gap-1.5 pb-2' : 'flex-1 gap-1 pb-1',
         )}
       >

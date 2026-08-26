@@ -18,7 +18,7 @@ import { can } from '@kaif/shared';
 import { useBoards } from '@/api/boards';
 import { useAuthStore } from '@/stores/auth';
 import { useUiStore } from '@/stores/ui';
-import { useIsMobile } from '@/lib/hooks/use-media-query';
+import { useIsTablet } from '@/lib/hooks/use-media-query';
 import { useHotkeys } from '@/lib/hooks/use-hotkeys';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -36,7 +36,7 @@ import { CreateBoardDialog } from '@/features/boards/create-board-dialog';
  * Мобильный: нижняя навигация большим пальцем и компактный заголовок.
  */
 export function AppShell({ children }: { children: React.ReactNode }): React.ReactElement {
-  const isMobile = useIsMobile();
+  const compactNavigation = useIsTablet();
   const location = useLocation();
   const collapsed = useUiStore((state) => state.sidebarCollapsed);
   const setCommandPaletteOpen = useUiStore((state) => state.setCommandPaletteOpen);
@@ -47,7 +47,10 @@ export function AppShell({ children }: { children: React.ReactNode }): React.Rea
   React.useLayoutEffect(() => {
     // Основная область не размонтируется между маршрутами, поэтому явно
     // начинаем каждую новую страницу с её начала.
-    if (mainRef.current) mainRef.current.scrollTop = 0;
+    if (mainRef.current) {
+      mainRef.current.scrollTop = 0;
+      mainRef.current.scrollLeft = 0;
+    }
   }, [location.pathname]);
 
   useHotkeys({
@@ -57,8 +60,8 @@ export function AppShell({ children }: { children: React.ReactNode }): React.Rea
   });
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-background pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)] md:pb-[env(safe-area-inset-bottom)]">
-      {!isMobile && (
+    <div className="flex h-dvh w-full max-w-full overflow-hidden bg-background">
+      {!compactNavigation && (
         <Sidebar collapsed={collapsed} onCreateBoard={() => setCreateBoardOpen(true)} />
       )}
 
@@ -67,15 +70,15 @@ export function AppShell({ children }: { children: React.ReactNode }): React.Rea
         <main
           ref={mainRef}
           className={cn(
-            'min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto',
-            isMobile && 'pb-[calc(4.25rem+env(safe-area-inset-bottom))]',
+            'min-h-0 min-w-0 flex-1 overflow-x-clip overflow-y-auto lg:pb-[env(safe-area-inset-bottom)]',
+            compactNavigation && 'pb-[calc(4.25rem+env(safe-area-inset-bottom))]',
           )}
         >
           {children}
         </main>
       </div>
 
-      {isMobile && <MobileNav onCreateBoard={() => setCreateBoardOpen(true)} />}
+      {compactNavigation && <MobileNav onCreateBoard={() => setCreateBoardOpen(true)} />}
 
       <CommandPalette />
       <CreateBoardDialog open={createBoardOpen} onOpenChange={setCreateBoardOpen} />
@@ -105,7 +108,7 @@ function Sidebar({
       id="app-sidebar"
       aria-label="Боковая навигация"
       className={cn(
-        'z-20 flex h-full flex-none flex-col overflow-hidden border-r border-border bg-surface',
+        'z-20 flex h-full flex-none flex-col overflow-hidden border-r border-border bg-surface pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]',
         'transition-[width,min-width,max-width,flex-basis] duration-200 ease-out motion-reduce:transition-none',
         collapsed
           ? 'w-16 min-w-[4rem] max-w-[4rem] basis-[4rem]'
@@ -362,11 +365,11 @@ function BoardLink({
 
 function TopBar({ onCreateBoard }: { onCreateBoard: () => void }): React.ReactElement {
   const setCommandPaletteOpen = useUiStore((state) => state.setCommandPaletteOpen);
-  const isMobile = useIsMobile();
+  const compactNavigation = useIsTablet();
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-surface/85 px-3 backdrop-blur-md md:px-4">
-      {isMobile && (
+    <header className="sticky top-0 z-30 flex h-[calc(3.5rem+env(safe-area-inset-top))] shrink-0 items-center gap-2 border-b border-border bg-surface/85 pb-0 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pt-[env(safe-area-inset-top)] backdrop-blur-md lg:px-4 lg:pt-[env(safe-area-inset-top)]">
+      {compactNavigation && (
         <Link
           to="/boards"
           className="flex shrink-0 items-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -396,7 +399,7 @@ function TopBar({ onCreateBoard }: { onCreateBoard: () => void }): React.ReactEl
       </button>
 
       <div className="ml-auto flex items-center gap-1">
-        {!isMobile && (
+        {!compactNavigation && (
           <Button variant="ghost" size="icon" onClick={onCreateBoard} aria-label="Новая доска">
             <Plus />
           </Button>

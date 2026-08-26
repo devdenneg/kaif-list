@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
  */
 export function MobileColumnTabs({ columns }: { columns: BoardColumns }): React.ReactElement {
   const [active, setActive] = React.useState<ColumnKey>('TODO');
+  const tabsRef = React.useRef<HTMLDivElement | null>(null);
   const tabRefs = React.useRef<Partial<Record<ColumnKey, HTMLButtonElement | null>>>({});
 
   React.useEffect(() => {
@@ -37,10 +38,20 @@ export function MobileColumnTabs({ columns }: { columns: BoardColumns }): React.
   }, [columns]);
 
   React.useEffect(() => {
-    tabRefs.current[active]?.scrollIntoView({
+    const container = tabsRef.current;
+    const tab = tabRefs.current[active];
+    if (!container || !tab) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const tabRect = tab.getBoundingClientRect();
+    const nextLeft =
+      container.scrollLeft +
+      tabRect.left -
+      containerRect.left -
+      (container.clientWidth - tabRect.width) / 2;
+    container.scrollTo({
+      left: Math.max(0, nextLeft),
       behavior: 'smooth',
-      block: 'nearest',
-      inline: 'nearest',
     });
   }, [active]);
 
@@ -49,15 +60,18 @@ export function MobileColumnTabs({ columns }: { columns: BoardColumns }): React.
     const scrollContainer = column?.parentElement;
     if (!column || !scrollContainer) return;
 
+    const containerRect = scrollContainer.getBoundingClientRect();
+    const columnRect = column.getBoundingClientRect();
     scrollContainer.scrollTo({
-      left: Math.max(0, column.offsetLeft - scrollContainer.offsetLeft - 12),
+      left: Math.max(0, scrollContainer.scrollLeft + columnRect.left - containerRect.left - 12),
       behavior: 'smooth',
     });
   };
 
   return (
     <div
-      className="scrollbar-thin flex shrink-0 gap-1 overflow-x-auto px-3 pb-3"
+      ref={tabsRef}
+      className="scrollbar-thin flex w-full min-w-0 max-w-full shrink-0 gap-1 overflow-x-auto overscroll-x-contain pb-3 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))]"
       role="navigation"
       aria-label="Быстрый переход к колонке"
     >

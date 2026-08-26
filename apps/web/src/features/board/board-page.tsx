@@ -17,7 +17,7 @@ import { useBoard, useToggleFavorite } from '@/api/boards';
 import { useBoardTasks, useMoveTask, useTaskMovePending } from '@/api/tasks';
 import { useAuthStore } from '@/stores/auth';
 import { useBoardFilters, useBoardSwimlane, useUiStore, type Swimlane } from '@/stores/ui';
-import { useIsMobile } from '@/lib/hooks/use-media-query';
+import { useIsTablet } from '@/lib/hooks/use-media-query';
 import { useHotkeys } from '@/lib/hooks/use-hotkeys';
 import { useSocketConnected } from '@/lib/hooks/use-socket-status';
 import { ApiError } from '@/lib/api';
@@ -52,7 +52,7 @@ import { MoveReasonDialog, type ReasonRequest } from '@/features/task/move-reaso
 // Минимум в 3.5rem оставляет видимой строку с названием, а остальные элементы
 // управления остаются доступны внутренней прокруткой.
 const MOBILE_HEADER_MAX_HEIGHT =
-  'clamp(3.5rem, calc(100dvh - 24rem - env(safe-area-inset-top) - env(safe-area-inset-bottom)), 20rem)';
+  'clamp(3.5rem, calc(100dvh - 24rem - env(safe-area-inset-top) - env(safe-area-inset-bottom)), 24rem)';
 const DESKTOP_HEADER_MAX_HEIGHT =
   'clamp(3.5rem, calc(100dvh - 18.5rem - env(safe-area-inset-top)), 20rem)';
 
@@ -81,7 +81,7 @@ function BoardNavigation({
   mobile?: boolean;
 }): React.ReactElement {
   const actionClass = mobile
-    ? 'relative h-14 min-w-0 flex-col gap-1 rounded-lg px-1 text-[10px] leading-none text-muted-foreground [&_svg]:!size-5'
+    ? 'relative h-12 min-w-0 flex-col gap-0.5 rounded-lg px-1 text-[10px] leading-none text-muted-foreground [&_svg]:!size-[18px]'
     : 'h-8 rounded-lg px-2.5 text-xs text-muted-foreground [&_svg]:!size-4';
 
   return (
@@ -89,8 +89,8 @@ function BoardNavigation({
       aria-label="Разделы и вид доски"
       className={cn(
         mobile
-          ? 'mb-2 grid grid-flow-col auto-cols-fr gap-1 rounded-xl border border-border bg-secondary/35 p-1 md:hidden'
-          : 'hidden min-h-11 snap-start items-center gap-1 border-t border-border/70 bg-secondary/10 px-3 py-1.5 sm:px-4 md:flex',
+          ? 'mb-2 grid grid-flow-col auto-cols-fr gap-1 rounded-xl border border-border bg-secondary/35 p-1'
+          : 'flex min-h-11 snap-start items-center gap-1 border-t border-border/70 bg-secondary/10 px-3 py-1.5 sm:px-4',
       )}
     >
       <Button variant="ghost" size="sm" asChild className={actionClass}>
@@ -175,7 +175,7 @@ export function BoardPage(): React.ReactElement {
   const { boardKey } = useParams<{ boardKey: string }>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const isMobile = useIsMobile();
+  const compactLayout = useIsTablet();
 
   const user = useAuthStore((state) => state.user);
   const setLastBoardId = useUiStore((state) => state.setLastBoardId);
@@ -336,13 +336,15 @@ export function BoardPage(): React.ReactElement {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex h-full min-h-0 w-full max-w-full flex-col overflow-hidden">
       {/* ── Шапка доски ── */}
       <div
-        className="scrollbar-thin shrink-0 snap-y snap-proximity overflow-y-auto overscroll-y-contain border-b border-border bg-surface/85 backdrop-blur-sm"
-        style={{ maxHeight: isMobile ? MOBILE_HEADER_MAX_HEIGHT : DESKTOP_HEADER_MAX_HEIGHT }}
+        className="scrollbar-thin shrink-0 snap-y snap-proximity overflow-x-clip overflow-y-auto overscroll-y-contain border-b border-border bg-surface/85 backdrop-blur-sm"
+        style={{
+          maxHeight: compactLayout ? MOBILE_HEADER_MAX_HEIGHT : DESKTOP_HEADER_MAX_HEIGHT,
+        }}
       >
-        <div className="flex min-h-12 snap-start items-center gap-2 px-3 py-2 sm:px-4">
+        <div className="flex min-h-12 snap-start items-center gap-2 py-2 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] sm:pl-[max(1rem,env(safe-area-inset-left))] sm:pr-[max(1rem,env(safe-area-inset-right))]">
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <span
               className="size-2.5 shrink-0 rounded-sm"
@@ -414,18 +416,8 @@ export function BoardPage(): React.ReactElement {
           </div>
         </div>
 
-        <BoardNavigation
-          board={board}
-          swimlane={swimlane}
-          canSeeAnalytics={canSeeAnalytics}
-          canManageBoard={canManageBoard}
-          onChangeSwimlane={(value) => setSwimlane(board.id, value)}
-          onOpenSettings={() => setSettingsOpen(true)}
-        />
-
-        <div className="snap-start border-t border-border/70 px-3 py-2 sm:px-4">
+        {!compactLayout && (
           <BoardNavigation
-            mobile
             board={board}
             swimlane={swimlane}
             canSeeAnalytics={canSeeAnalytics}
@@ -433,13 +425,27 @@ export function BoardPage(): React.ReactElement {
             onChangeSwimlane={(value) => setSwimlane(board.id, value)}
             onOpenSettings={() => setSettingsOpen(true)}
           />
+        )}
 
-          <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
-            <div className="min-w-0 lg:shrink-0 [&>div]:flex-nowrap [&>div>div:first-child]:min-w-0 [&>div>div:first-child]:w-auto [&>div>div:first-child]:flex-1 [&_input]:!h-9 [&_input]:min-w-0 [&_svg]:!size-4 lg:[&>div>div:first-child]:flex-none">
+        <div className="snap-start border-t border-border/70 py-2 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] sm:pl-[max(1rem,env(safe-area-inset-left))] sm:pr-[max(1rem,env(safe-area-inset-right))]">
+          {compactLayout && (
+            <BoardNavigation
+              mobile
+              board={board}
+              swimlane={swimlane}
+              canSeeAnalytics={canSeeAnalytics}
+              canManageBoard={canManageBoard}
+              onChangeSwimlane={(value) => setSwimlane(board.id, value)}
+              onOpenSettings={() => setSettingsOpen(true)}
+            />
+          )}
+
+          <div className="flex min-w-0 flex-col gap-2 xl:flex-row xl:items-center">
+            <div className="min-w-0 max-w-full xl:shrink-0 [&>div]:flex-nowrap [&>div>div:first-child]:min-w-0 [&>div>div:first-child]:w-auto [&>div>div:first-child]:flex-1 [&_input]:!h-9 [&_input]:min-w-0 [&_svg]:!size-4 xl:[&>div>div:first-child]:flex-none">
               <BoardFilters board={board} />
             </div>
 
-            <span className="hidden h-6 w-px shrink-0 bg-border lg:block" aria-hidden />
+            <span className="hidden h-6 w-px shrink-0 bg-border xl:block" aria-hidden />
 
             {/* Быстрый фильтр по исполнителю остаётся видимым и не сжимается действиями. */}
             <div className="min-w-0 flex-1">
@@ -452,7 +458,7 @@ export function BoardPage(): React.ReactElement {
                   setCreateTaskDefaults({ assigneeId });
                   setCreateTaskOpen(true);
                 }}
-                {...(isMobile ? { compact: true } : {})}
+                {...(compactLayout ? { compact: true } : {})}
               />
             </div>
           </div>
@@ -465,7 +471,7 @@ export function BoardPage(): React.ReactElement {
 
       {/* ── Колонки ── */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden pt-2 sm:pt-3">
-        {isMobile && columns && swimlane === 'none' && <MobileColumnTabs columns={columns} />}
+        {compactLayout && columns && swimlane === 'none' && <MobileColumnTabs columns={columns} />}
 
         {tasksLoading && !columns ? (
           <div className="flex gap-3 px-4">
@@ -484,7 +490,7 @@ export function BoardPage(): React.ReactElement {
                 canDrag={canDrag && !taskMovePending && !tasksArePlaceholder}
                 canCreate={canCreate}
                 {...(user?.timezone ? { timeZone: user.timezone } : {})}
-                {...(isMobile ? { mobile: true } : {})}
+                {...(compactLayout ? { mobile: true } : {})}
               />
             ) : (
               <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto pb-4">
@@ -497,7 +503,7 @@ export function BoardPage(): React.ReactElement {
                   canDrag={canDrag && !taskMovePending && !tasksArePlaceholder}
                   canCreate={canCreate}
                   {...(user?.timezone ? { timeZone: user.timezone } : {})}
-                  {...(isMobile ? { mobile: true } : {})}
+                  {...(compactLayout ? { mobile: true } : {})}
                 />
               </div>
             )}
