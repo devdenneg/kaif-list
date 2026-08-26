@@ -208,7 +208,7 @@ export function TaskComments({
       </div>
 
       {task.permissions.canComment && (
-        <div className="sticky bottom-0 z-10 space-y-2 border-t border-border bg-surface/95 pb-[max(0.25rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-sm">
+        <div className="sticky bottom-0 z-10 space-y-2 border-t border-border bg-surface/95 pb-3 pt-3 backdrop-blur-sm">
           {replyTo && (
             <div className="flex items-center gap-2 rounded-md bg-secondary px-2 py-1.5 text-xs">
               <Reply className="size-3.5 text-muted-foreground" />

@@ -89,19 +89,28 @@ export function RichTextViewer({
 
 function NodeRenderer({ node }: { node: RichTextNode }): React.ReactElement | null {
   const children = node.content?.map((child, index) => <NodeRenderer key={index} node={child} />);
+  const textAlign = getTextAlign(node);
 
   switch (node.type) {
     case 'text':
       return <TextNode node={node} />;
 
     case 'paragraph':
-      return <p>{children}</p>;
+      // В ProseMirror пустой абзац содержит служебный <br> и занимает полную
+      // строку. В просмотре повторяем это явно, иначе авторские пустые строки
+      // схлопываются и сохранённый текст выглядит плотнее редактора.
+      return (
+        <p style={textAlign ? { textAlign } : undefined}>
+          {node.content?.length ? children : <br />}
+        </p>
+      );
 
     case 'heading': {
       const level = Number(node.attrs?.level ?? 2);
-      if (level === 1) return <h1>{children}</h1>;
-      if (level === 3) return <h3>{children}</h3>;
-      return <h2>{children}</h2>;
+      const style = textAlign ? { textAlign } : undefined;
+      if (level === 1) return <h1 style={style}>{children}</h1>;
+      if (level === 3) return <h3 style={style}>{children}</h3>;
+      return <h2 style={style}>{children}</h2>;
     }
 
     case 'bulletList':
@@ -184,6 +193,13 @@ function NodeRenderer({ node }: { node: RichTextNode }): React.ReactElement | nu
     default:
       return children ? <>{children}</> : null;
   }
+}
+
+function getTextAlign(node: RichTextNode): React.CSSProperties['textAlign'] | undefined {
+  const value = node.attrs?.textAlign;
+  return value === 'left' || value === 'center' || value === 'right' || value === 'justify'
+    ? value
+    : undefined;
 }
 
 /**

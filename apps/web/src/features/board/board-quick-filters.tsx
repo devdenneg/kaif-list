@@ -44,13 +44,7 @@ import { toast } from '@/lib/toast';
  * «что горит», «что никто не взял». Держать их за двумя кликами в поповере —
  * значит, что ими не будут пользоваться, поэтому они вынесены чипами.
  */
-export function BoardQuickFilters({
-  board,
-  actions,
-}: {
-  board: BoardDto;
-  actions?: React.ReactNode;
-}): React.ReactElement {
+export function BoardQuickFilters({ board }: { board: BoardDto }): React.ReactElement {
   const user = useAuthStore((state) => state.user);
   const filters = useUiStore((state) => state.filters[board.id]) ?? EMPTY_FILTERS;
   const setFilters = useUiStore((state) => state.setFilters);
@@ -103,7 +97,7 @@ export function BoardQuickFilters({
   });
 
   return (
-    <div className="scrollbar-thin -mx-3 flex touch-pan-x flex-nowrap items-center gap-1.5 overflow-x-auto px-3 pb-1 md:mx-0 md:px-0 xl:flex-wrap xl:overflow-visible xl:pb-0">
+    <div className="scrollbar-thin -mx-3 flex touch-pan-x flex-nowrap items-center gap-1.5 overflow-x-auto px-3 pb-2 md:mx-0 md:px-0 md:pb-1 xl:flex-wrap xl:overflow-visible xl:pb-0">
       <Chip active={mineActive} onClick={toggleMine} icon={<User />}>
         На мне
       </Chip>
@@ -310,15 +304,6 @@ export function BoardQuickFilters({
           <X />
           Сбросить
         </Button>
-      )}
-
-      {/* Основные разделы доски идут в той же прокручиваемой строке. На узком
-          экране они остаются доступными, а на широком переносятся всей группой. */}
-      {actions && (
-        <>
-          <span className="mx-0.5 h-6 w-px shrink-0 bg-border" aria-hidden />
-          <div className="flex shrink-0 items-center gap-1.5">{actions}</div>
-        </>
       )}
     </div>
   );

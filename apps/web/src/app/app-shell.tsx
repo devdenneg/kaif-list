@@ -57,7 +57,7 @@ export function AppShell({ children }: { children: React.ReactNode }): React.Rea
   });
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-background pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)]">
+    <div className="flex h-dvh overflow-hidden bg-background pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)] md:pb-[env(safe-area-inset-bottom)]">
       {!isMobile && (
         <Sidebar collapsed={collapsed} onCreateBoard={() => setCreateBoardOpen(true)} />
       )}
@@ -67,8 +67,8 @@ export function AppShell({ children }: { children: React.ReactNode }): React.Rea
         <main
           ref={mainRef}
           className={cn(
-            'min-h-0 min-w-0 flex-1 overflow-y-auto',
-            isMobile && 'pb-[calc(4rem+env(safe-area-inset-bottom))]',
+            'min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto',
+            isMobile && 'pb-[calc(4.25rem+env(safe-area-inset-bottom))]',
           )}
         >
           {children}
@@ -464,18 +464,31 @@ function MobileNav({ onCreateBoard }: { onCreateBoard: () => void }): React.Reac
         to={item.to}
         end={item.end}
         aria-current={item.suppressActive ? false : undefined}
-        className={({ isActive }) =>
-          cn(
-            'flex min-w-0 flex-1 touch-manipulation flex-col items-center justify-center gap-0.5 rounded-md text-[10px] font-medium',
-            'transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
-            isActive && !item.suppressActive
-              ? 'text-primary'
-              : 'text-muted-foreground hover:text-foreground',
-          )
-        }
+        className="group flex min-h-12 min-w-0 flex-1 touch-manipulation flex-col items-center justify-center gap-0.5 rounded-xl px-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:bg-secondary/60"
       >
-        <Icon aria-hidden />
-        <span className="max-w-full truncate px-1">{item.label}</span>
+        {({ isActive }) => {
+          const active = isActive && !item.suppressActive;
+          return (
+            <>
+              <span
+                className={cn(
+                  'flex h-7 min-w-12 items-center justify-center rounded-full transition-[color,background-color,transform] group-active:scale-95 [&_svg]:!size-5',
+                  active && 'bg-accent text-primary',
+                )}
+              >
+                <Icon aria-hidden />
+              </span>
+              <span
+                className={cn(
+                  'max-w-full truncate px-1 leading-4',
+                  active && 'font-semibold text-primary',
+                )}
+              >
+                {item.label}
+              </span>
+            </>
+          );
+        }}
       </NavLink>
     );
   };
@@ -483,46 +496,45 @@ function MobileNav({ onCreateBoard }: { onCreateBoard: () => void }): React.Reac
   return (
     <nav
       aria-label="Мобильная навигация"
-      className="fixed inset-x-0 bottom-0 z-40 flex h-[calc(4rem+env(safe-area-inset-bottom))] items-stretch border-t border-border bg-surface/95 pb-[env(safe-area-inset-bottom)] pl-[max(0.25rem,env(safe-area-inset-left))] pr-[max(0.25rem,env(safe-area-inset-right))] backdrop-blur-md"
+      className="fixed inset-x-0 bottom-0 z-40 h-[calc(4.25rem+env(safe-area-inset-bottom))] border-t border-border/80 bg-surface/95 pb-[env(safe-area-inset-bottom)] pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] shadow-[0_-10px_28px_hsl(var(--shadow)/0.08)] backdrop-blur-xl supports-[backdrop-filter]:bg-surface/80"
     >
-      {firstItems.map(renderItem)}
-      <button
-        type="button"
-        onClick={() => {
-          if (onBoardPage && canCreateTask) {
-            // Страница доски сама откроет диалог по этому параметру.
-            navigate(`${location.pathname}?new=task`, { replace: true });
-            return;
+      <div className="mx-auto flex h-[4.25rem] w-full max-w-lg items-stretch gap-0.5">
+        {firstItems.map(renderItem)}
+        <button
+          type="button"
+          onClick={() => {
+            if (onBoardPage && canCreateTask) {
+              // Страница доски сама откроет диалог по этому параметру.
+              navigate(`${location.pathname}?new=task`, { replace: true });
+              return;
+            }
+            if (onBoardPage) {
+              setCommandPaletteOpen(true);
+              return;
+            }
+            onCreateBoard();
+          }}
+          className="group flex min-h-12 min-w-0 flex-1 touch-manipulation flex-col items-center justify-center gap-0.5 rounded-xl px-0.5 text-[10px] font-semibold text-primary transition-colors focus-visible:outline-none focus-visible:bg-secondary/60"
+          aria-label={
+            onBoardPage ? (canCreateTask ? 'Создать задачу' : 'Открыть поиск') : 'Создать доску'
           }
-          if (onBoardPage) {
-            setCommandPaletteOpen(true);
-            return;
-          }
-          onCreateBoard();
-        }}
-        className={cn(
-          'flex min-w-0 flex-1 touch-manipulation flex-col items-center justify-center gap-0.5 rounded-md text-[10px] font-semibold text-primary',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
-        )}
-        aria-label={
-          onBoardPage ? (canCreateTask ? 'Создать задачу' : 'Открыть поиск') : 'Создать доску'
-        }
-      >
-        <span
-          className={cn(
-            'flex size-7 items-center justify-center rounded-full shadow-sm',
-            !onBoardPage || canCreateTask
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-secondary text-foreground',
-          )}
         >
-          {onBoardPage && !canCreateTask ? <Search aria-hidden /> : <Plus aria-hidden />}
-        </span>
-        <span className="max-w-full truncate px-1">
-          {onBoardPage ? (canCreateTask ? 'Задача' : 'Поиск') : 'Доска'}
-        </span>
-      </button>
-      {lastItems.map(renderItem)}
+          <span
+            className={cn(
+              'flex size-9 items-center justify-center rounded-full shadow-sm transition-transform group-active:scale-95 [&_svg]:!size-5',
+              !onBoardPage || canCreateTask
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-secondary text-foreground',
+            )}
+          >
+            {onBoardPage && !canCreateTask ? <Search aria-hidden /> : <Plus aria-hidden />}
+          </span>
+          <span className="max-w-full truncate px-1 leading-4">
+            {onBoardPage ? (canCreateTask ? 'Задача' : 'Поиск') : 'Доска'}
+          </span>
+        </button>
+        {lastItems.map(renderItem)}
+      </div>
     </nav>
   );
 }

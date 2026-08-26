@@ -402,9 +402,7 @@ export function TaskDetail({
                   </div>
                 </div>
               ) : task.description ? (
-                <div className="max-w-[75ch]">
-                  <RichTextViewer doc={task.description} collapsible />
-                </div>
+                <RichTextViewer doc={task.description} collapsible className="px-3 py-2" />
               ) : (
                 <button
                   type="button"

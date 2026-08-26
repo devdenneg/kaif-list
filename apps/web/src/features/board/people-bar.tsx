@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Layers, UserPlus, UserRound, UserX, X } from 'lucide-react';
+import { Layers, UserPlus, UserRound, Users, UserX, X } from 'lucide-react';
 import { BOARD_ROLE_LABELS, can, type BoardDto, type PresenceUser } from '@kaif/shared';
 import { useBoardWorkload } from '@/api/boards';
 import { EMPTY_FILTERS, useUiStore } from '@/stores/ui';
@@ -80,10 +80,18 @@ export function PeopleBar({
     ? board.members.find((member) => member.userId === soleSelectedId)
     : undefined;
   const hasSelection = selected.length > 0 || filters.unassigned;
+  const selectedNames = selected
+    .map((userId) => board.members.find((member) => member.userId === userId))
+    .filter((member): member is BoardDto['members'][number] => Boolean(member))
+    .map((member) => labels.get(member.userId) ?? member.user.displayName);
   const selectionLabel = soleSelected
     ? (labels.get(soleSelected.userId) ?? soleSelected.user.displayName)
     : selected.length > 0
-      ? `Выбрано: ${selected.length}`
+      ? selectedNames.length === 0
+        ? `${selected.length} исполнителя`
+        : selectedNames.length <= 2
+          ? selectedNames.join(' и ')
+          : `${selectedNames.slice(0, 2).join(', ')} +${selectedNames.length - 2}`
       : 'Без исполнителя';
 
   return (
@@ -91,7 +99,7 @@ export function PeopleBar({
       <div
         className={cn(
           'scrollbar-thin flex min-w-0 items-center overflow-x-auto',
-          compact ? 'w-full gap-1.5 pb-1' : 'flex-1 gap-1 pb-0.5',
+          compact ? 'w-full gap-1.5 pb-2' : 'flex-1 gap-1 pb-1',
         )}
       >
         {board.members.map((member) => {
@@ -202,16 +210,29 @@ export function PeopleBar({
       {/* ── На телефоне действия не отнимают место у прокрутки людей. ── */}
       {hasSelection && (
         <div
+          aria-live="polite"
           className={cn(
             'flex shrink-0 items-center gap-0.5',
             compact
-              ? 'min-h-11 rounded-lg border border-border bg-secondary/40 p-1'
+              ? 'min-h-12 rounded-xl border border-border bg-secondary/40 p-1'
               : 'border-l border-border pl-1.5',
           )}
         >
           {compact && (
-            <span className="min-w-0 flex-1 truncate px-2 text-xs font-medium">
-              {selectionLabel}
+            <span className="flex min-w-0 flex-1 items-center gap-2 px-2">
+              {selected.length > 1 && (
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-background/60 text-muted-foreground">
+                  <Users className="size-4" aria-hidden />
+                </span>
+              )}
+              <span className="min-w-0">
+                <span className="block truncate text-xs font-medium">{selectionLabel}</span>
+                {selected.length > 1 && (
+                  <span className="block truncate text-[10px] text-muted-foreground">
+                    Показаны задачи любого из выбранных
+                  </span>
+                )}
+              </span>
             </span>
           )}
 
@@ -264,16 +285,16 @@ export function PeopleBar({
 
           <Button
             variant="ghost"
-            size={compact ? 'icon-sm' : 'sm'}
+            size={compact && !soleSelected ? 'sm' : compact ? 'icon-sm' : 'sm'}
             className={cn(
               'shrink-0 text-xs text-muted-foreground [&_svg]:!size-4',
-              compact ? 'size-10' : 'h-8 px-2',
+              compact && !soleSelected ? 'h-10 px-2.5' : compact ? 'size-10' : 'h-8 px-2',
             )}
             onClick={() => setFilters(board.id, { assigneeIds: [], unassigned: false })}
             aria-label={compact ? 'Снять фильтр по людям' : undefined}
           >
             <X />
-            {!compact && 'Все'}
+            {compact && !soleSelected ? 'Сбросить' : !compact ? 'Все' : null}
           </Button>
         </div>
       )}
@@ -293,4 +314,3 @@ export function PeopleBar({
     </div>
   );
 }
-

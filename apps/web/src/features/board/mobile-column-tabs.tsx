@@ -57,7 +57,7 @@ export function MobileColumnTabs({ columns }: { columns: BoardColumns }): React.
 
   return (
     <div
-      className="scrollbar-thin flex shrink-0 gap-1 overflow-x-auto px-3 pb-2"
+      className="scrollbar-thin flex shrink-0 gap-1 overflow-x-auto px-3 pb-3"
       role="navigation"
       aria-label="Быстрый переход к колонке"
     >

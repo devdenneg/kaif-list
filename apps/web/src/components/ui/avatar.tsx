@@ -35,7 +35,7 @@ export function UserAvatar({
   const avatar = (
     <AvatarPrimitive.Root
       className={cn(
-        'relative inline-flex shrink-0 select-none items-center justify-center overflow-hidden rounded-full align-middle leading-none',
+        'relative isolate inline-flex aspect-square shrink-0 select-none items-center justify-center overflow-hidden rounded-full align-middle leading-none',
         sizeClasses[size],
         ring && 'ring-2 ring-background',
         className,
@@ -45,13 +45,13 @@ export function UserAvatar({
         <AvatarPrimitive.Image
           src={user.avatarUrl}
           alt={name}
-          className="size-full object-cover"
+          className="absolute inset-0 block size-full rounded-[inherit] object-cover object-center"
           loading="lazy"
         />
       )}
       <AvatarPrimitive.Fallback
         delayMs={user?.avatarUrl ? 300 : 0}
-        className="flex size-full items-center justify-center font-semibold text-white"
+        className="absolute inset-0 flex size-full items-center justify-center rounded-[inherit] font-semibold text-white"
         style={{ backgroundColor: user ? colorFromString(user.id) : 'hsl(var(--muted))' }}
       >
         {user ? initials(name) : '?'}

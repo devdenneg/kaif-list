@@ -1,11 +1,5 @@
 import * as React from 'react';
-import {
-  BubbleMenu,
-  EditorContent,
-  useEditor,
-  type Editor,
-  type JSONContent,
-} from '@tiptap/react';
+import { BubbleMenu, EditorContent, useEditor, type Editor, type JSONContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import Link from '@tiptap/extension-link';
@@ -44,11 +38,7 @@ import { useFormFieldA11y } from '@/components/ui/input';
 import { toast } from '@/lib/toast';
 import { createMentionSuggestion } from './mention-suggestion';
 import { IMAGE_WIDTHS, SizedImage } from './sized-image';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 export interface RichTextEditorProps {
   value: RichTextDoc | null;
@@ -57,6 +47,8 @@ export interface RichTextEditorProps {
   users?: PublicUser[];
   editable?: boolean;
   minHeight?: string;
+  /** После этой высоты прокручивается только текст, а инструменты остаются видимыми. */
+  maxHeight?: string;
   className?: string;
   /** Показывать панель инструментов. Для коротких комментариев её можно скрыть. */
   toolbar?: boolean;
@@ -86,6 +78,7 @@ export function RichTextEditor({
   users = [],
   editable = true,
   minHeight = '120px',
+  maxHeight,
   className,
   toolbar = true,
   uploadTarget,
@@ -230,6 +223,7 @@ export function RichTextEditor({
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const imageAttachments = attachments.filter((attachment) => attachment.isImage);
+  const editorMaxHeight = maxHeight ?? (toolbar ? 'min(56dvh, 36rem)' : 'min(36dvh, 16rem)');
 
   if (!editor) {
     return <div className="skeleton" style={{ minHeight }} />;
@@ -238,7 +232,7 @@ export function RichTextEditor({
   return (
     <div
       className={cn(
-        'rounded-lg border border-input bg-surface shadow-sm transition-colors focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-1',
+        'overflow-hidden rounded-xl border border-input bg-surface shadow-sm transition-[border-color,box-shadow] focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/20',
         !editable && 'border-transparent bg-transparent shadow-none',
         className,
       )}
@@ -273,7 +267,9 @@ export function RichTextEditor({
             icon={<AlignLeft />}
             label="По левому краю"
             active={editor.getAttributes('image').align !== 'center'}
-            onClick={() => editor.chain().focus().updateAttributes('image', { align: 'left' }).run()}
+            onClick={() =>
+              editor.chain().focus().updateAttributes('image', { align: 'left' }).run()
+            }
           />
           <ToolbarButton
             icon={<AlignCenter />}
@@ -295,139 +291,149 @@ export function RichTextEditor({
       )}
 
       {toolbar && editable && (
-        <div className="scrollbar-thin flex items-center gap-0.5 overflow-x-auto border-b border-border px-1.5 py-1">
-          <ToolbarButton
-            icon={<Bold />}
-            label="Жирный (Ctrl+B)"
-            active={editor.isActive('bold')}
-            onClick={() => editor.chain().focus().toggleBold().run()}
-          />
-          <ToolbarButton
-            icon={<Italic />}
-            label="Курсив (Ctrl+I)"
-            active={editor.isActive('italic')}
-            onClick={() => editor.chain().focus().toggleItalic().run()}
-          />
-          <ToolbarButton
-            icon={<UnderlineIcon />}
-            label="Подчёркнутый (Ctrl+U)"
-            active={editor.isActive('underline')}
-            onClick={() => editor.chain().focus().toggleUnderline().run()}
-          />
-          <ToolbarButton
-            icon={<Strikethrough />}
-            label="Зачёркнутый"
-            active={editor.isActive('strike')}
-            onClick={() => editor.chain().focus().toggleStrike().run()}
-          />
+        <div
+          role="toolbar"
+          aria-label="Форматирование текста"
+          className="flex items-stretch border-b border-border bg-secondary/20"
+        >
+          <div className="scrollbar-thin flex min-w-0 flex-1 touch-pan-x items-center gap-0.5 overflow-x-auto overscroll-x-contain px-2 py-1.5">
+            <ToolbarButton
+              icon={<Bold />}
+              label="Жирный (Ctrl+B)"
+              active={editor.isActive('bold')}
+              onClick={() => editor.chain().focus().toggleBold().run()}
+            />
+            <ToolbarButton
+              icon={<Italic />}
+              label="Курсив (Ctrl+I)"
+              active={editor.isActive('italic')}
+              onClick={() => editor.chain().focus().toggleItalic().run()}
+            />
+            <ToolbarButton
+              icon={<UnderlineIcon />}
+              label="Подчёркнутый (Ctrl+U)"
+              active={editor.isActive('underline')}
+              onClick={() => editor.chain().focus().toggleUnderline().run()}
+            />
+            <ToolbarButton
+              icon={<Strikethrough />}
+              label="Зачёркнутый"
+              active={editor.isActive('strike')}
+              onClick={() => editor.chain().focus().toggleStrike().run()}
+            />
 
-          <Divider />
+            <Divider />
 
-          <ToolbarButton
-            icon={<Heading2 />}
-            label="Заголовок"
-            active={editor.isActive('heading', { level: 2 })}
-            onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-          />
-          <ToolbarButton
-            icon={<List />}
-            label="Маркированный список"
-            active={editor.isActive('bulletList')}
-            onClick={() => editor.chain().focus().toggleBulletList().run()}
-          />
-          <ToolbarButton
-            icon={<ListOrdered />}
-            label="Нумерованный список"
-            active={editor.isActive('orderedList')}
-            onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          />
-          <ToolbarButton
-            icon={<ListChecks />}
-            label="Чек-лист"
-            active={editor.isActive('taskList')}
-            onClick={() => editor.chain().focus().toggleTaskList().run()}
-          />
+            <ToolbarButton
+              icon={<Heading2 />}
+              label="Заголовок"
+              active={editor.isActive('heading', { level: 2 })}
+              onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+            />
+            <ToolbarButton
+              icon={<List />}
+              label="Маркированный список"
+              active={editor.isActive('bulletList')}
+              onClick={() => editor.chain().focus().toggleBulletList().run()}
+            />
+            <ToolbarButton
+              icon={<ListOrdered />}
+              label="Нумерованный список"
+              active={editor.isActive('orderedList')}
+              onClick={() => editor.chain().focus().toggleOrderedList().run()}
+            />
+            <ToolbarButton
+              icon={<ListChecks />}
+              label="Чек-лист"
+              active={editor.isActive('taskList')}
+              onClick={() => editor.chain().focus().toggleTaskList().run()}
+            />
 
-          <Divider />
+            <Divider />
 
-          <ToolbarButton
-            icon={<Quote />}
-            label="Цитата"
-            active={editor.isActive('blockquote')}
-            onClick={() => editor.chain().focus().toggleBlockquote().run()}
-          />
-          <ToolbarButton
-            icon={<Code />}
-            label="Код"
-            active={editor.isActive('codeBlock')}
-            onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-          />
-          <ToolbarButton
-            icon={<Link2 />}
-            label="Ссылка"
-            active={editor.isActive('link')}
-            onClick={() => {
-              const previous = editor.getAttributes('link').href as string | undefined;
-              const url = window.prompt('Адрес ссылки', previous ?? 'https://');
-              if (url === null) return;
-              if (url === '') {
-                editor.chain().focus().unsetLink().run();
-                return;
-              }
-              editor.chain().focus().setLink({ href: url }).run();
-            }}
-          />
-          <ToolbarButton
-            icon={<ImagePlus />}
-            label="Загрузить изображение"
-            loading={uploading}
-            onClick={() => fileInputRef.current?.click()}
-          />
-          {imageAttachments.length > 0 && (
-            <Popover>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  title="Вставить из вложений"
-                  aria-label="Вставить из вложений"
-                  className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground [&_svg]:size-4"
-                >
-                  <Paperclip />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent align="start" className="w-72 p-2">
-                <p className="mb-1.5 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Вложения задачи
-                </p>
-                <div className="scrollbar-thin grid max-h-64 grid-cols-3 gap-1.5 overflow-y-auto">
-                  {imageAttachments.map((attachment) => (
-                    <button
-                      key={attachment.id}
-                      type="button"
-                      onClick={() =>
-                        editor
-                          .chain()
-                          .focus()
-                          .setImage({ src: attachment.url, alt: attachment.filename })
-                          .run()
-                      }
-                      title={attachment.filename}
-                      className="overflow-hidden rounded-md border border-border transition-colors hover:border-primary"
-                    >
-                      <img
-                        src={attachment.url}
-                        alt={attachment.filename}
-                        className="h-16 w-full object-cover"
-                        loading="lazy"
-                      />
-                    </button>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
-          )}
+            <ToolbarButton
+              icon={<Quote />}
+              label="Цитата"
+              active={editor.isActive('blockquote')}
+              onClick={() => editor.chain().focus().toggleBlockquote().run()}
+            />
+            <ToolbarButton
+              icon={<Code />}
+              label="Код"
+              active={editor.isActive('codeBlock')}
+              onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+            />
+            <ToolbarButton
+              icon={<Link2 />}
+              label="Ссылка"
+              active={editor.isActive('link')}
+              onClick={() => {
+                const previous = editor.getAttributes('link').href as string | undefined;
+                const url = window.prompt('Адрес ссылки', previous ?? 'https://');
+                if (url === null) return;
+                if (url === '') {
+                  editor.chain().focus().unsetLink().run();
+                  return;
+                }
+                editor.chain().focus().setLink({ href: url }).run();
+              }}
+            />
+            <ToolbarButton
+              icon={<ImagePlus />}
+              label="Загрузить изображение"
+              loading={uploading}
+              onClick={() => fileInputRef.current?.click()}
+            />
+            {imageAttachments.length > 0 && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    title="Вставить из вложений"
+                    aria-label="Вставить из вложений"
+                    className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/25 [&_svg]:size-[18px] [@media(pointer:coarse)]:size-11"
+                  >
+                    <Paperclip />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-72 p-2">
+                  <p className="mb-1.5 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Вложения задачи
+                  </p>
+                  <div className="scrollbar-thin grid max-h-64 grid-cols-3 gap-1.5 overflow-y-auto">
+                    {imageAttachments.map((attachment) => (
+                      <button
+                        key={attachment.id}
+                        type="button"
+                        onClick={() =>
+                          editor
+                            .chain()
+                            .focus()
+                            .setImage({ src: attachment.url, alt: attachment.filename })
+                            .run()
+                        }
+                        title={attachment.filename}
+                        className="overflow-hidden rounded-md border border-border transition-colors hover:border-primary"
+                      >
+                        <img
+                          src={attachment.url}
+                          alt={attachment.filename}
+                          className="h-16 w-full object-cover"
+                          loading="lazy"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
+          </div>
 
-          <div className="ml-auto flex items-center gap-0.5">
+          {/* История правок не уезжает за горизонтальный скролл на телефоне. */}
+          <div
+            className="flex shrink-0 items-center gap-0.5 border-l border-border bg-surface/90 px-1"
+            aria-label="История правок"
+          >
             <ToolbarButton
               icon={<Undo2 />}
               label="Отменить"
@@ -459,7 +465,11 @@ export function RichTextEditor({
         </div>
       )}
 
-      <EditorContent editor={editor} />
+      <EditorContent
+        editor={editor}
+        className="scrollbar-thin overflow-y-auto overscroll-y-contain"
+        style={{ maxHeight: editorMaxHeight }}
+      />
     </div>
   );
 }
@@ -488,11 +498,13 @@ function ToolbarButton({
       <button
         type="button"
         onClick={onClick}
+        onMouseDown={(event) => event.preventDefault()}
         disabled={disabled || loading}
+        title={label}
         aria-label={label}
         aria-pressed={active}
         className={cn(
-          'inline-flex size-7 shrink-0 items-center justify-center rounded-md transition-colors [&_svg]:size-4 [@media(pointer:coarse)]:size-10',
+          'inline-flex size-8 shrink-0 items-center justify-center rounded-lg transition-[color,background-color,transform] active:scale-95 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/25 [&_svg]:size-[18px] [@media(pointer:coarse)]:size-11',
           active
             ? 'bg-accent text-accent-foreground'
             : 'text-muted-foreground hover:bg-secondary hover:text-foreground',

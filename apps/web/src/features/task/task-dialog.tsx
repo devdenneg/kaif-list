@@ -30,7 +30,7 @@ export function TaskDialog({
       <DialogContent
         size="full"
         hideClose
-        className="h-[92vh] max-h-[92vh] p-0 sm:h-[88vh]"
+        className="!h-[calc(100dvh-env(safe-area-inset-top)-0.75rem)] !max-h-[calc(100dvh-env(safe-area-inset-top)-0.75rem)] p-0 sm:!h-[calc(100dvh-2rem)] sm:!max-h-[calc(100dvh-2rem)]"
       >
         {isLoading ? (
           <div className="space-y-4 p-6">

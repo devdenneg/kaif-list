@@ -12,7 +12,7 @@ import {
   Users,
   WifiOff,
 } from 'lucide-react';
-import { can, type ColumnKey, type TaskCardDto } from '@kaif/shared';
+import { can, type BoardDto, type ColumnKey, type TaskCardDto } from '@kaif/shared';
 import { useBoard, useToggleFavorite } from '@/api/boards';
 import { useBoardTasks, useMoveTask, useTaskMovePending } from '@/api/tasks';
 import { useAuthStore } from '@/stores/auth';
@@ -56,15 +56,120 @@ const MOBILE_HEADER_MAX_HEIGHT =
 const DESKTOP_HEADER_MAX_HEIGHT =
   'clamp(3.5rem, calc(100dvh - 18.5rem - env(safe-area-inset-top)), 20rem)';
 
-const BOARD_ACTION_CLASS =
-  'h-10 shrink-0 rounded-full px-3 text-xs font-medium text-muted-foreground md:h-8 [&_svg]:!size-4';
-
 const SWIMLANE_LABELS: Record<Swimlane, string> = {
   none: 'Без дорожек',
   assignee: 'По исполнителю',
   priority: 'По приоритету',
   type: 'По типу',
 };
+
+function BoardNavigation({
+  board,
+  swimlane,
+  canSeeAnalytics,
+  canManageBoard,
+  onChangeSwimlane,
+  onOpenSettings,
+  mobile = false,
+}: {
+  board: BoardDto;
+  swimlane: Swimlane;
+  canSeeAnalytics: boolean;
+  canManageBoard: boolean;
+  onChangeSwimlane: (value: Swimlane) => void;
+  onOpenSettings: () => void;
+  mobile?: boolean;
+}): React.ReactElement {
+  const actionClass = mobile
+    ? 'relative h-14 min-w-0 flex-col gap-1 rounded-lg px-1 text-[10px] leading-none text-muted-foreground [&_svg]:!size-5'
+    : 'h-8 rounded-lg px-2.5 text-xs text-muted-foreground [&_svg]:!size-4';
+
+  return (
+    <nav
+      aria-label="Разделы и вид доски"
+      className={cn(
+        mobile
+          ? 'mb-2 grid grid-flow-col auto-cols-fr gap-1 rounded-xl border border-border bg-secondary/35 p-1 md:hidden'
+          : 'hidden min-h-11 snap-start items-center gap-1 border-t border-border/70 bg-secondary/10 px-3 py-1.5 sm:px-4 md:flex',
+      )}
+    >
+      <Button variant="ghost" size="sm" asChild className={actionClass}>
+        <Link to={`/boards/${board.key}/backlog`}>
+          {mobile ? (
+            <span className="relative flex">
+              <Inbox />
+              <span className="absolute -right-3 -top-2 min-w-4 rounded-full bg-secondary px-1 text-center text-[9px] leading-4 tabular-nums text-foreground">
+                {board.counts.backlog > 99 ? '99+' : board.counts.backlog}
+              </span>
+            </span>
+          ) : (
+            <Inbox />
+          )}
+          <span className="max-w-full truncate">Бэклог</span>
+          {!mobile && (
+            <span className="min-w-5 rounded-full bg-secondary px-1.5 text-center text-[10px] leading-5 tabular-nums">
+              {board.counts.backlog}
+            </span>
+          )}
+        </Link>
+      </Button>
+
+      <Button variant="ghost" size="sm" asChild className={actionClass}>
+        <Link to={`/boards/${board.key}/people`}>
+          <Users />
+          <span className="max-w-full truncate">Люди</span>
+        </Link>
+      </Button>
+
+      {canSeeAnalytics && (
+        <Button variant="ghost" size="sm" asChild className={actionClass}>
+          <Link to={`/boards/${board.key}/dashboard`}>
+            <BarChart3 />
+            <span className="max-w-full truncate">Аналитика</span>
+          </Link>
+        </Button>
+      )}
+
+      {!mobile && <span className="ml-auto" aria-hidden />}
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className={cn(actionClass, swimlane !== 'none' && 'bg-accent text-accent-foreground')}
+            title={`Группировка: ${SWIMLANE_LABELS[swimlane]}`}
+            aria-label={`Группировка: ${SWIMLANE_LABELS[swimlane]}`}
+          >
+            <LayoutList />
+            <span className="max-w-full truncate">
+              {mobile ? 'Дорожки' : SWIMLANE_LABELS[swimlane]}
+            </span>
+            {!mobile && <ChevronDown className="opacity-70" />}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="[&_svg]:!size-4">
+          <DropdownMenuRadioGroup
+            value={swimlane}
+            onValueChange={(value) => onChangeSwimlane(value as Swimlane)}
+          >
+            <DropdownMenuRadioItem value="none">Без дорожек</DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="assignee">По исполнителю</DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="priority">По приоритету</DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="type">По типу</DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {canManageBoard && (
+        <Button variant="ghost" size="sm" className={actionClass} onClick={onOpenSettings}>
+          <Settings />
+          <span className="max-w-full truncate">Настройки</span>
+        </Button>
+      )}
+    </nav>
+  );
+}
 
 export function BoardPage(): React.ReactElement {
   const { boardKey } = useParams<{ boardKey: string }>();
@@ -309,7 +414,26 @@ export function BoardPage(): React.ReactElement {
           </div>
         </div>
 
+        <BoardNavigation
+          board={board}
+          swimlane={swimlane}
+          canSeeAnalytics={canSeeAnalytics}
+          canManageBoard={canManageBoard}
+          onChangeSwimlane={(value) => setSwimlane(board.id, value)}
+          onOpenSettings={() => setSettingsOpen(true)}
+        />
+
         <div className="snap-start border-t border-border/70 px-3 py-2 sm:px-4">
+          <BoardNavigation
+            mobile
+            board={board}
+            swimlane={swimlane}
+            canSeeAnalytics={canSeeAnalytics}
+            canManageBoard={canManageBoard}
+            onChangeSwimlane={(value) => setSwimlane(board.id, value)}
+            onOpenSettings={() => setSettingsOpen(true)}
+          />
+
           <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
             <div className="min-w-0 lg:shrink-0 [&>div]:flex-nowrap [&>div>div:first-child]:min-w-0 [&>div>div:first-child]:w-auto [&>div>div:first-child]:flex-1 [&_input]:!h-9 [&_input]:min-w-0 [&_svg]:!size-4 lg:[&>div>div:first-child]:flex-none">
               <BoardFilters board={board} />
@@ -334,85 +458,7 @@ export function BoardPage(): React.ReactElement {
           </div>
 
           <div className="mt-2 border-t border-border/70 pt-2">
-            <BoardQuickFilters
-              board={board}
-              actions={
-                <>
-                  <Button variant="outline" size="sm" asChild className={BOARD_ACTION_CLASS}>
-                    <Link to={`/boards/${board.key}/backlog`}>
-                      <Inbox />
-                      Бэклог
-                      <span className="min-w-5 rounded-full bg-secondary px-1.5 py-0.5 text-center text-[10px] leading-none tabular-nums">
-                        {board.counts.backlog}
-                      </span>
-                    </Link>
-                  </Button>
-
-                  <Button variant="outline" size="sm" asChild className={BOARD_ACTION_CLASS}>
-                    <Link to={`/boards/${board.key}/people`}>
-                      <Users />
-                      Люди
-                    </Link>
-                  </Button>
-
-                  {canSeeAnalytics && (
-                    <Button variant="outline" size="sm" asChild className={BOARD_ACTION_CLASS}>
-                      <Link to={`/boards/${board.key}/dashboard`}>
-                        <BarChart3 />
-                        Аналитика
-                      </Link>
-                    </Button>
-                  )}
-
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className={cn(
-                          BOARD_ACTION_CLASS,
-                          swimlane !== 'none' &&
-                            'border-primary/50 bg-accent text-accent-foreground',
-                        )}
-                        aria-label={`Группировка: ${SWIMLANE_LABELS[swimlane]}`}
-                      >
-                        <LayoutList />
-                        <span className="hidden sm:inline">Группировка:</span>
-                        {SWIMLANE_LABELS[swimlane]}
-                        <ChevronDown className="opacity-70" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="[&_svg]:!size-4">
-                      <DropdownMenuRadioGroup
-                        value={swimlane}
-                        onValueChange={(value) => setSwimlane(board.id, value as Swimlane)}
-                      >
-                        <DropdownMenuRadioItem value="none">Без дорожек</DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem value="assignee">
-                          По исполнителю
-                        </DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem value="priority">
-                          По приоритету
-                        </DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem value="type">По типу</DropdownMenuRadioItem>
-                      </DropdownMenuRadioGroup>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-
-                  {canManageBoard && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className={BOARD_ACTION_CLASS}
-                      onClick={() => setSettingsOpen(true)}
-                    >
-                      <Settings />
-                      Настройки
-                    </Button>
-                  )}
-                </>
-              }
-            />
+            <BoardQuickFilters board={board} />
           </div>
         </div>
       </div>
