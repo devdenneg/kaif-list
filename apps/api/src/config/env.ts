@@ -42,7 +42,14 @@ const envSchema = z
     /** Ключ подписи access-токенов. Минимум 32 символа, только из .env. */
     JWT_SECRET: z.string().min(32, 'JWT_SECRET должен быть не короче 32 символов'),
     ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().min(60).max(3600).default(900),
-    REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(30),
+    /**
+     * Сколько живёт сессия без единого обращения.
+     *
+     * Окно скользящее: каждое обновление токена выдаёт новый срок, поэтому
+     * у того, кто пользуется доской, сессия не кончается никогда. Значение
+     * важно только для тех, кто ушёл в отпуск и не заходил вовсе.
+     */
+    REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(180),
 
     TELEGRAM_BOT_TOKEN: z.string().regex(/^\d{6,}:[A-Za-z0-9_-]{30,}$/, 'Некорректный токен бота'),
     TELEGRAM_BOT_USERNAME: z

@@ -1,10 +1,19 @@
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CornerDownLeft, KanbanSquare, LayoutGrid, ListTodo, Search, X } from 'lucide-react';
+import {
+  CornerDownLeft,
+  History,
+  KanbanSquare,
+  LayoutGrid,
+  ListTodo,
+  Search,
+  X,
+} from 'lucide-react';
 import { COLUMN_LABELS, PRIORITY_LABELS } from '@kaif/shared';
 import { useSearch } from '@/api/search';
 import { useUiStore } from '@/stores/ui';
 import { useDebounce } from '@/lib/hooks/use-debounce';
+import { clearRecent, readRecent, rememberRecent, type RecentItem } from '@/lib/recent';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { UserAvatar } from '@/components/ui/avatar';
@@ -22,6 +31,7 @@ export function CommandPalette(): React.ReactElement {
   const navigate = useNavigate();
 
   const [query, setQuery] = React.useState('');
+  const [recent, setRecent] = React.useState<RecentItem[]>([]);
   const debounced = useDebounce(query, 220);
   const { data, isFetching } = useSearch(debounced);
   const [activeIndex, setActiveIndex] = React.useState(0);
@@ -37,6 +47,29 @@ export function CommandPalette(): React.ReactElement {
     }[] = [];
 
     if (!debounced) {
+      // Сначала то, к чему возвращались, потом переходы: в трекере работа
+      // ходит кругами вокруг двух-трёх задач.
+      for (const item of recent) {
+        result.push({
+          id: `recent-${item.type}-${item.key}`,
+          type: item.type,
+          label: item.type === 'task' ? `${item.key} · ${item.title}` : item.title,
+          hint: 'недавнее',
+          icon:
+            item.type === 'board' ? (
+              <span
+                className="size-3 rounded-sm"
+                style={{ backgroundColor: item.color ?? 'hsl(var(--muted-foreground))' }}
+                aria-hidden
+              />
+            ) : (
+              <History className="size-4" />
+            ),
+          onSelect: () =>
+            navigate(item.type === 'task' ? `/tasks/${item.key}` : `/boards/${item.key}`),
+        });
+      }
+
       result.push(
         {
           id: 'nav-my',
@@ -63,7 +96,10 @@ export function CommandPalette(): React.ReactElement {
         label: `${task.key} · ${task.title}`,
         hint: `${COLUMN_LABELS[task.columnKey]} · ${PRIORITY_LABELS[task.priority]}`,
         icon: <KanbanSquare className="size-4" />,
-        onSelect: () => navigate(`/tasks/${task.key}`),
+        onSelect: () => {
+          rememberRecent({ type: 'task', key: task.key, title: task.title });
+          navigate(`/tasks/${task.key}`);
+        },
       });
     }
 
@@ -80,7 +116,15 @@ export function CommandPalette(): React.ReactElement {
             aria-hidden
           />
         ),
-        onSelect: () => navigate(`/boards/${board.key}`),
+        onSelect: () => {
+          rememberRecent({
+            type: 'board',
+            key: board.key,
+            title: board.name,
+            color: board.color,
+          });
+          navigate(`/boards/${board.key}`);
+        },
       });
     }
 
@@ -96,12 +140,17 @@ export function CommandPalette(): React.ReactElement {
     }
 
     return result;
-  }, [data, debounced, navigate]);
+  }, [data, debounced, navigate, recent]);
 
   React.useEffect(() => setActiveIndex(0), [items.length]);
 
   React.useEffect(() => {
-    if (!open) setQuery('');
+    if (open) {
+      // Читаем при открытии: список мог пополниться, пока палитра закрыта.
+      setRecent(readRecent());
+      return;
+    }
+    setQuery('');
   }, [open]);
 
   const select = (index: number): void => {
@@ -194,6 +243,18 @@ export function CommandPalette(): React.ReactElement {
           <span>↑↓ — выбор</span>
           <span>↵ — открыть</span>
           <span>Esc — закрыть</span>
+          {!debounced && recent.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                clearRecent();
+                setRecent([]);
+              }}
+              className="ml-auto rounded transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/25"
+            >
+              Очистить недавнее
+            </button>
+          )}
         </div>
       </DialogContent>
     </Dialog>

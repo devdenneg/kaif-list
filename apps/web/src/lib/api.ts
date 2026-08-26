@@ -12,10 +12,54 @@ const BASE_URL = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
 
 let accessToken: string | null = null;
 let refreshPromise: Promise<boolean> | null = null;
+let renewAt = 0;
+let renewTimer: ReturnType<typeof setTimeout> | null = null;
 const listeners = new Set<(authenticated: boolean) => void>();
 
-export function setAccessToken(token: string | null): void {
+/**
+ * Токен обновляется заранее, а не по факту отказа.
+ *
+ * Иначе первый клик после паузы упирается в истёкший токен: пользователь
+ * жмёт «в архив» и читает «срок действия токена истёк» — притом что он
+ * ничего не нарушал, а под капотом всё поправимо. Обновляем на 80% срока
+ * жизни, и до отказа дело просто не доходит.
+ */
+const RENEW_AT_FRACTION = 0.8;
+
+export function setAccessToken(token: string | null, expiresInSeconds?: number): void {
   accessToken = token;
+
+  if (renewTimer) {
+    clearTimeout(renewTimer);
+    renewTimer = null;
+  }
+
+  if (!token || !expiresInSeconds) {
+    renewAt = 0;
+    return;
+  }
+
+  const lifetimeMs = expiresInSeconds * 1000;
+  renewAt = Date.now() + lifetimeMs * RENEW_AT_FRACTION;
+
+  // Вкладка может спать — таймер не сработает вовремя, поэтому есть ещё
+  // проверка при возвращении на вкладку и перед каждым запросом.
+  renewTimer = setTimeout(() => {
+    void refreshSession();
+  }, Math.max(5_000, lifetimeMs * RENEW_AT_FRACTION));
+}
+
+/** Пора ли обновлять токен. */
+function isStale(): boolean {
+  return Boolean(accessToken) && renewAt > 0 && Date.now() >= renewAt;
+}
+
+if (typeof document !== 'undefined') {
+  // Вернулись на вкладку после паузы — проверяем токен до того, как человек
+  // что-нибудь нажмёт.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && isStale()) void refreshSession();
+  });
 }
 
 export function getAccessToken(): string | null {
@@ -123,42 +167,58 @@ const SESSION_LOST_CODES = new Set([
 export async function refreshSession(): Promise<boolean> {
   if (refreshPromise) return refreshPromise;
 
-  refreshPromise = (async () => {
-    try {
-      const response = await fetch(buildUrl('/api/auth/refresh'), {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'content-type': 'application/json' },
-      });
-
-      if (response.ok) {
-        const data = (await response.json()) as { accessToken: string };
-        setAccessToken(data.accessToken);
-        emitAuthChange(true);
-        return true;
-      }
-
-      // Сервер отказал по существу — сессии действительно нет.
-      if (response.status === 401 || response.status === 403) {
-        const error = await parseError(response);
-        if (SESSION_LOST_CODES.has(error.code)) {
-          setAccessToken(null);
-          emitAuthChange(false);
-          return false;
-        }
-      }
-
-      // 429, 5xx, что угодно ещё — сессия может быть жива, ждём следующей попытки.
-      return false;
-    } catch {
-      // Сеть пропала. Это не повод считать человека вышедшим.
-      return false;
-    } finally {
-      refreshPromise = null;
-    }
-  })();
+  refreshPromise = attemptRefresh(0).finally(() => {
+    refreshPromise = null;
+  });
 
   return refreshPromise;
+}
+
+async function attemptRefresh(attempt: number): Promise<boolean> {
+  try {
+    const response = await fetch(buildUrl('/api/auth/refresh'), {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'content-type': 'application/json' },
+    });
+
+    if (response.ok) {
+      const data = (await response.json()) as { accessToken: string; expiresIn?: number };
+      setAccessToken(data.accessToken, data.expiresIn);
+      emitAuthChange(true);
+      return true;
+    }
+
+    // Сервер отказал по существу — сессии действительно нет.
+    if (response.status === 401 || response.status === 403) {
+      const error = await parseError(response);
+      if (SESSION_LOST_CODES.has(error.code)) {
+        setAccessToken(null);
+        emitAuthChange(false);
+        return false;
+      }
+    }
+
+    // 429, 5xx, обрыв связи — сессия жива, дело в помехе. Пробуем ещё
+    // пару раз: иначе человек увидит отказ на действии, которое просто
+    // не дождалось обновления токена.
+    if (attempt < 2) {
+      await sleep(400 * (attempt + 1));
+      return attemptRefresh(attempt + 1);
+    }
+    return false;
+  } catch {
+    if (attempt < 2) {
+    await sleep(400 * (attempt + 1));
+    return attemptRefresh(attempt + 1);
+    }
+    // Сеть пропала. Это не повод считать человека вышедшим.
+    return false;
+  }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
@@ -182,6 +242,9 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     });
   };
 
+  // Токен вот-вот истечёт — обновляем до отправки, а не после отказа.
+  if (!options.skipRefresh && isStale()) await refreshSession();
+
   let response: Response;
   try {
     response = await execute();
@@ -190,17 +253,15 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     throw new ApiError(0, { code: 'NETWORK', message: 'Нет соединения с сервером' });
   }
 
-  // Токен истёк — обновляем и повторяем запрос ровно один раз.
-  if (response.status === 401 && !options.skipRefresh) {
+  // Всё-таки отказ по токену — обновляем и повторяем. Две попытки: между
+  // первой и второй мог пройти чужой обмен токена в соседней вкладке.
+  for (let attempt = 0; response.status === 401 && !options.skipRefresh && attempt < 2; attempt += 1) {
     const refreshed = await refreshSession();
-    if (refreshed) {
-      try {
-        response = await execute();
-      } catch {
-        throw new ApiError(0, { code: 'NETWORK', message: 'Нет соединения с сервером' });
-      }
-    } else {
-      throw await parseError(response);
+    if (!refreshed) break;
+    try {
+      response = await execute();
+    } catch {
+      throw new ApiError(0, { code: 'NETWORK', message: 'Нет соединения с сервером' });
     }
   }
 

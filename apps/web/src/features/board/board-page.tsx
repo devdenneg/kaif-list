@@ -22,6 +22,7 @@ import { useHotkeys } from '@/lib/hooks/use-hotkeys';
 import { useSocketConnected } from '@/lib/hooks/use-socket-status';
 import { ApiError } from '@/lib/api';
 import { toast } from '@/lib/toast';
+import { rememberRecent } from '@/lib/recent';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/misc';
@@ -180,6 +181,12 @@ export function BoardPage(): React.ReactElement {
   const setLastBoardId = useUiStore((state) => state.setLastBoardId);
 
   const { data: board, isLoading, isFetching, error, refetch } = useBoard(boardKey);
+
+  // Историю пишем на самой доске, а не только при выборе в палитре:
+  // чаще всего сюда приходят из сайдбара или по ссылке.
+  React.useEffect(() => {
+    if (board) rememberRecent({ type: 'board', key: board.key, title: board.name, color: board.color });
+  }, [board]);
   const swimlane = useBoardSwimlane(board?.id ?? '');
   const setSwimlane = useUiStore((state) => state.setSwimlane);
   const filters = useBoardFilters(board?.id ?? '');

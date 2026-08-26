@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { useTask } from '@/api/tasks';
+import { rememberRecent } from '@/lib/recent';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/misc';
 import { useTaskRealtime } from './use-task-realtime';
@@ -17,6 +18,10 @@ export function TaskDialog({
   onClose: () => void;
 }): React.ReactElement {
   const { data: task, isLoading, error } = useTask(taskKey);
+
+  React.useEffect(() => {
+    if (task) rememberRecent({ type: 'task', key: task.key, title: task.title });
+  }, [task]);
 
   const viewers = useTaskRealtime(task?.id, boardId, {
     onDeleted: () => {

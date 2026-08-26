@@ -2,6 +2,7 @@ import * as React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { useTask } from '@/api/tasks';
+import { rememberRecent } from '@/lib/recent';
 import { Button } from '@/components/ui/button';
 import { EmptyState, Skeleton } from '@/components/ui/misc';
 import { useTaskRealtime } from './use-task-realtime';
@@ -16,6 +17,10 @@ export function TaskPage(): React.ReactElement {
   const { taskKey } = useParams<{ taskKey: string }>();
   const navigate = useNavigate();
   const { data: task, isLoading, error } = useTask(taskKey);
+
+  React.useEffect(() => {
+    if (task) rememberRecent({ type: 'task', key: task.key, title: task.title });
+  }, [task]);
 
   const viewers = useTaskRealtime(task?.id, task?.boardId, {
     onDeleted: () => {

@@ -359,6 +359,9 @@ export async function issueSession(
   if (!user.isActive) throw new ForbiddenError('Учётная запись отключена', 'USER_INACTIVE');
 
   const refreshToken = randomToken(48);
+  // Срок отсчитывается заново при каждом обновлении: окно скользящее,
+  // и у того, кто заходит хотя бы иногда, сессия не кончается никогда.
+  // Закончиться она может только выходом, отзывом или отключением учётки.
   const expiresAt = new Date(Date.now() + refreshTokenTtlSeconds * 1000);
 
   const session = await prisma.session.create({
