@@ -263,9 +263,9 @@ export function BoardSettingsDialog({
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium">Убирать закрытые в архив</p>
                       <p className="text-xs text-muted-foreground">
-                        Через сколько дней после «Завершено» задача уезжает с доски. Если её
-                        успели вернуть в работу, отсчёт начнётся заново. «Не убирать» —
-                        доска остаётся как есть.
+                        Через сколько дней после «Завершено» задача уезжает с доски. Если её успели
+                        вернуть в работу, отсчёт начнётся заново. «Не убирать» — доска остаётся как
+                        есть.
                       </p>
                     </div>
                     <Select
@@ -274,7 +274,7 @@ export function BoardSettingsDialog({
                         saveSettings({ autoArchiveDoneDays: Number(value) })
                       }
                     >
-                      <SelectTrigger className="w-40">
+                      <SelectTrigger className="w-full sm:w-auto sm:min-w-44">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>

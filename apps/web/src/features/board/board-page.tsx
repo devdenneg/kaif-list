@@ -3,9 +3,9 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   Archive,
   BarChart3,
+  ChevronDown,
   Inbox,
   LayoutList,
-  MoreVertical,
   Plus,
   Settings,
   Star,
@@ -16,7 +16,7 @@ import { can, type ColumnKey, type TaskCardDto } from '@kaif/shared';
 import { useBoard, useToggleFavorite } from '@/api/boards';
 import { useBoardTasks, useMoveTask, useTaskMovePending } from '@/api/tasks';
 import { useAuthStore } from '@/stores/auth';
-import { useBoardFilters, useUiStore, type Swimlane } from '@/stores/ui';
+import { useBoardFilters, useBoardSwimlane, useUiStore, type Swimlane } from '@/stores/ui';
 import { useIsMobile } from '@/lib/hooks/use-media-query';
 import { useHotkeys } from '@/lib/hooks/use-hotkeys';
 import { useSocketConnected } from '@/lib/hooks/use-socket-status';
@@ -28,11 +28,8 @@ import { Skeleton, EmptyState } from '@/components/ui/misc';
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { FullScreenLoader } from '@/app/loader';
@@ -59,6 +56,16 @@ const MOBILE_HEADER_MAX_HEIGHT =
 const DESKTOP_HEADER_MAX_HEIGHT =
   'clamp(3.5rem, calc(100dvh - 18.5rem - env(safe-area-inset-top)), 20rem)';
 
+const BOARD_ACTION_CLASS =
+  'h-10 shrink-0 rounded-full px-3 text-xs font-medium text-muted-foreground md:h-8 [&_svg]:!size-4';
+
+const SWIMLANE_LABELS: Record<Swimlane, string> = {
+  none: 'Без дорожек',
+  assignee: 'По исполнителю',
+  priority: 'По приоритету',
+  type: 'По типу',
+};
+
 export function BoardPage(): React.ReactElement {
   const { boardKey } = useParams<{ boardKey: string }>();
   const navigate = useNavigate();
@@ -67,10 +74,10 @@ export function BoardPage(): React.ReactElement {
 
   const user = useAuthStore((state) => state.user);
   const setLastBoardId = useUiStore((state) => state.setLastBoardId);
-  const swimlane = useUiStore((state) => state.swimlane);
-  const setSwimlane = useUiStore((state) => state.setSwimlane);
 
   const { data: board, isLoading, error } = useBoard(boardKey);
+  const swimlane = useBoardSwimlane(board?.id ?? '');
+  const setSwimlane = useUiStore((state) => state.setSwimlane);
   const filters = useBoardFilters(board?.id ?? '');
   const {
     data: columns,
@@ -299,67 +306,6 @@ export function BoardPage(): React.ReactElement {
                 Задача
               </Button>
             )}
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="size-10 md:size-8 [&_svg]:!size-4"
-                  aria-label="Меню доски"
-                >
-                  <MoreVertical />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="[&_svg]:!size-4">
-                <DropdownMenuItem asChild>
-                  <Link to={`/boards/${board.key}/backlog`}>
-                    <Inbox />
-                    Бэклог ({board.counts.backlog})
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to={`/boards/${board.key}/people`}>
-                    <Users />
-                    Люди
-                  </Link>
-                </DropdownMenuItem>
-                {canSeeAnalytics && (
-                  <DropdownMenuItem asChild>
-                    <Link to={`/boards/${board.key}/dashboard`}>
-                      <BarChart3 />
-                      Аналитика
-                    </Link>
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel>
-                  <span className="flex items-center gap-1.5">
-                    <LayoutList />
-                    Группировка
-                  </span>
-                </DropdownMenuLabel>
-                <DropdownMenuRadioGroup
-                  value={swimlane}
-                  onValueChange={(value) => setSwimlane(value as Swimlane)}
-                >
-                  <DropdownMenuRadioItem value="none">Без дорожек</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="assignee">По исполнителю</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="priority">По приоритету</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="type">По типу</DropdownMenuRadioItem>
-                </DropdownMenuRadioGroup>
-
-                {canManageBoard && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onSelect={() => setSettingsOpen(true)}>
-                      <Settings />
-                      Настройки доски
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
         </div>
 
@@ -388,7 +334,85 @@ export function BoardPage(): React.ReactElement {
           </div>
 
           <div className="mt-2 border-t border-border/70 pt-2">
-            <BoardQuickFilters board={board} />
+            <BoardQuickFilters
+              board={board}
+              actions={
+                <>
+                  <Button variant="outline" size="sm" asChild className={BOARD_ACTION_CLASS}>
+                    <Link to={`/boards/${board.key}/backlog`}>
+                      <Inbox />
+                      Бэклог
+                      <span className="min-w-5 rounded-full bg-secondary px-1.5 py-0.5 text-center text-[10px] leading-none tabular-nums">
+                        {board.counts.backlog}
+                      </span>
+                    </Link>
+                  </Button>
+
+                  <Button variant="outline" size="sm" asChild className={BOARD_ACTION_CLASS}>
+                    <Link to={`/boards/${board.key}/people`}>
+                      <Users />
+                      Люди
+                    </Link>
+                  </Button>
+
+                  {canSeeAnalytics && (
+                    <Button variant="outline" size="sm" asChild className={BOARD_ACTION_CLASS}>
+                      <Link to={`/boards/${board.key}/dashboard`}>
+                        <BarChart3 />
+                        Аналитика
+                      </Link>
+                    </Button>
+                  )}
+
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={cn(
+                          BOARD_ACTION_CLASS,
+                          swimlane !== 'none' &&
+                            'border-primary/50 bg-accent text-accent-foreground',
+                        )}
+                        aria-label={`Группировка: ${SWIMLANE_LABELS[swimlane]}`}
+                      >
+                        <LayoutList />
+                        <span className="hidden sm:inline">Группировка:</span>
+                        {SWIMLANE_LABELS[swimlane]}
+                        <ChevronDown className="opacity-70" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="[&_svg]:!size-4">
+                      <DropdownMenuRadioGroup
+                        value={swimlane}
+                        onValueChange={(value) => setSwimlane(board.id, value as Swimlane)}
+                      >
+                        <DropdownMenuRadioItem value="none">Без дорожек</DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="assignee">
+                          По исполнителю
+                        </DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="priority">
+                          По приоритету
+                        </DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="type">По типу</DropdownMenuRadioItem>
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  {canManageBoard && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={BOARD_ACTION_CLASS}
+                      onClick={() => setSettingsOpen(true)}
+                    >
+                      <Settings />
+                      Настройки
+                    </Button>
+                  )}
+                </>
+              }
+            />
           </div>
         </div>
       </div>

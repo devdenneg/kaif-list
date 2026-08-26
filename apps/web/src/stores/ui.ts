@@ -53,8 +53,9 @@ interface UiState {
   setFilters: (boardId: string, filters: Partial<BoardFilters>) => void;
   resetFilters: (boardId: string) => void;
 
-  swimlane: Swimlane;
-  setSwimlane: (swimlane: Swimlane) => void;
+  /** Группировка хранится отдельно для каждой доски. */
+  swimlanes: Record<string, Swimlane>;
+  setSwimlane: (boardId: string, swimlane: Swimlane) => void;
 
   collapsedColumns: Record<string, ColumnKey[]>;
   toggleColumn: (boardId: string, column: ColumnKey) => void;
@@ -90,8 +91,9 @@ export const useUiStore = create<UiState>()(
       resetFilters: (boardId) =>
         set({ filters: { ...get().filters, [boardId]: { ...EMPTY_FILTERS } } }),
 
-      swimlane: 'none',
-      setSwimlane: (swimlane) => set({ swimlane }),
+      swimlanes: {},
+      setSwimlane: (boardId, swimlane) =>
+        set({ swimlanes: { ...get().swimlanes, [boardId]: swimlane } }),
 
       collapsedColumns: {},
       toggleColumn: (boardId, column) => {
@@ -117,14 +119,20 @@ export const useUiStore = create<UiState>()(
        * приложение белым экраном у тех, кто уже пользовался доской.
        */
       merge: (persisted, current) => {
-        const saved = (persisted ?? {}) as Partial<UiState>;
-        return { ...current, ...saved, filters: normalizeStoredFilters(saved.filters) };
+        const saved = (persisted ?? {}) as Partial<UiState> & { swimlane?: Swimlane };
+        const { swimlane: legacySwimlane, ...savedWithoutLegacy } = saved;
+        return {
+          ...current,
+          ...savedWithoutLegacy,
+          filters: normalizeStoredFilters(saved.filters),
+          swimlanes: normalizeStoredSwimlanes(saved.swimlanes, legacySwimlane, saved.lastBoardId),
+        };
       },
       partialize: (state) => ({
         theme: state.theme,
         sidebarCollapsed: state.sidebarCollapsed,
         filters: state.filters,
-        swimlane: state.swimlane,
+        swimlanes: state.swimlanes,
         collapsedColumns: state.collapsedColumns,
         lastBoardId: state.lastBoardId,
       }),
@@ -138,7 +146,10 @@ export function applyTheme(theme: Theme): void {
   const dark = theme === 'dark' || (theme === 'system' && prefersDark);
   root.classList.toggle('dark', dark);
   try {
-    localStorage.setItem('kaif-theme', theme === 'system' ? (prefersDark ? 'dark' : 'light') : theme);
+    localStorage.setItem(
+      'kaif-theme',
+      theme === 'system' ? (prefersDark ? 'dark' : 'light') : theme,
+    );
   } catch {
     /* приватный режим */
   }
@@ -159,8 +170,35 @@ export function normalizeStoredFilters(
   );
 }
 
+/**
+ * Проверяет сохранённые группировки и переносит старое глобальное значение
+ * только на последнюю открытую доску. Так обновление не меняет вид всех досок.
+ */
+export function normalizeStoredSwimlanes(
+  stored: Record<string, Swimlane> | undefined,
+  legacy: Swimlane | undefined,
+  lastBoardId: string | null | undefined,
+): Record<string, Swimlane> {
+  const allowed = new Set<Swimlane>(['none', 'assignee', 'priority', 'type']);
+  const normalized = Object.fromEntries(
+    Object.entries(stored ?? {}).filter((entry): entry is [string, Swimlane] =>
+      allowed.has(entry[1]),
+    ),
+  );
+
+  if (lastBoardId && legacy && allowed.has(legacy) && normalized[lastBoardId] === undefined) {
+    normalized[lastBoardId] = legacy;
+  }
+
+  return normalized;
+}
+
 export function useBoardFilters(boardId: string): BoardFilters {
   return useUiStore((state) => state.filters[boardId] ?? EMPTY_FILTERS);
+}
+
+export function useBoardSwimlane(boardId: string): Swimlane {
+  return useUiStore((state) => state.swimlanes[boardId] ?? 'none');
 }
 
 export function hasActiveFilters(filters: BoardFilters): boolean {

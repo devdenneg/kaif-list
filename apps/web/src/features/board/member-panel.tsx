@@ -66,20 +66,32 @@ export function MemberPanel({
   const [confirmRemove, setConfirmRemove] = React.useState(false);
 
   const member = board.members.find((item) => item.userId === userId);
-  const stats = workload?.find((item) => item.user.id === userId);
+  // Radix проигрывает exit-анимацию только пока Content остаётся смонтированным.
+  // После закрытия userId сразу становится null, поэтому сохраняем последнего
+  // открытого участника до завершения анимации панели.
+  const lastMemberRef = React.useRef<{
+    boardId: string;
+    member: (typeof board.members)[number];
+  } | null>(null);
+  if (member) lastMemberRef.current = { boardId: board.id, member };
+  const visibleMember =
+    member ??
+    (lastMemberRef.current?.boardId === board.id ? lastMemberRef.current.member : undefined);
+  const visibleUserId = visibleMember?.userId;
+  const stats = workload?.find((item) => item.user.id === visibleUserId);
 
-  const { data: tasks, isLoading } = useTaskList(userId ? board.id : undefined, {
+  const { data: tasks, isLoading } = useTaskList(visibleUserId ? board.id : undefined, {
     ...EMPTY_FILTERS,
-    assigneeIds: userId ? [userId] : [],
+    assigneeIds: visibleUserId ? [visibleUserId] : [],
     sort: 'dueDate',
   });
 
-  if (!member) return null;
+  if (!visibleMember) return null;
 
-  const isSelf = member.userId === currentUserId;
-  const isOwner = member.role === BoardRole.OWNER;
+  const isSelf = visibleMember.userId === currentUserId;
+  const isOwner = visibleMember.role === BoardRole.OWNER;
   const memberGroups = board.groups.filter((group) =>
-    group.members.some((item) => item.id === member.userId),
+    group.members.some((item) => item.id === visibleMember.userId),
   );
 
   return (
@@ -89,12 +101,12 @@ export function MemberPanel({
           <SheetHeader>
             <SheetTitle asChild>
               <div className="flex items-center gap-3">
-                <UserAvatar user={member.user} size="lg" />
+                <UserAvatar user={visibleMember.user} size="lg" />
                 <div className="min-w-0">
-                  <p className="truncate font-semibold">{member.user.displayName}</p>
+                  <p className="truncate font-semibold">{visibleMember.user.displayName}</p>
                   <p className="truncate text-xs text-muted-foreground">
-                    {member.user.tgUsername ? `@${member.user.tgUsername} · ` : ''}
-                    {BOARD_ROLE_LABELS[member.role]}
+                    {visibleMember.user.tgUsername ? `@${visibleMember.user.tgUsername} · ` : ''}
+                    {BOARD_ROLE_LABELS[visibleMember.role]}
                   </p>
                 </div>
               </div>
@@ -103,36 +115,40 @@ export function MemberPanel({
 
           <SheetBody className="space-y-5">
             {canSeeStats && (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <StatTile label="В работе" value={stats?.inProgress ?? 0} />
-              <StatTile label="Активных" value={stats?.active ?? 0} />
-              <StatTile
-                label="Просрочено"
-                value={stats?.overdue ?? 0}
-                tone={stats && stats.overdue > 0 ? 'danger' : 'default'}
-                icon={<AlertTriangle />}
-              />
-              <StatTile
-                label="Закрыто за 30 дней"
-                value={stats?.done30d ?? 0}
-                tone="success"
-                icon={<CheckCircle2 />}
-              />
-            </div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <StatTile label="В работе" value={stats?.inProgress ?? 0} />
+                <StatTile label="Активных" value={stats?.active ?? 0} />
+                <StatTile
+                  label="Просрочено"
+                  value={stats?.overdue ?? 0}
+                  tone={stats && stats.overdue > 0 ? 'danger' : 'default'}
+                  icon={<AlertTriangle />}
+                />
+                <StatTile
+                  label="Закрыто за 30 дней"
+                  value={stats?.done30d ?? 0}
+                  tone="success"
+                  icon={<CheckCircle2 />}
+                />
+              </div>
             )}
 
             <div className="flex flex-wrap gap-2">
-              <Button variant="primary" size="sm" onClick={() => onCreateTaskFor(member.userId)}>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => onCreateTaskFor(visibleMember.userId)}
+              >
                 <Plus />
                 Создать задачу на него
               </Button>
 
               {canManage && !isOwner && (
                 <Select
-                  value={member.role}
+                  value={visibleMember.role}
                   onValueChange={(value) => {
                     changeRole.mutate(
-                      { userId: member.userId, role: value as BoardRole },
+                      { userId: visibleMember.userId, role: value as BoardRole },
                       {
                         onSuccess: () => toast.success('Роль обновлена'),
                         onError: (error) => toast.error('Не удалось изменить роль', error),
@@ -140,7 +156,7 @@ export function MemberPanel({
                     );
                   }}
                 >
-                  <SelectTrigger className="h-8 w-40">
+                  <SelectTrigger className="h-9 w-full min-w-0 sm:h-8 sm:w-auto sm:min-w-52 sm:flex-1">
                     <Shield className="size-3.5 text-muted-foreground" />
                     <SelectValue />
                   </SelectTrigger>
@@ -170,7 +186,7 @@ export function MemberPanel({
                 {canManage && (
                   <GroupPickerMenu
                     board={board}
-                    userId={member.userId}
+                    userId={visibleMember.userId}
                     canManage={canManage}
                     align="start"
                     trigger={
@@ -245,7 +261,7 @@ export function MemberPanel({
       <ConfirmDialog
         open={confirmRemove}
         onOpenChange={setConfirmRemove}
-        title={isSelf ? 'Покинуть доску?' : `Исключить ${member.user.displayName}?`}
+        title={isSelf ? 'Покинуть доску?' : `Исключить ${visibleMember.user.displayName}?`}
         description={
           isSelf
             ? 'Вы потеряете доступ к доске. Вернуть его сможет владелец или администратор.'
@@ -254,7 +270,7 @@ export function MemberPanel({
         confirmLabel={isSelf ? 'Покинуть' : 'Исключить'}
         loading={removeMember.isPending}
         onConfirm={() => {
-          removeMember.mutate(member.userId, {
+          removeMember.mutate(visibleMember.userId, {
             onSuccess: () => {
               toast.success(isSelf ? 'Вы покинули доску' : 'Участник исключён');
               setConfirmRemove(false);

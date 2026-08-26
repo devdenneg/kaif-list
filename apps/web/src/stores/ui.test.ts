@@ -7,6 +7,7 @@ import {
   NO_COLLAPSED_COLUMNS,
   hasActiveFilters,
   normalizeStoredFilters,
+  normalizeStoredSwimlanes,
 } from './ui';
 
 const srcDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -99,5 +100,19 @@ describe('сохранённые фильтры из прошлых версий
     expect(filters?.groupIds).toEqual([]);
     expect(filters?.search).toBe('оплата');
     expect(hasActiveFilters(filters!)).toBe(true);
+  });
+});
+
+describe('группировка доски', () => {
+  it('хранит разные режимы для разных досок', () => {
+    expect(
+      normalizeStoredSwimlanes({ 'board-1': 'assignee', 'board-2': 'priority' }, undefined, null),
+    ).toEqual({ 'board-1': 'assignee', 'board-2': 'priority' });
+  });
+
+  it('переносит старый глобальный режим только на последнюю доску', () => {
+    expect(normalizeStoredSwimlanes(undefined, 'type', 'board-2')).toEqual({
+      'board-2': 'type',
+    });
   });
 });

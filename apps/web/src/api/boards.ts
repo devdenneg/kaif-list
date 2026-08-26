@@ -13,7 +13,7 @@ import type {
   ActivityDto,
 } from '@kaif/shared';
 import { api } from '@/lib/api';
-import { invalidateEntity, queryKeys, setEntityData } from '@/lib/query-client';
+import { invalidateEntity, queryKeys, setEntityData, updateEntityData } from '@/lib/query-client';
 
 export function useBoards(includeArchived = false) {
   return useQuery({
@@ -95,7 +95,43 @@ export function useToggleFavorite(boardId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (favorite: boolean) => api.post(`/api/boards/${boardId}/favorite`, { favorite }),
-    onSuccess: () => {
+    onMutate: async (favorite) => {
+      const entitySnapshots = queryClient
+        .getQueriesData<BoardDto>({ queryKey: ['board'] })
+        .filter((snapshot): snapshot is [readonly unknown[], BoardDto] => {
+          const data = snapshot[1];
+          return Boolean(data && !Array.isArray(data) && data.id === boardId);
+        });
+      const listSnapshots = queryClient.getQueriesData<BoardSummaryDto[]>({
+        queryKey: queryKeys.boards,
+      });
+
+      await Promise.all([
+        ...entitySnapshots.map(([queryKey]) =>
+          queryClient.cancelQueries({ queryKey, exact: true }),
+        ),
+        queryClient.cancelQueries({ queryKey: queryKeys.boards }),
+      ]);
+
+      updateEntityData<BoardDto>('board', boardId, (board) => ({
+        ...board,
+        isFavorite: favorite,
+      }));
+      queryClient.setQueriesData<BoardSummaryDto[]>({ queryKey: queryKeys.boards }, (boards) =>
+        boards?.map((board) => (board.id === boardId ? { ...board, isFavorite: favorite } : board)),
+      );
+
+      return { entitySnapshots, listSnapshots };
+    },
+    onError: (_error, _favorite, context) => {
+      context?.entitySnapshots.forEach(([queryKey, data]) => {
+        queryClient.setQueryData(queryKey, data);
+      });
+      context?.listSnapshots.forEach(([queryKey, data]) => {
+        queryClient.setQueryData(queryKey, data);
+      });
+    },
+    onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.boards });
       invalidateEntity('board', boardId);
     },
@@ -172,7 +208,12 @@ export function useCreateLabel(boardId: string) {
 
 export function useUpdateLabel(boardId: string) {
   return useMutation({
-    mutationFn: (input: { labelId: string; name?: string; color?: string; description?: string }) => {
+    mutationFn: (input: {
+      labelId: string;
+      name?: string;
+      color?: string;
+      description?: string;
+    }) => {
       const { labelId, ...rest } = input;
       return api.patch(`/api/boards/${boardId}/labels/${labelId}`, rest);
     },
@@ -222,9 +263,12 @@ export function useBoardActivity(boardId: string | undefined) {
     queryKey: queryKeys.boardActivity(boardId ?? ''),
     queryFn: () =>
       api
-        .get<{ items: ActivityDto[]; nextCursor: string | null }>(`/api/boards/${boardId}/activity`, {
-          limit: 50,
-        })
+        .get<{ items: ActivityDto[]; nextCursor: string | null }>(
+          `/api/boards/${boardId}/activity`,
+          {
+            limit: 50,
+          },
+        )
         .then((response) => response.items),
     enabled: Boolean(boardId),
   });
