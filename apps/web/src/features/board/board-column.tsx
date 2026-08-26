@@ -151,7 +151,7 @@ export function BoardColumn({
       className={cn(
         'snap-column h-full max-h-full shrink-0 self-start overflow-hidden rounded-xl transition-[width] duration-200 ease-out motion-reduce:transition-none',
         mobile
-          ? 'w-full basis-full pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))]'
+          ? 'w-full basis-full pb-3 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))]'
           : 'w-72 xl:w-80',
       )}
     >
